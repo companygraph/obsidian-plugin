@@ -19,16 +19,20 @@ import { marksField, setMarks } from "./marks.ts";
 declare const __CHECKER_VERSION__: string;
 
 export interface State {
-  status: "idle" | "refused" | "checked";
+  // "checking" until the first rebuild lands: a pane restored at startup would otherwise say
+  // the vault is not an instance before anything has looked.
+  status: "checking" | "idle" | "refused" | "checked";
   notice: string | null;
+  pinDiffers: boolean; // the notice is the guard's, so the status bar may say which
   located: Located[];
   skipped: string[];
 }
 
-const IDLE: State = { status: "idle", notice: null, located: [], skipped: [] };
+const CHECKING: State = { status: "checking", notice: null, pinDiffers: false, located: [], skipped: [] };
+const IDLE: State = { ...CHECKING, status: "idle" };
 
 export default class CompanyGraphPlugin extends Plugin {
-  state: State = IDLE;
+  state: State = CHECKING;
   layout: Layout | null = null;
   vocabulary = new Map<string, TypeVocabulary>();
   names = new Map<string, string[]>();
@@ -38,9 +42,15 @@ export default class CompanyGraphPlugin extends Plugin {
   // number against this field after every await: whichever started last owns the field, so an
   // older rebuild that is still in flight never overwrites what a newer one already showed.
   generation = 0;
+  // Set in onunload, read by the layout-ready callback: a plugin disabled between the two would
+  // otherwise register four vault listeners and run a rebuild after it had been unloaded.
+  unloaded = false;
 
   async onload() {
     this.statusBar = this.addStatusBarItem();
+    // Nothing but a command opened the pane, which is the one place a failure can be read.
+    this.statusBar.addClass("mod-clickable");
+    this.statusBar.onClickEvent(() => void this.openPane());
     this.registerView(VIEW_TYPE, (leaf) => new Pane(leaf, this));
     this.registerEditorExtension(marksField);
     this.registerEditorSuggest(new Suggest(this.app, this));
@@ -55,6 +65,7 @@ export default class CompanyGraphPlugin extends Plugin {
     // The vault fires a create event for every file already there when it opens, so these are
     // registered only once the workspace is ready, as the API's own note on `create` asks.
     this.app.workspace.onLayoutReady(() => {
+      if (this.unloaded) return;
       this.registerEvent(this.app.vault.on("modify", (file) => changed(file.path)));
       this.registerEvent(this.app.vault.on("create", (file) => changed(file.path)));
       this.registerEvent(this.app.vault.on("delete", (file) => changed(file.path)));
@@ -64,6 +75,7 @@ export default class CompanyGraphPlugin extends Plugin {
   }
 
   onunload() {
+    this.unloaded = true;
     this.generation++;
     this.soon?.cancel();
   }
@@ -96,20 +108,26 @@ export default class CompanyGraphPlugin extends Plugin {
       if (generation !== this.generation) return;
       const model = buildModel(files, this.layout);
       if (generation !== this.generation) return;
+      let schemas: string | null = null;
       try {
         this.vocabulary = vocabularyOf(model.schemas);
-      } catch {
+      } catch (error) {
         // A vendored schema off the fixed shape. Core is never edited in an instance, so this is
-        // a broken copy; the last vocabulary that read stays, and the manifest's hashes say which file.
+        // a broken copy; the last vocabulary that read stays, and the manifest's hashes say which
+        // file. Swallowed, it left the editor with no completion and no word why.
+        const why = error instanceof Error ? error.message : String(error);
+        schemas = `The vendored schemas could not be read, so completion is off or stale: ${why}`;
       }
       if (generation !== this.generation) return;
       // Names are those of the last rebuild that parsed: a reference is unresolvable exactly
       // while its name is half typed, which is when completion is wanted.
       if (model.graph) this.names = namesByType(model.graph);
       if (generation !== this.generation) return;
+      const report = verdict.kind === "report" ? verdict.message : null;
       this.show({
         status: "checked",
-        notice: verdict.kind === "report" ? verdict.message : null,
+        notice: [report, schemas].filter((n) => n !== null).join(" ") || null,
+        pinDiffers: report !== null,
         located: model.failures.map((failure) => locate(failure, files)),
         skipped: model.skipped,
       });
@@ -125,9 +143,10 @@ export default class CompanyGraphPlugin extends Plugin {
     const failures = state.located.length;
     const unchecked = state.skipped.length + 1; // the writing rules, always
     this.statusBar?.setText(
-      state.status === "idle" ? ""
+      state.status === "checking" ? "CompanyGraph: checking"
+        : state.status === "idle" ? ""
         : state.status === "refused" ? "CompanyGraph: not checked"
-        : `CompanyGraph: ${failures} failure${failures === 1 ? "" : "s"}, ${unchecked} not checked${state.notice ? ", pin differs" : ""}`,
+        : `CompanyGraph: ${failures} failure${failures === 1 ? "" : "s"}, ${unchecked} not checked${state.pinDiffers ? ", pin differs" : ""}`,
     );
     for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE))
       if (leaf.view instanceof Pane) leaf.view.render();

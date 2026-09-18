@@ -3,8 +3,9 @@
   background-color: rgba(var(--color-red-rgb), 0.12);
 }
 
-/* An entry of the pane opens its file, so it reads as something to press. */
-.companygraph-pane li {
+/* An entry that opens its file reads as something to press. The instance's own failures and
+   what was not checked open nothing, so they do not. */
+.companygraph-pane li.companygraph-open {
   cursor: pointer;
 }
 

@@ -27,8 +27,15 @@ export class Pane extends ItemView {
     el.addClass("companygraph-pane");
     const state = this.plugin.state;
 
+    if (state.status === "checking") {
+      el.createEl("p", { text: "Checking the instance…" });
+      return;
+    }
     if (state.status === "idle") {
-      el.createEl("p", { text: "This vault has no .companygraph/manifest.json, so it is not an instance and nothing is checked." });
+      el.createEl("p", {
+        text: "This vault has no .companygraph/manifest.json, so it is not an instance and nothing is checked."
+          + ' Run "CompanyGraph: Check the instance now" after adding one.',
+      });
       return;
     }
     if (state.notice) el.createEl("p", { text: state.notice, cls: "companygraph-notice" });
@@ -43,7 +50,11 @@ export class Pane extends ItemView {
       const list = el.createEl("ul");
       for (const found of group) {
         const item = list.createEl("li", { text: found.message });
-        if (found.path) item.onClickEvent(() => void this.open(found.path!, found.line));
+        // Only an entry with a file opens anything, and only that one reads as something to press.
+        if (found.path) {
+          item.addClass("companygraph-open");
+          item.onClickEvent(() => void this.open(found.path!, found.line));
+        }
       }
     }
 
