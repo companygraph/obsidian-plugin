@@ -7,7 +7,9 @@ export type Context =
   | { kind: "key"; typed: string; start: number }
   // `item` says which line the value is being written on: an entry of a block sequence, or the
   // key's own line. A list field holds its values on entries alone, and nothing else can tell.
-  | { kind: "value"; field: string; typed: string; start: number; item: boolean }
+  // `glued` says no space stands between the colon and where the value begins, so whoever
+  // inserts there brings one: `source:Local` is one bare word to YAML and no field at all.
+  | { kind: "value"; field: string; typed: string; start: number; item: boolean; glued: boolean }
   | { kind: "cell"; section: string; column: string; typed: string; start: number }
   | { kind: "heading"; typed: string; start: number };
 
@@ -49,10 +51,11 @@ export function contextAt(lines: string[], line: number, ch: number): Context | 
       let up = line - 1;
       while (up > 0 && /^\s*-\s/.test(lines[up])) up--;
       const key = lines[up].match(/^([\w-]+):\s*$/)?.[1];
-      return key ? { kind: "value", field: key, typed: item[1], start: ch - item[1].length, item: true } : null;
+      return key ? { kind: "value", field: key, typed: item[1], start: ch - item[1].length, item: true, glued: false } : null;
     }
-    const value = before.match(/^([\w-]+):\s*(.*)$/);
-    if (value) return { kind: "value", field: value[1], typed: value[2], start: ch - value[2].length, item: false };
+    const value = before.match(/^([\w-]+):(\s*)(.*)$/);
+    if (value)
+      return { kind: "value", field: value[1], typed: value[3], start: ch - value[3].length, item: false, glued: value[2] === "" };
     if (/^[\w-]*$/.test(before)) return { kind: "key", typed: before, start: 0 };
     return null;
   }

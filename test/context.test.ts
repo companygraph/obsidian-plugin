@@ -24,11 +24,11 @@ const FILE = [
 const at = (line: number) => contextAt(FILE, line, FILE[line].length);
 
 test("after a key's colon: the value of that field", () => {
-  assert.deepEqual(at(1), { kind: "value", field: "source", typed: "Lo", start: 8, item: false });
+  assert.deepEqual(at(1), { kind: "value", field: "source", typed: "Lo", start: 8, item: false, glued: false });
 });
 
 test("on an entry of a block sequence: the value of the key above", () => {
-  assert.deepEqual(at(3), { kind: "value", field: "roles", typed: "Rev", start: 4, item: true });
+  assert.deepEqual(at(3), { kind: "value", field: "roles", typed: "Rev", start: 4, item: true, glued: false });
 });
 
 test("at the start of a frontmatter line: a key", () => {
@@ -143,4 +143,12 @@ test("without frontmatter only a heading or a table row is worth reading the doc
 
 test("a document whose lines end in \\r has no frontmatter, which is what the package's parser reads too", () => {
   assert.equal(frontmatterEnd(["---\r", "source: Local\r", "---\r", ""]), -1);
+});
+
+// Found in the first run inside Obsidian: the cursor directly after the colon is a value
+// position like any other, and whoever inserts there has to know no space precedes it.
+test("a value directly after the colon says it is glued to it", () => {
+  assert.deepEqual(contextAt(["---", "source:", "---"], 1, 7), { kind: "value", field: "source", typed: "", start: 7, item: false, glued: true });
+  assert.deepEqual(contextAt(["---", "source:Lo", "---"], 1, 9), { kind: "value", field: "source", typed: "Lo", start: 7, item: false, glued: true });
+  assert.deepEqual(contextAt(["---", "source:  Lo", "---"], 1, 11), { kind: "value", field: "source", typed: "Lo", start: 9, item: false, glued: false });
 });

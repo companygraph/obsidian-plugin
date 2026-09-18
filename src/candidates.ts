@@ -43,11 +43,17 @@ export function candidatesFor(
   names: Map<string, string[]>,
   lines: string[],
 ): Candidate[] {
+  // On a key line, a list entry and a cell, Enter belongs to the editor: it ends the block, the
+  // list, the row. A popup that opens before anything is typed takes that Enter and writes its
+  // first candidate, so there nothing is offered until something is typed. After `key: ` and
+  // after `## ` the position itself asks, and an empty one still offers.
+  const asks = context.kind === "heading" || (context.kind === "value" && !context.item);
+  if (!asks && context.typed.trim() === "") return [];
   const candidates = offers(context, vocabulary, names, lines);
   // What is typed is already one of the things on offer: there is nothing left to complete, and
   // a popup still open over it captures the Enter that belongs to the editor. One candidate is
   // not the test — `Java` typed in full still matches `JavaScript` — what is typed is.
-  return candidates.some((c) => c.insert === context.typed.trim()) ? [] : candidates;
+  return candidates.some((c) => c.insert.trim() === context.typed.trim()) ? [] : candidates;
 }
 
 function offers(
@@ -71,7 +77,8 @@ function offers(
     // A list holds its values on its entries; `skills: ` on the key's own line is R11's flow
     // sequence waiting to happen, and a name offered there would write one.
     if (field.list && !context.item) return [];
-    return matching(offered(field.offer, names), context.typed).map((v) => ({ label: v, insert: v }));
+    const space = context.glued ? " " : "";
+    return matching(offered(field.offer, names), context.typed).map((v) => ({ label: v, insert: space + v }));
   }
   if (context.kind === "cell") {
     const column = vocabulary.sections
