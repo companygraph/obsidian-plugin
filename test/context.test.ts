@@ -67,3 +67,45 @@ test("a table with no valid separator row offers no cell, even on what looks lik
   ];
   assert.equal(contextAt(lines, 4, lines[4].length), null);
 });
+
+test("a key with text still following the cursor on the line is not a key to complete", () => {
+  const lines = ["---", "name: Foo", "---"];
+  assert.equal(contextAt(lines, 1, 3), null);
+});
+
+test("a value with text still following the cursor on the line is not a value to complete", () => {
+  const lines = ["---", "source: Local", "---"];
+  assert.equal(contextAt(lines, 1, 10), null);
+});
+
+test("a heading with text still following the cursor on the line is not a heading to complete", () => {
+  const lines = ["## Skills and more"];
+  assert.equal(contextAt(lines, 0, 6), null);
+});
+
+test("a cell with text still following the cursor before the next pipe is not a cell to complete", () => {
+  const lines = [
+    "## Skills",
+    "",
+    "| Skill | Level | Evidence |",
+    "| --- | --- | --- |",
+    "| Java | Expert | built it |",
+  ];
+  assert.equal(contextAt(lines, 4, 12), null);
+});
+
+test("a cell with only a space before the next pipe is still offered", () => {
+  const lines = [
+    "## Skills",
+    "",
+    "| Skill | Level | Evidence |",
+    "| --- | --- | --- |",
+    "| Java | Exp | built it |",
+  ];
+  assert.deepEqual(contextAt(lines, 4, 12), { kind: "cell", section: "Skills", column: "Level", typed: "Exp", start: 9 });
+});
+
+test("trailing whitespace only after the cursor still yields the context", () => {
+  const lines = ["---", "nat  ", "---"];
+  assert.deepEqual(contextAt(lines, 1, 3), { kind: "key", typed: "nat", start: 0 });
+});

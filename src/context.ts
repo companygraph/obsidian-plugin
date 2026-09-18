@@ -15,10 +15,15 @@ export function frontmatterEnd(lines: string[]): number {
 }
 
 export function contextAt(lines: string[], line: number, ch: number): Context | null {
-  const before = (lines[line] ?? "").slice(0, ch);
+  const text = lines[line] ?? "";
+  const before = text.slice(0, ch);
+  const after = text.slice(ch);
   const end = frontmatterEnd(lines);
 
   if (end > 0 && line > 0 && line < end) {
+    // A key or a value both run to the end of the line, so anything but blank after the
+    // cursor means it sits inside text, not at the edge completion would extend.
+    if (after.trim() !== "") return null;
     const item = before.match(/^\s*-\s+(.*)$/);
     if (item) {
       let up = line - 1;
@@ -34,7 +39,7 @@ export function contextAt(lines: string[], line: number, ch: number): Context | 
   if (line <= end) return null;
 
   const heading = before.match(/^## (.*)$/);
-  if (heading) return { kind: "heading", typed: heading[1], start: 3 };
+  if (heading) return after.trim() === "" ? { kind: "heading", typed: heading[1], start: 3 } : null;
 
   if (before.trimStart().startsWith("|")) {
     let first = line;
@@ -52,6 +57,11 @@ export function contextAt(lines: string[], line: number, ch: number): Context | 
     const index = before.split("|").length - 2;
     const column = table.columns[index];
     if (!column) return null;
+    // Only this cell needs to be blank ahead of the cursor: text in a later cell of the same
+    // row is somebody else's completion to make, not a reason to refuse this one.
+    const next = after.indexOf("|");
+    const rest = next === -1 ? after : after.slice(0, next);
+    if (rest.trim() !== "") return null;
     const typed = before.slice(before.lastIndexOf("|") + 1).trimStart();
     return { kind: "cell", section: lines[up].slice(3).trim(), column, typed, start: ch - typed.length };
   }
