@@ -12,6 +12,8 @@
 
 **Proven before this plan was written:** every pure module and every test below ran green in a throwaway prototype against the meta-model's example and the reference instance, the Obsidian-facing modules typechecked, and the bundle built. What no prototype could prove is behavior inside Obsidian; Task 10 is where that is found out.
 
+**After review, 2026-09-18.** The task reviews and the whole-branch review overruled code in this plan's blocks for Tasks 4, 5, 6, 8 and 9: the locator's matching, the context reader's table and fence reading, what is offered when a name is already complete, the rebuild's error boundary and its guard against an older rebuild winning, and several decisions that moved out of the Obsidian-facing modules into tested ones. The blocks below stay as the record of what was first built. **The repository is what to read.**
+
 ## Global Constraints
 
 - No second implementation of a rule. The parser, the checks, `slug`, table reading, the reader of a Type cell and the reader of an enum's values come from `companygraph-meta-model`. A rule the package does not export is proposed upstream, never written here.

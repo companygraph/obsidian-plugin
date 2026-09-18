@@ -146,7 +146,10 @@ A failure is a string. Most begin with the path of the file they are about, `mod
 …`; a few, such as two files sharing a canonical name, name no path. The plugin maps a failure
 to a file by that leading path when it has one, and to the instance root when it does not; it
 maps to a line by searching the file for the value the message quotes, the reference that did
-not resolve or the field that is not declared, and falls back to the first line. This mapping
+not resolve or the field that is not declared, and falls back to the first line. A quoted
+`## Section` is where the search starts and never its answer, and a line that holds the value
+whole, as a scalar, a list item, a cell or a heading, is preferred over one that merely contains
+it, because a half-typed name is contained in many lines and is whole on one. This mapping
 is admitted to be a reading of prose, the kind the meta-model's own boundary in the tooling
 spec rules out for schemas, and it is kept only until §7's structured failure lands upstream.
 The file mapping is exact because the checks build every path through one constant. The line
@@ -235,6 +238,13 @@ values, and the package has one reader of each, `declarationOf` in `lib/instance
 exported upstream in a minor release, and that release is what the plugin's completion pins.
 Validation needs neither and is built against the release before it.
 
+**A reader of a schema's rows, and of a grouped section.** The package reads whether a field is
+required, whether it is a list and whether it is an enum inside closures it does not export, and
+the plugin's vocabulary reads the same cells by their column names; `AGENTS.md` lists each
+reading it holds. One exported reader that returns a type's fields, sections and columns as the
+checks see them would retire all of them. The same release could export the reader of a grouped
+section's heading table, which is what a fifth completion context needs (§9).
+
 **A note on the tooling spec.** `2026-08-25-companygraph-tooling-design.md` designed `check` as
 a command in a `tooling` repository; the instance-checks spec of 2026-09-10 amended that by
 moving the reader into the meta-model, and this spec is the second consumer of it. The tooling
@@ -285,6 +295,26 @@ here decides for a vendor. What the plugin never does is call a model itself.
   Completion is designed for and proven in Source mode, and with Properties shown as source.
   What Live Preview does, and whether the Properties widget rewrites a list in a form R11
   accepts, is observed on the reference instance and recorded here.
+- **A heading in a grouped section.** An experience's `## Achievements` groups its bullets under
+  `###` headings that name an achievement kind, so such a heading is a reference, and §5's four
+  contexts do not offer it. Validation catches a wrong one and the locator lands on it. Offering
+  it needs the package's reader of a heading table, which is not exported (§7), so it waits for
+  that export and is a fifth context when it comes.
+- **The editor and the disk can disagree about line endings.** The package reads a file with
+  CRLF endings as having no frontmatter, and so do the plugin's checks, which read the disk.
+  CodeMirror hands the editor's lines without the `\r`, so completion sees frontmatter the checks
+  do not. On a checkout that converts line endings the whole instance would read red while its CI
+  is green. The cure is upstream, in how the parser reads a fence.
+- **Files Obsidian does not list.** The vault's file list leaves out dot-files, so a stray
+  `.gitkeep` under `model/` is a finding in CI and invisible here.
+- **No key completion before the closing fence exists.** A new note with only its opening `---`
+  has no frontmatter as the package reads it, and the plugin agrees, so keys are offered once the
+  block is closed.
+- **What the review's probe found about the checks, none of it the plugin's to fix.** No check holds
+  a required section, so deleting one passes while completion labels it required. An unresolved
+  reference in frontmatter is reported by two checks, so the count in the status bar doubles. And
+  two experiences of two profiles that share a name pass every check while the parser refuses
+  them, which the plugin shows as one failure on the instance.
 - **Mobile.** Nothing in version one needs the desktop, and nothing has been tried on a phone.
   The pane and the popup are Obsidian's own components and should hold; the rebuild on every
   change is where a phone would show first.

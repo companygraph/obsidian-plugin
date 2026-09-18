@@ -16,16 +16,26 @@ every report ends by saying so.
 
 A vault with a `.companygraph/manifest.json` is an instance; in any other vault the plugin stays
 idle. In an instance it checks the whole model on every change, because a reference crosses
-files, and shows the result in three places: a pane that lists the failures by file and then
-what was not checked, a mark on the line of each failure in the open file, and a count in the
-status bar.
+files, and shows the result in a pane that lists the failures by file and then what was not
+checked, as a mark on the line of each failure in the open file, and as a count in the status
+bar. A click on the status bar opens the pane, and so does the command `CompanyGraph: Open the
+checks pane`. `CompanyGraph: Check the instance now` runs the checks without waiting for a
+change, which is also how a vault that has only just become an instance is first read.
+
+The status bar says `pin differs` when `tooling` in the manifest names another release of the
+checker than the one this build bundles. The checks still run, because the instance's CI is the
+gate for that pin: move the pin and the workflow line together, or take the plugin release that
+bundles the release the manifest names. A vendored core newer than the bundled checker is
+refused instead, and the pane names both releases.
 
 While typing it offers what the file's schema declares: the frontmatter fields the file lacks,
 the permitted values of an enum, the canonical names of the type a reference declares, the same
 by column in a table section, and the sections the file lacks. A name is inserted plain, as the
 conventions write a reference; the plugin resolves it and Obsidian's own graph view does not see
-it. Completion works in Source mode and with properties shown as source; the spec's open
-questions say what is known about Live Preview.
+it. Nothing is offered while text follows the cursor on its line, or in its cell, because
+accepting would leave that text standing behind the inserted name. Completion works in Source
+mode and with properties shown as source; the spec's open questions say what is known about Live
+Preview.
 
 ## Installing it
 
@@ -36,8 +46,10 @@ or point BRAT at this repository. An instance that is a git repository keeps `.o
 
 ## Working on it
 
-`npm install`, then `npm test`, `npm run typecheck` and `npm run build`. The design, with every
-decision and its reason, is in `docs/superpowers/specs/`.
+Node 24 or newer, because the tests run TypeScript through Node's own type stripping. `npm
+install`, then `npm test`, which first fetches its fixtures over the network, the meta-model at
+the pinned tag and the reference instance at one commit, then `npm run typecheck` and `npm run
+build`. The design, with every decision and its reason, is in `docs/superpowers/specs/`.
 
 ## License
 
