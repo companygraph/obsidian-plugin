@@ -254,6 +254,14 @@ instance's findings went into the tooling spec.
 CI runs the suite, the build and the conventions check on every pull request and on `main`; the
 pin test of §2 is part of the suite.
 
+The first by-hand trial ran on September 18, 2026, with the owner at the screen, on the reference
+instance in Obsidian 1.13.7 on macOS. Everything on the trial checklist that was tried works:
+the checks from text and from the Properties widget, the marks, the pane and its click, key,
+value and cell completion in Source mode, the row tint and focus in the widget, the field picker
+from the button, from Obsidian's command and from `---`, a note whose name holds a space, both
+guards, and disabling and enabling the plugin. Not tried: a phone, a window popped out of the
+main one, and what the Properties widget does to a list when it rewrites one.
+
 ---
 
 ## 7. What goes upstream
