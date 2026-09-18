@@ -319,6 +319,20 @@ which the instance already carries, so the plugin's part is small: a command tha
 terminal in the vault folder, or the vault's own agent files kept current by `upgrade`. Nothing
 here decides for a vendor. What the plugin never does is call a model itself.
 
+**The agent pass, from the pane.** Asked by the owner on seeing the pane's closing line, that the
+writing rules are not checked: whether that check comes too. It cannot come as a check, since a
+writing rule is a judgment, that an Evidence cell states a fact, that a skill's prose is
+person-neutral, and no program decides it; it is the agent's pass, R0, and the plugin calls no
+model. It can come as the launcher above put to its first use: a command that starts the
+configured agent in the vault with the instance's validate skill, for the open file or for the
+whole instance, and shows what it reports in the same pane, under the mechanical results and
+visibly apart from them, one entry per writing rule an entity breaks, each opening its file.
+The closing line then says when the agent pass last ran and on which commit, instead of only
+that it is owed. Three limits are part of the design: it runs on demand and never on a change,
+because a run takes minutes and costs tokens; it is desktop only, because it starts a program;
+and its result is a judgment and is shown as one. Copy report, which puts the pane's text on
+the clipboard, is the bridge until then: the mechanical failures pasted to an agent by hand.
+
 **Content, beyond the frontmatter.** Asked by the owner at the end of the first trial: whether
 proposals and completion reach the body of an entity. The body holds four different things and
 each has its own answer, in the order they are worth building.
