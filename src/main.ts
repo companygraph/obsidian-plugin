@@ -50,6 +50,10 @@ export default class CompanyGraphPlugin extends Plugin {
     this.statusBar = this.addStatusBarItem();
     // Nothing but a command opened the pane, which is the one place a failure can be read.
     this.statusBar.addClass("mod-clickable");
+    // Nothing on a status bar item says it can be pressed; the first person to use this read the
+    // count and never found the pane. Obsidian shows an aria-label as the tooltip.
+    this.statusBar.setAttr("aria-label", "Click to open the checks");
+    this.statusBar.setAttr("aria-label-position", "top");
     this.statusBar.onClickEvent(() => void this.openPane());
     this.registerView(VIEW_TYPE, (leaf) => new Pane(leaf, this));
     this.registerEditorExtension(marksField);
@@ -72,6 +76,8 @@ export default class CompanyGraphPlugin extends Plugin {
       this.registerEvent(this.app.vault.on("rename", (file, old) => { changed(file.path); changed(old); }));
       void this.rebuild();
     });
+    // The initial state is painted once, or the status bar stays empty until the first check lands.
+    this.show(CHECKING);
   }
 
   onunload() {
