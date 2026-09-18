@@ -1,0 +1,13 @@
+/* A line a failure was located on. The message is the line's tooltip. */
+.companygraph-mark {
+  background-color: rgba(var(--color-red-rgb), 0.12);
+}
+
+/* An entry of the pane opens its file, so it reads as something to press. */
+.companygraph-pane li {
+  cursor: pointer;
+}
+
+.companygraph-notice {
+  color: var(--text-warning);
+}
