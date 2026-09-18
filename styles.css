@@ -12,3 +12,16 @@
 .companygraph-notice {
   color: var(--text-warning);
 }
+
+/* Obsidian switches text selection off for the whole application; a report is meant to be copied. */
+.companygraph-pane {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.companygraph-copy {
+  float: right;
+  font-size: var(--font-ui-smaller);
+  user-select: none;
+  -webkit-user-select: none;
+}
