@@ -25,3 +25,11 @@
   user-select: none;
   -webkit-user-select: none;
 }
+
+/* A failing row of a table in Live Preview. Obsidian's own rules colour a row with more weight
+   than one class has: `.markdown-rendered tbody tr:nth-child(odd)` and `thead tr`. These two
+   selectors outrank both. On the row and not its cells, whose own striping would cut it up. */
+.cm-table-widget tr.companygraph-mark,
+.cm-table-widget tr.companygraph-mark:nth-child(odd) {
+  background-color: rgba(var(--color-red-rgb), 0.12);
+}

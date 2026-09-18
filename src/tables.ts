@@ -1,31 +1,41 @@
 // A table in Live Preview. There Obsidian draws a table as its own widget and edits one cell at
-// a time in a small editor of its own, whose text is the cell's and holds no pipe to count; the
-// cell's row and column and the table's header come from Obsidian's table object instead. This
-// module decides what those facts mean. Pure: the Obsidian-facing modules only fetch them.
+// a time in a small editor of its own, whose text is the cell's alone, so there is no row of
+// pipes to count; which row and column the cell is comes from Obsidian's table object instead.
+// This module decides what those facts mean. Pure: the Obsidian-facing modules only fetch them.
+import { tableOf } from "companygraph-meta-model/checks";
 import type { Context } from "./context.ts";
 
-// The `## ` section a line sits under, or null when none stands above it.
-export function sectionAbove(lines: string[], line: number): string | null {
-  for (let up = Math.min(line, lines.length - 1); up >= 0; up--)
-    if (lines[up].startsWith("## ")) return lines[up].slice(3).trim();
+// The `## ` section a line sits under, or null when none stands above it. It reads one line at
+// a time, because completion asks on every keypress and a note should not be stringified for it.
+export function sectionAbove(getLine: (n: number) => string | undefined, line: number): string | null {
+  for (let up = line; up >= 0; up--) {
+    const text = getLine(up);
+    if (text?.startsWith("## ")) return text.slice(3).trim();
+  }
   return null;
 }
 
 export interface CellFacts {
-  header: string[];       // the text of the header row's cells, as Obsidian holds them
+  table: string;          // the table's own lines in the note, as text
   row: number;            // 0 is the header row; the separator row is not a row
   col: number;
   section: string | null; // the section the table sits under
+  lines: number;          // how many lines the cell's own editor holds
   line: string;           // the cursor's line in the cell's own editor
   ch: number;
 }
 
 // The completion context of a cell being edited in the widget: the same context Source mode
-// reaches by reading pipes, named by the header's text and never by position.
+// reaches by reading pipes. Obsidian says which row and column the cell is; what the column is
+// called is read from the note by the package's tableOf, as Source mode reads it, so the two
+// name a column alike and a table the package does not read as one gives no context in either.
 export function cellContextOf(facts: CellFacts): Context | null {
   if (facts.row < 1 || !facts.section) return null;
-  const column = (facts.header[facts.col] ?? "").trim();
+  const column = tableOf(facts.table)?.columns[facts.col];
   if (!column) return null;
+  // A cell holding `<br>` is several lines in its editor and one in the note; Source mode sees
+  // the whole of it on one line, and a name inserted into part of it would not be what was meant.
+  if (facts.lines !== 1) return null;
   // As in a line of text: anything but blank after the cursor means it sits inside text.
   if (facts.line.slice(facts.ch).trim() !== "") return null;
   const typed = facts.line.slice(0, facts.ch).trimStart();

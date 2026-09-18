@@ -51,9 +51,14 @@ the required ones first; it adds the chosen one and puts the cursor into its val
 entry hands over to Obsidian's own list, for a property the schema does not declare, which the
 checks will then report. Obsidian's own command Add file property opens the same picker in an
 entity, and so does typing `---` at the top of an empty one, which runs that command; the
-command `CompanyGraph: Add a field` opens it too. Completion works in Source
-mode and with properties shown as source; the spec's open questions say what is known about Live
-Preview.
+command `CompanyGraph: Add a field` opens it too.
+
+Frontmatter completes as text in Source mode, and with properties shown as source. A table
+completes in both modes: in Live Preview, where Obsidian draws a table as its own widget and
+edits one cell at a time, a cell offers what its column declares, named by the same header the
+checks read, and a failing row is tinted with its message as the tooltip. A table whose
+separator row carries alignment colons is not a table to the checks and gets no completion in
+either mode, and a cell holding a line break gets none in Live Preview.
 
 ## Installing it
 

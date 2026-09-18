@@ -71,7 +71,7 @@ export function contextAt(lines: string[], line: number, ch: number): Context | 
     if (line - first < 2) return null; // the header row and the separator row are not cells
     let last = line;
     while (last + 1 < lines.length && lines[last + 1].trim().startsWith("|")) last++;
-    const section = sectionAbove(lines, first - 1);
+    const section = sectionAbove((n) => lines[n], first - 1);
     if (!section) return null;
     // The table is read once, by the package that reads it everywhere else: a table without a
     // valid GFM separator row is not a table, and has no column to be inside.

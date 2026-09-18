@@ -15,7 +15,7 @@ import { Pane, VIEW_TYPE } from "./pane.ts";
 import { Suggest } from "./suggest.ts";
 import { marksField, setMarks } from "./marks.ts";
 import { fieldOfLine, propertyRules } from "./properties.ts";
-import { tintRows } from "./livetable.ts";
+import { cellEditorOf, tintRows } from "./livetable.ts";
 import { typeOfPath } from "companygraph-meta-model/checks";
 import { absentFields } from "./candidates.ts";
 import { AddField } from "./addfield.ts";
@@ -94,7 +94,12 @@ export default class CompanyGraphPlugin extends Plugin {
     this.addCommand({
       id: "complete-here",
       name: "Complete here",
-      editorCallback: (editor, ctx) => suggest.ask(editor, ctx.file),
+      // Inside a table cell in Live Preview the editor to ask is the cell's own: a command is
+      // handed the note's, and focusing that one makes Obsidian close the cell.
+      editorCallback: (editor, ctx) => {
+        const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+        suggest.ask((view && cellEditorOf(view)) ?? editor, ctx.file);
+      },
     });
     this.addCommand({ id: "open-checks", name: "Open the checks pane", callback: () => void this.openPane() });
     this.addCommand({ id: "check-now", name: "Check the instance now", callback: () => void this.rebuild() });
@@ -112,6 +117,11 @@ export default class CompanyGraphPlugin extends Plugin {
     this.registerEvent(this.app.workspace.on("layout-change", () => repaint()));
     this.registerDomEvent(document, "scroll", () => repaint(), { capture: true, passive: true });
     this.register(() => repaint.cancel());
+    // A tinted row keeps its tooltip after the stylesheet is gone, so the rows are swept on unload.
+    this.register(() => {
+      this.state = { ...this.state, located: [] };
+      this.tintTables();
+    });
     // The vault fires a create event for every file already there when it opens, so these are
     // registered only once the workspace is ready, as the API's own note on `create` asks.
     this.app.workspace.onLayoutReady(() => {

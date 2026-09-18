@@ -83,10 +83,10 @@ export class Suggest extends EditorSuggest<Candidate> {
     if (!vocabulary) return null;
 
     // A cell of a table in Live Preview is edited in an editor of its own, whose text is the
-    // cell's and holds no pipe; which column it is comes from Obsidian's table object.
+    // cell's alone; which row and column it is comes from Obsidian's table object.
     const cell = editedCell(this.app, editor);
     if (cell) {
-      const context = cellContextOf({ ...cell, line: editor.getLine(cursor.line), ch: cursor.ch });
+      const context = cellContextOf({ ...cell, lines: editor.lineCount(), line: editor.getLine(cursor.line), ch: cursor.ch });
       if (!context) return null;
       if (entersThrough(context) && !this.enterFirst && !asked) return null;
       const candidates = candidatesFor(context, vocabulary, this.plugin.names, []);
