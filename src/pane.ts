@@ -1,9 +1,9 @@
 // The report beside the editor: failures grouped by file, then what was not checked. It ends
 // that way on every render, because a green list alone reads as a validated instance.
-import { ItemView, MarkdownView, TFile } from "obsidian";
+import { ItemView, MarkdownView, Notice, TFile } from "obsidian";
 import type { WorkspaceLeaf } from "obsidian";
 import type CompanyGraphPlugin from "./main.ts";
-import type { Located } from "./locate.ts";
+import { IDLE_TEXT, groupsOf, headline, notChecked, reportText } from "./report.ts";
 import { fieldOfLine } from "./properties.ts";
 import { focusProperty } from "./widget.ts";
 
@@ -29,41 +29,47 @@ export class Pane extends ItemView {
     el.addClass("companygraph-pane");
     const state = this.plugin.state;
 
+    // Obsidian switches text selection off for the whole application and back on in its editor;
+    // a pane has to ask for it (styles.css does), and a report is something one pastes to an
+    // agent or into an issue, so the whole of it can also be copied at once, as text.
+    const copy = el.createEl("button", { text: "Copy report", cls: "companygraph-copy" });
+    copy.onClickEvent(() => {
+      void navigator.clipboard.writeText(reportText(state)).then(() => new Notice("CompanyGraph: report copied"));
+    });
+
     if (state.status === "checking") {
       el.createEl("p", { text: "Checking the instance…" });
       return;
     }
     if (state.status === "idle") {
-      el.createEl("p", {
-        text: "This vault has no .companygraph/manifest.json, so it is not an instance and nothing is checked."
-          + ' Run "CompanyGraph: Check the instance now" after adding one.',
-      });
+      el.createEl("p", { text: IDLE_TEXT });
       return;
     }
     if (state.notice) el.createEl("p", { text: state.notice, cls: "companygraph-notice" });
     if (state.status === "refused") return;
 
-    const count = state.located.length;
-    el.createEl("h4", { text: count === 0 ? "The mechanical checks pass" : `${count} failure${count > 1 ? "s" : ""}` });
-    const byPath = new Map<string | null, Located[]>();
-    for (const found of state.located) byPath.set(found.path, [...(byPath.get(found.path) ?? []), found]);
-    for (const [path, group] of byPath) {
-      el.createEl("h5", { text: path ?? "The instance" });
+    const title = headline(state);
+    el.createEl("h4", { text: title.charAt(0).toUpperCase() + title.slice(1) });
+    for (const group of groupsOf(state.located)) {
+      el.createEl("h5", { text: group.title });
       const list = el.createEl("ul");
-      for (const found of group) {
+      for (const found of group.entries) {
         const item = list.createEl("li", { text: found.message });
         // Only an entry with a file opens anything, and only that one reads as something to press.
         if (found.path) {
           item.addClass("companygraph-open");
-          item.onClickEvent(() => void this.openAt(found.path!, found.line));
+          item.onClickEvent(() => {
+            // A press that ends a drag over the text was a selection, not a wish to leave.
+            if (activeWindow.getSelection()?.toString()) return;
+            void this.openAt(found.path!, found.line);
+          });
         }
       }
     }
 
     el.createEl("h4", { text: "Not checked" });
     const not = el.createEl("ul");
-    for (const type of state.skipped) not.createEl("li", { text: `${type}: the vendored core carries no schema for it` });
-    not.createEl("li", { text: "every ## Writing rules in every schema: that is the agent pass, R0" });
+    for (const line of notChecked(state.skipped)) not.createEl("li", { text: line });
   }
 
   // Not `open`: Obsidian's View has an internal method of that name, which the leaf calls to set
