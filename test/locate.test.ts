@@ -116,3 +116,14 @@ test("a one-letter entry lands on itself, not on an earlier frontmatter value ho
   assert.equal(at.path, MIRA);
   assert.equal(at.line, lineIs(files, MIRA, "  - G"));
 });
+
+test("a path with a space in it maps to its file", () => {
+  // What Obsidian's own "new note" naming produces: a copy of a real skill beside it.
+  const files = example();
+  const copy = "example/model/skills/Java Programming 2.md";
+  files.set(copy, files.get("example/model/skills/java-programming.md")!);
+  const failure = buildModel(files, EXAMPLE).failures.find((f) => f.startsWith(copy))!;
+  const at = locate(failure, files);
+  assert.equal(at.path, copy);
+  assert.ok(!at.message.startsWith(copy));
+});

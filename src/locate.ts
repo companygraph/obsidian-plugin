@@ -41,8 +41,14 @@ function seek(lines: string[], scope: number[], values: string[]): number {
 const upto = (from: number, to: number) => Array.from({ length: Math.max(0, to - from) }, (_, i) => from + i);
 
 export function locate(failure: string, files: Map<string, string>): Located {
-  const lead = failure.match(/^(\S+?):? /)?.[1] ?? null;
-  if (!lead || !files.has(lead)) return { path: null, line: 0, message: failure };
+  // The file a failure opens with, found as the longest path of the map the failure leads with.
+  // No pattern reads the path: Obsidian names a note "Untitled 1.md" by default, and a path with
+  // a space in it is exactly the file an R12 failure is about.
+  let lead: string | null = null;
+  for (const path of files.keys())
+    if ((failure.startsWith(path + ":") || failure.startsWith(path + " ")) && path.length > (lead?.length ?? 0))
+      lead = path;
+  if (!lead) return { path: null, line: 0, message: failure };
   const message = failure.startsWith(lead + ": ") ? failure.slice(lead.length + 2) : failure;
   const lines = files.get(lead)!.split("\n");
   const fmEnd = lines[0] === "---" ? lines.indexOf("---", 1) : -1;
