@@ -15,6 +15,7 @@ import { Pane, VIEW_TYPE } from "./pane.ts";
 import { Suggest } from "./suggest.ts";
 import { marksField, setMarks } from "./marks.ts";
 import { fieldOfLine, propertyRules } from "./properties.ts";
+import { tintRows } from "./livetable.ts";
 import { typeOfPath } from "companygraph-meta-model/checks";
 import { absentFields } from "./candidates.ts";
 import { AddField } from "./addfield.ts";
@@ -103,6 +104,14 @@ export default class CompanyGraphPlugin extends Plugin {
     this.soon = debounce(() => void this.rebuild(), 400, true);
     const changed = (path: string) => { if (this.layout && concerns(path, this.layout)) this.soon?.(); };
     this.registerEvent(this.app.workspace.on("file-open", () => this.paint()));
+    // A table widget is drawn a moment after its note opens, and CodeMirror draws only what is in
+    // view, so a table scrolled into sight is a new one: the rows are tinted again when the
+    // layout settles and, once it pauses, on a scroll. Only the rows: a scroll should not send a
+    // transaction to every open note.
+    const repaint = debounce(() => this.tintTables(), 300, true);
+    this.registerEvent(this.app.workspace.on("layout-change", () => repaint()));
+    this.registerDomEvent(document, "scroll", () => repaint(), { capture: true, passive: true });
+    this.register(() => repaint.cancel());
     // The vault fires a create event for every file already there when it opens, so these are
     // registered only once the workspace is ready, as the API's own note on `create` asks.
     this.app.workspace.onLayoutReady(() => {
@@ -278,6 +287,20 @@ export default class CompanyGraphPlugin extends Plugin {
       rules.push(propertyRules(id, fields));
     });
     if (this.rowStyle) this.rowStyle.textContent = rules.filter((rule) => rule !== "").join("\n");
+    this.tintTables();
+  }
+
+  // The rows of Live Preview's table widgets, for every open note; see livetable.ts.
+  tintTables() {
+    this.app.workspace.iterateAllLeaves((leaf) => {
+      if (!(leaf.view instanceof MarkdownView) || !leaf.view.file) return;
+      const path = leaf.view.file.path;
+      const marks = this.state.located
+        .filter((found) => found.path === path)
+        .map((found) => ({ line: found.line, message: found.message }));
+      const cm = (leaf.view.editor as unknown as { cm?: EditorView }).cm;
+      tintRows(leaf.view, cm, marks);
+    });
   }
 
   async openPane() {

@@ -7,6 +7,8 @@ import { contextAt, mayHoldContext } from "./context.ts";
 import type { Context } from "./context.ts";
 import { candidatesFor, cursorAfter, entersThrough } from "./candidates.ts";
 import type { Candidate } from "./candidates.ts";
+import { cellContextOf } from "./tables.ts";
+import { editedCell } from "./livetable.ts";
 
 export class Suggest extends EditorSuggest<Candidate> {
   plugin: CompanyGraphPlugin;
@@ -79,6 +81,17 @@ export class Suggest extends EditorSuggest<Candidate> {
     const type = typeOfPath(file.path, layout.model);
     const vocabulary = type ? this.plugin.vocabulary.get(type) : undefined;
     if (!vocabulary) return null;
+
+    // A cell of a table in Live Preview is edited in an editor of its own, whose text is the
+    // cell's and holds no pipe; which column it is comes from Obsidian's table object.
+    const cell = editedCell(this.app, editor);
+    if (cell) {
+      const context = cellContextOf({ ...cell, line: editor.getLine(cursor.line), ch: cursor.ch });
+      if (!context) return null;
+      if (entersThrough(context) && !this.enterFirst && !asked) return null;
+      const candidates = candidatesFor(context, vocabulary, this.plugin.names, []);
+      return candidates.length ? { context, candidates } : null;
+    }
 
     // The API's own note on onTrigger: "Please be mindful of performance when implementing this
     // function, as it will be triggered very often (on each keypress). Keep it simple, and
