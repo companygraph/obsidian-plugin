@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { contextAt } from "../src/context.ts";
+import { contextAt, mayHoldContext } from "../src/context.ts";
 
 const FILE = [
   "---",            // 0
@@ -24,11 +24,11 @@ const FILE = [
 const at = (line: number) => contextAt(FILE, line, FILE[line].length);
 
 test("after a key's colon: the value of that field", () => {
-  assert.deepEqual(at(1), { kind: "value", field: "source", typed: "Lo", start: 8 });
+  assert.deepEqual(at(1), { kind: "value", field: "source", typed: "Lo", start: 8, item: false });
 });
 
 test("on an entry of a block sequence: the value of the key above", () => {
-  assert.deepEqual(at(3), { kind: "value", field: "roles", typed: "Rev", start: 4 });
+  assert.deepEqual(at(3), { kind: "value", field: "roles", typed: "Rev", start: 4, item: true });
 });
 
 test("at the start of a frontmatter line: a key", () => {
@@ -108,4 +108,35 @@ test("a cell with only a space before the next pipe is still offered", () => {
 test("trailing whitespace only after the cursor still yields the context", () => {
   const lines = ["---", "nat  ", "---"];
   assert.deepEqual(contextAt(lines, 1, 3), { kind: "key", typed: "nat", start: 0 });
+});
+
+// The documents the cheap reject is asked about, and what a getLine over one looks like.
+const DOCS = [
+  FILE,
+  ["# Plain", "", "A note with no frontmatter at all.", "", "## Skills", "", "| Skill | Level |", "| --- | --- |", "| Java | Exp |"],
+  ["---", "source: Local", "roles:", "  - Rev", "", "# Never closed"],
+  ["---", "a: b", "---", "", "Body text", "", "---", "", "After a rule in the body", "", "## Su"],
+  ["## Skills", "", "| Skill | Level |", "| --- | --- |", "| Java | Exp |"],
+];
+const reader = (lines: string[]) => (n: number) => lines[n] ?? "";
+
+test("the cheap reject lets through every position a context is found at", () => {
+  for (const lines of DOCS)
+    for (let line = 0; line < lines.length; line++)
+      for (let ch = 0; ch <= lines[line].length; ch++)
+        if (contextAt(lines, line, ch))
+          assert.ok(mayHoldContext(reader(lines), line, ch), `${line}:${ch} ${JSON.stringify(lines[line])}`);
+});
+
+test("a body line that is neither a heading nor a table row holds no context to look for", () => {
+  const lines = ["---", "a: b", "---", "", "Body text"];
+  assert.equal(mayHoldContext(reader(lines), 4, 9), false);
+  assert.equal(mayHoldContext(reader(lines), 1, 4), true);
+});
+
+test("without frontmatter only a heading or a table row is worth reading the document for", () => {
+  const lines = ["# Plain", "", "## Su", "", "| Java | Exp"];
+  assert.equal(mayHoldContext(reader(lines), 0, 7), false);
+  assert.equal(mayHoldContext(reader(lines), 2, 5), true);
+  assert.equal(mayHoldContext(reader(lines), 4, 12), true);
 });

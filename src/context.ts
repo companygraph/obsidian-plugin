@@ -5,13 +5,33 @@ import { tableOf } from "companygraph-meta-model/checks";
 
 export type Context =
   | { kind: "key"; typed: string; start: number }
-  | { kind: "value"; field: string; typed: string; start: number }
+  // `item` says which line the value is being written on: an entry of a block sequence, or the
+  // key's own line. A list field holds its values on entries alone, and nothing else can tell.
+  | { kind: "value"; field: string; typed: string; start: number; item: boolean }
   | { kind: "cell"; section: string; column: string; typed: string; start: number }
   | { kind: "heading"; typed: string; start: number };
 
+// One definition of a fence, for the two readers below.
+const fence = (line: string) => line === "---";
+
 // The line the frontmatter closes on, or -1 when the file opens with none.
 export function frontmatterEnd(lines: string[]): number {
-  return lines[0] === "---" ? lines.indexOf("---", 1) : -1;
+  if (!fence(lines[0] ?? "")) return -1;
+  for (let i = 1; i < lines.length; i++) if (fence(lines[i])) return i;
+  return -1;
+}
+
+// Whether this position could hold a context at all, decided from single lines. Completion asks
+// this on every keypress, before it pays for the whole document: the API's own note on onTrigger
+// asks it to be cheap and to return null as early as possible. A heading or a table row is
+// decided on its own line; anything else can only be a context inside frontmatter, and a line
+// past the closing fence is in the body whatever it reads like.
+export function mayHoldContext(getLine: (n: number) => string, line: number, ch: number): boolean {
+  const before = (getLine(line) ?? "").slice(0, ch);
+  if (before.startsWith("## ") || before.trimStart().startsWith("|")) return true;
+  if (!fence(getLine(0) ?? "")) return false;
+  for (let i = 1; i < line; i++) if (fence(getLine(i) ?? "")) return false;
+  return true;
 }
 
 export function contextAt(lines: string[], line: number, ch: number): Context | null {
@@ -29,10 +49,10 @@ export function contextAt(lines: string[], line: number, ch: number): Context | 
       let up = line - 1;
       while (up > 0 && /^\s*-\s/.test(lines[up])) up--;
       const key = lines[up].match(/^([\w-]+):\s*$/)?.[1];
-      return key ? { kind: "value", field: key, typed: item[1], start: ch - item[1].length } : null;
+      return key ? { kind: "value", field: key, typed: item[1], start: ch - item[1].length, item: true } : null;
     }
     const value = before.match(/^([\w-]+):\s*(.*)$/);
-    if (value) return { kind: "value", field: value[1], typed: value[2], start: ch - value[2].length };
+    if (value) return { kind: "value", field: value[1], typed: value[2], start: ch - value[2].length, item: false };
     if (/^[\w-]*$/.test(before)) return { kind: "key", typed: before, start: 0 };
     return null;
   }

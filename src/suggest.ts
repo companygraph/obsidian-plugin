@@ -3,9 +3,9 @@ import { EditorSuggest } from "obsidian";
 import type { App, Editor, EditorPosition, EditorSuggestContext, EditorSuggestTriggerInfo, TFile } from "obsidian";
 import { typeOfPath } from "companygraph-meta-model/checks";
 import type CompanyGraphPlugin from "./main.ts";
-import { contextAt } from "./context.ts";
+import { contextAt, mayHoldContext } from "./context.ts";
 import type { Context } from "./context.ts";
-import { candidatesFor } from "./candidates.ts";
+import { candidatesFor, cursorAfter } from "./candidates.ts";
 import type { Candidate } from "./candidates.ts";
 
 export class Suggest extends EditorSuggest<Candidate> {
@@ -28,21 +28,15 @@ export class Suggest extends EditorSuggest<Candidate> {
 
     // The API's own note on onTrigger: "Please be mindful of performance when implementing this
     // function, as it will be triggered very often (on each keypress). Keep it simple, and
-    // return null as early as possible." A heading or a table row is decided on its own line;
-    // anything else can only be a context inside frontmatter, which is rejected here without
-    // paying for a full-document stringify and split on every ordinary keypress in the body.
-    const text = editor.getLine(cursor.line).slice(0, cursor.ch);
-    if (!text.startsWith("## ") && !text.trimStart().startsWith("|")) {
-      if (editor.getLine(0) !== "---") return null;
-      for (let i = 1; i < cursor.line; i++) if (editor.getLine(i) === "---") return null;
-    }
+    // return null as early as possible." The reject reads single lines, so nothing pays for a
+    // full-document stringify and split on an ordinary keypress in the body.
+    if (!mayHoldContext((n) => editor.getLine(n), cursor.line, cursor.ch)) return null;
 
     const lines = editor.getValue().split("\n");
     const context = contextAt(lines, cursor.line, cursor.ch);
     if (!context) return null;
+    // candidatesFor decides everything, including that what is typed is already complete.
     const candidates = candidatesFor(context, vocabulary, this.plugin.names, lines);
-    // What is typed is already the one thing on offer: nothing left to complete.
-    if (candidates.length === 1 && candidates[0].insert === context.typed) return null;
     return candidates.length ? { context, candidates } : null;
   }
 
@@ -64,12 +58,6 @@ export class Suggest extends EditorSuggest<Candidate> {
     if (!this.context) return;
     const { editor, start, end } = this.context;
     editor.replaceRange(candidate.insert, start, end);
-    const inserted = candidate.insert.split("\n");
-    const last = inserted[inserted.length - 1];
-    editor.setCursor(
-      inserted.length === 1
-        ? { line: start.line, ch: start.ch + last.length }
-        : { line: start.line + inserted.length - 1, ch: last.length },
-    );
+    editor.setCursor(cursorAfter(start, candidate.insert));
   }
 }

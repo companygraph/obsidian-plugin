@@ -8,6 +8,9 @@ declare module "companygraph-meta-model/checks" {
   export function typeOfPath(rel: string, model: string): string | null;
   export function isNewer(a: string, b: string): boolean;
   export function tableOf(body: string): { columns: string[]; rows: string[][] } | null;
+  // Heading → the text under it, keyed by the heading's own words; "" holds what stands above
+  // the first `## `.
+  export function sectionsOf(text: string): Map<string, string>;
   export const COLUMN_CAPTION: RegExp;
   export function enumTokensOf(description: string): string[];
 }

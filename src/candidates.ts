@@ -1,11 +1,24 @@
 // What is offered in one context. Schemas say what may be written, the last parsed graph says
 // which names exist, the file says what is already there. Nothing is offered that would not
 // resolve, and nothing is wrapped: a name is inserted plain (R3).
+import { sectionsOf } from "companygraph-meta-model/checks";
 import type { Context } from "./context.ts";
 import { frontmatterEnd } from "./context.ts";
 import type { Offer, TypeVocabulary } from "./vocabulary.ts";
 
 export interface Candidate { label: string; insert: string }
+
+export interface Position { line: number; ch: number }
+
+// Where the cursor belongs once a candidate is inserted: at the end of what was written, which
+// for a list's `name:\n  - ` is on the entry it opened and not on the key's line.
+export function cursorAfter(start: Position, insert: string): Position {
+  const written = insert.split("\n");
+  const last = written[written.length - 1];
+  return written.length === 1
+    ? { line: start.line, ch: start.ch + last.length }
+    : { line: start.line + written.length - 1, ch: last.length };
+}
 
 const requiredFirst = <T extends { required: boolean }>(items: T[]) =>
   [...items.filter((i) => i.required), ...items.filter((i) => !i.required)];
@@ -30,6 +43,19 @@ export function candidatesFor(
   names: Map<string, string[]>,
   lines: string[],
 ): Candidate[] {
+  const candidates = offers(context, vocabulary, names, lines);
+  // What is typed is already one of the things on offer: there is nothing left to complete, and
+  // a popup still open over it captures the Enter that belongs to the editor. One candidate is
+  // not the test — `Java` typed in full still matches `JavaScript` — what is typed is.
+  return candidates.some((c) => c.insert === context.typed.trim()) ? [] : candidates;
+}
+
+function offers(
+  context: Context,
+  vocabulary: TypeVocabulary,
+  names: Map<string, string[]>,
+  lines: string[],
+): Candidate[] {
   if (context.kind === "key") {
     const end = frontmatterEnd(lines);
     const present = new Set(lines.slice(1, end).map((l) => l.match(/^([\w-]+):/)?.[1]).filter(Boolean));
@@ -42,6 +68,9 @@ export function candidatesFor(
   if (context.kind === "value") {
     const field = vocabulary.fields.find((f) => f.name === context.field);
     if (!field) return [];
+    // A list holds its values on its entries; `skills: ` on the key's own line is R11's flow
+    // sequence waiting to happen, and a name offered there would write one.
+    if (field.list && !context.item) return [];
     return matching(offered(field.offer, names), context.typed).map((v) => ({ label: v, insert: v }));
   }
   if (context.kind === "cell") {
@@ -51,8 +80,10 @@ export function candidatesFor(
     if (!column) return [];
     return matching(offered(column.offer, names), context.typed).map((v) => ({ label: v, insert: v }));
   }
-  const present = new Set(lines.map((l) => l.match(/^## (.+?)\s*$/)?.[1]).filter(Boolean));
-  const absent = requiredFirst(vocabulary.sections.filter((s) => !present.has(s.heading) || s.heading === context.typed.trim()));
+  // What the file already holds is read by the package that reads a section everywhere else,
+  // so a heading it counts as present is never offered again.
+  const present = sectionsOf(lines.join("\n"));
+  const absent = requiredFirst(vocabulary.sections.filter((s) => !present.has(s.heading)));
   return matching(absent.map((s) => s.heading), context.typed).map((heading) => {
     const section = absent.find((s) => s.heading === heading)!;
     return { label: section.required ? `${heading} (required)` : heading, insert: heading };
