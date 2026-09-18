@@ -53,7 +53,7 @@ export class Pane extends ItemView {
         // Only an entry with a file opens anything, and only that one reads as something to press.
         if (found.path) {
           item.addClass("companygraph-open");
-          item.onClickEvent(() => void this.open(found.path!, found.line));
+          item.onClickEvent(() => void this.openAt(found.path!, found.line));
         }
       }
     }
@@ -64,7 +64,10 @@ export class Pane extends ItemView {
     not.createEl("li", { text: "every ## Writing rules in every schema: that is the agent pass, R0" });
   }
 
-  async open(path: string, line: number) {
+  // Not `open`: Obsidian's View has an internal method of that name, which the leaf calls to set
+  // a view up and which is what calls `onOpen`. The public types do not declare it, so a method
+  // named `open` here typechecks, replaces it, and leaves the pane blank.
+  async openAt(path: string, line: number) {
     const file = this.app.vault.getAbstractFileByPath(path);
     if (!(file instanceof TFile)) return;
     await this.app.workspace.getLeaf(false).openFile(file, { eState: { line } });
