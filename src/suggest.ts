@@ -4,11 +4,15 @@ import type { App, Editor, EditorPosition, EditorSuggestContext, EditorSuggestTr
 import { typeOfPath } from "companygraph-meta-model/checks";
 import type CompanyGraphPlugin from "./main.ts";
 import { contextAt } from "./context.ts";
+import type { Context } from "./context.ts";
 import { candidatesFor } from "./candidates.ts";
 import type { Candidate } from "./candidates.ts";
 
 export class Suggest extends EditorSuggest<Candidate> {
   plugin: CompanyGraphPlugin;
+  // What onTrigger last found, for getSuggestions to read straight back: Obsidian calls it only
+  // after an onTrigger that returned non-null, for the same position, so find() need not run twice.
+  found: { context: Context; candidates: Candidate[] } | null = null;
 
   constructor(app: App, plugin: CompanyGraphPlugin) {
     super(app);
@@ -21,6 +25,18 @@ export class Suggest extends EditorSuggest<Candidate> {
     const type = typeOfPath(file.path, layout.model);
     const vocabulary = type ? this.plugin.vocabulary.get(type) : undefined;
     if (!vocabulary) return null;
+
+    // The API's own note on onTrigger: "Please be mindful of performance when implementing this
+    // function, as it will be triggered very often (on each keypress). Keep it simple, and
+    // return null as early as possible." A heading or a table row is decided on its own line;
+    // anything else can only be a context inside frontmatter, which is rejected here without
+    // paying for a full-document stringify and split on every ordinary keypress in the body.
+    const text = editor.getLine(cursor.line).slice(0, cursor.ch);
+    if (!text.startsWith("## ") && !text.trimStart().startsWith("|")) {
+      if (editor.getLine(0) !== "---") return null;
+      for (let i = 1; i < cursor.line; i++) if (editor.getLine(i) === "---") return null;
+    }
+
     const lines = editor.getValue().split("\n");
     const context = contextAt(lines, cursor.line, cursor.ch);
     if (!context) return null;
@@ -31,13 +47,13 @@ export class Suggest extends EditorSuggest<Candidate> {
   }
 
   onTrigger(cursor: EditorPosition, editor: Editor, file: TFile | null): EditorSuggestTriggerInfo | null {
-    const found = this.find(cursor, editor, file);
-    if (!found) return null;
-    return { start: { line: cursor.line, ch: found.context.start }, end: cursor, query: found.context.typed };
+    this.found = this.find(cursor, editor, file);
+    if (!this.found) return null;
+    return { start: { line: cursor.line, ch: this.found.context.start }, end: cursor, query: this.found.context.typed };
   }
 
   getSuggestions(context: EditorSuggestContext): Candidate[] {
-    return this.find(context.end, context.editor, context.file)?.candidates ?? [];
+    return this.found?.candidates ?? [];
   }
 
   renderSuggestion(candidate: Candidate, el: HTMLElement) {

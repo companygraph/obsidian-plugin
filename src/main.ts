@@ -1,6 +1,7 @@
 // The wiring: when to rebuild, and the three places a rebuild shows — the pane, the open file's
 // lines and the status bar. Everything that decides anything is in the pure modules.
 import { MarkdownView, Plugin, debounce } from "obsidian";
+import type { Debouncer } from "obsidian";
 import type { EditorView } from "@codemirror/view";
 import { guard } from "./manifest.ts";
 import { buildModel, namesByType } from "./model.ts";
@@ -32,6 +33,11 @@ export default class CompanyGraphPlugin extends Plugin {
   vocabulary = new Map<string, TypeVocabulary>();
   names = new Map<string, string[]>();
   statusBar: HTMLElement | null = null;
+  soon: Debouncer<[], void> | null = null;
+  // Bumped at the start of every rebuild, and once more on unload. A rebuild checks its own
+  // number against this field after every await: whichever started last owns the field, so an
+  // older rebuild that is still in flight never overwrites what a newer one already showed.
+  generation = 0;
 
   async onload() {
     this.statusBar = this.addStatusBarItem();
@@ -43,24 +49,36 @@ export default class CompanyGraphPlugin extends Plugin {
 
     // Once typing pauses. The path is tested before the debounce, not inside it: a debounced
     // call keeps only its last arguments, and the last file touched may not be the one that mattered.
-    const soon = debounce(() => void this.rebuild(), 400, true);
-    const changed = (path: string) => { if (this.layout && concerns(path, this.layout)) soon(); };
-    this.registerEvent(this.app.vault.on("modify", (file) => changed(file.path)));
-    this.registerEvent(this.app.vault.on("create", (file) => changed(file.path)));
-    this.registerEvent(this.app.vault.on("delete", (file) => changed(file.path)));
-    this.registerEvent(this.app.vault.on("rename", (file, old) => { changed(file.path); changed(old); }));
+    this.soon = debounce(() => void this.rebuild(), 400, true);
+    const changed = (path: string) => { if (this.layout && concerns(path, this.layout)) this.soon?.(); };
     this.registerEvent(this.app.workspace.on("file-open", () => this.paint()));
-    this.app.workspace.onLayoutReady(() => void this.rebuild());
+    // The vault fires a create event for every file already there when it opens, so these are
+    // registered only once the workspace is ready, as the API's own note on `create` asks.
+    this.app.workspace.onLayoutReady(() => {
+      this.registerEvent(this.app.vault.on("modify", (file) => changed(file.path)));
+      this.registerEvent(this.app.vault.on("create", (file) => changed(file.path)));
+      this.registerEvent(this.app.vault.on("delete", (file) => changed(file.path)));
+      this.registerEvent(this.app.vault.on("rename", (file, old) => { changed(file.path); changed(old); }));
+      void this.rebuild();
+    });
+  }
+
+  onunload() {
+    this.generation++;
+    this.soon?.cancel();
   }
 
   async rebuild() {
+    const generation = ++this.generation;
     let manifest;
     try {
       manifest = await loadManifest(this.app);
     } catch (error) {
+      if (generation !== this.generation) return;
       const why = error instanceof Error ? error.message : String(error);
       return this.show({ ...IDLE, status: "refused", notice: `.companygraph/manifest.json does not parse: ${why}` });
     }
+    if (generation !== this.generation) return;
     if (!manifest) {
       this.layout = null;
       return this.show(IDLE);
@@ -69,23 +87,37 @@ export default class CompanyGraphPlugin extends Plugin {
     const verdict = guard(manifest, __CHECKER_VERSION__);
     if (verdict.kind === "refuse") return this.show({ ...IDLE, status: "refused", notice: verdict.message });
 
-    const files = await readInstance(this.app, this.layout);
-    const model = buildModel(files, this.layout);
+    // A file can vanish between getFiles() and its read — a sync client, a git checkout or a
+    // rename landing mid-debounce is realistic, not exotic — and checkInstance or locate can
+    // throw on what that leaves behind. Caught here, so the UI says so instead of an unhandled
+    // rejection leaving the pane, the marks and the status bar on a stale, green-looking state.
     try {
-      this.vocabulary = vocabularyOf(model.schemas);
-    } catch {
-      // A vendored schema off the fixed shape. Core is never edited in an instance, so this is
-      // a broken copy; the last vocabulary that read stays, and the manifest's hashes say which file.
+      const files = await readInstance(this.app, this.layout);
+      if (generation !== this.generation) return;
+      const model = buildModel(files, this.layout);
+      if (generation !== this.generation) return;
+      try {
+        this.vocabulary = vocabularyOf(model.schemas);
+      } catch {
+        // A vendored schema off the fixed shape. Core is never edited in an instance, so this is
+        // a broken copy; the last vocabulary that read stays, and the manifest's hashes say which file.
+      }
+      if (generation !== this.generation) return;
+      // Names are those of the last rebuild that parsed: a reference is unresolvable exactly
+      // while its name is half typed, which is when completion is wanted.
+      if (model.graph) this.names = namesByType(model.graph);
+      if (generation !== this.generation) return;
+      this.show({
+        status: "checked",
+        notice: verdict.kind === "report" ? verdict.message : null,
+        located: model.failures.map((failure) => locate(failure, files)),
+        skipped: model.skipped,
+      });
+    } catch (error) {
+      if (generation !== this.generation) return;
+      const why = error instanceof Error ? error.message : String(error);
+      this.show({ ...IDLE, status: "refused", notice: `The instance was not checked: ${why}` });
     }
-    // Names are those of the last rebuild that parsed: a reference is unresolvable exactly
-    // while its name is half typed, which is when completion is wanted.
-    if (model.graph) this.names = namesByType(model.graph);
-    this.show({
-      status: "checked",
-      notice: verdict.kind === "report" ? verdict.message : null,
-      located: model.failures.map((failure) => locate(failure, files)),
-      skipped: model.skipped,
-    });
   }
 
   show(state: State) {
