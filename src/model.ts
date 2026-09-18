@@ -45,6 +45,9 @@ export function buildModel(files: Map<string, string>, layout: Layout): Model {
 export function namesByType(graph: Graph): Map<string, string[]> {
   const names = new Map<string, string[]>();
   for (const e of graph.entities) {
+    // An empty note in a type folder parses as an entity with no name, and the checks say so.
+    // Offered, it sorts first and inserts nothing, so completion opens on a blank row.
+    if (e.name === "") continue;
     if (!names.has(e.type)) names.set(e.type, []);
     names.get(e.type)!.push(e.name);
   }

@@ -31,3 +31,14 @@ test("a core with a schema missing names the type as skipped", () => {
   files.delete("core/skill-schema.md");
   assert.ok(buildModel(files, EXAMPLE).skipped.includes("skill"));
 });
+
+test("an empty note in a type folder is never offered as a name", () => {
+  const files = example();
+  files.set("example/model/skills/untitled.md", "");
+  const m = buildModel(files, EXAMPLE);
+  // The empty note fails the checks and the graph parses all the same, which is what puts an
+  // entity named "" in front of completion.
+  assert.ok(m.failures.length > 0);
+  assert.ok(m.graph);
+  assert.deepEqual(namesByType(m.graph!).get("skill"), ["Domain-Driven Design", "Java Programming", "Product Discovery"]);
+});
