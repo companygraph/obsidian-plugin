@@ -12,7 +12,7 @@ about it moves into the meta-model.
 
 Reads against three specs in `companygraph/meta-model`: `2026-08-25-companygraph-tooling-design.md`
 (the CLI that was designed and not built, and whose `check` this plugin runs), `2026-09-10-instance-checks-design.md`
-(the eight checks, and why they read the instance's own core) and `2026-09-15-typed-resolution-design.md`
+(the instance checks, and why they read the instance's own core) and `2026-09-15-typed-resolution-design.md`
 (references resolve by declared type). Where this spec and the conventions in `core/CONVENTIONS.md`
 disagree, the conventions stand and this spec is wrong.
 
@@ -100,8 +100,11 @@ vault with no manifest is not an instance, and the plugin stays idle in it rathe
 reporting on files it has no rules for.
 
 From the manifest it learns the units folder, `meta` in every instance so far, and reads every
-Markdown file under `<units>/core/` and under `model/` into one map of path to text, keyed
-relative to the vault root. That map is what `checkInstance` and `parseInstance` take, with
+file under `<units>/core/` and under `model/` into one map of path to text, keyed relative to
+the vault root. Every file and not only the Markdown, because a stray file in the container is
+a finding of the structure check and a map that dropped it would hide the thing that check
+exists to see; a file that is not text enters the map with empty text, which is all that check
+reads of it. That map is what `checkInstance` and `parseInstance` take, with
 `core` set to `<units>/core` and `model` to `model`. The schemas come from the vault's own
 vendored core and never from the bundled package, for the reason the instance-checks spec gives:
 an instance sits on the release it vendored, and a plugin update that re-validated it against
@@ -117,7 +120,7 @@ while the manifest names another is a pin nobody moved, and refusing is what sur
 plugin that refuses helps nobody in the editor; the mismatch is shown, and it is CI's refusal
 that stays the gate.
 
-The map is rebuilt on load and after every change to a Markdown file under the two folders,
+The map is rebuilt on load and after every change to a file under the two folders,
 once typing has paused. Rebuilding the whole map rather than patching one entry keeps the
 plugin free of a cache that can disagree with the vault. An instance is small files in the
 hundreds, read from disk in less time than typing pauses for, and a cache would buy nothing
@@ -150,11 +153,14 @@ The file mapping is exact because the checks build every path through one consta
 mapping is best effort, and the pane does not flag which entries fell back, because a mark one
 line off is still on the right file and the entry carries the whole message.
 
-`parseInstance` throws where the checks report, on a duplicate name within a type, a folder
-named for a type rather than its plural and a folder no schema declares. The plugin catches the
-throw, shows its message as one failure at the instance root, and suspends completion until
-the next rebuild parses, because completion's candidates are the parsed instance's names and a
-partial parse would offer a partial vocabulary without saying so.
+`parseInstance` throws where the checks report: on an unresolvable reference, a duplicate name
+within a type, a folder no schema declares. The checks are the fuller report of the same
+findings, so the plugin shows the parser's message only when the checks found nothing and the
+parser threw all the same, as one failure at the instance root. Completion does not wait for a
+parse. A reference is unresolvable for exactly as long as its name is half typed, which is when
+completion is wanted, so the names completion offers are those of the last rebuild that parsed;
+a vault that has not parsed since it was opened offers keys, enum values and sections, which
+come from the schemas, and no names.
 
 The open file's failures are also marked inline, an editor decoration on the line found, with
 the message on hover. A status bar item carries the count of failures and the count of things
@@ -223,6 +229,12 @@ the meta-model, proposed once the plugin has run on the reference instance and t
 known from use rather than guessed. Until it lands, the string mapping stands, and the day it
 lands the mapping is deleted rather than kept as a fallback.
 
+**Two readers, exported.** Completion reads a schema's Type cells and an enum's permitted
+values, and the package has one reader of each, `declarationOf` in `lib/instance.mjs` and
+`enumTokensOf` in `lib/checks.mjs`, neither exported. §1 rules out a second copy, so both are
+exported upstream in a minor release, and that release is what the plugin's completion pins.
+Validation needs neither and is built against the release before it.
+
 **A note on the tooling spec.** `2026-08-25-companygraph-tooling-design.md` designed `check` as
 a command in a `tooling` repository; the instance-checks spec of 2026-09-10 amended that by
 moving the reader into the meta-model, and this spec is the second consumer of it. The tooling
@@ -268,6 +280,11 @@ here decides for a vendor. What the plugin never does is call a model itself.
   mismatch. Whether the manifest should name the plugin's release too, or the field should be
   read as the release of the checks and no more, is a meta-model question the structured
   failure's release could settle.
+- **Live Preview.** Obsidian renders frontmatter as its Properties widget and a table as its
+  table editor in Live Preview, and an `EditorSuggest` fires in an editor, not in a widget.
+  Completion is designed for and proven in Source mode, and with Properties shown as source.
+  What Live Preview does, and whether the Properties widget rewrites a list in a form R11
+  accepts, is observed on the reference instance and recorded here.
 - **Mobile.** Nothing in version one needs the desktop, and nothing has been tried on a phone.
   The pane and the popup are Obsidian's own components and should hold; the rebuild on every
   change is where a phone would show first.
