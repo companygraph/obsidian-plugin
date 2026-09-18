@@ -33,12 +33,17 @@ test("an undeclared field lands on the field", () => {
 });
 
 test("a failure that names no file belongs to the instance", () => {
-  const at = locate('two skill files share the canonical name "Java Programming"', example());
-  assert.deepEqual(at, { path: null, line: 0, message: 'two skill files share the canonical name "Java Programming"' });
+  const files = example();
+  files.set("example/model/skills/java-programming-again.md", files.get("example/model/skills/java-programming.md")!);
+  const failure = buildModel(files, EXAMPLE).failures.find((f) => f.includes("share the canonical name"))!;
+  assert.deepEqual(locate(failure, files), { path: null, line: 0, message: failure });
 });
 
 test("a failure about a folder belongs to the instance", () => {
-  assert.equal(locate("example/model/stray/ is not a folder of any type (expected one of skills)", example()).path, null);
+  const files = example();
+  files.set("example/model/stray/note.md", "# Stray\n");
+  const failure = buildModel(files, EXAMPLE).failures.find((f) => f.includes("is not a folder of any type"))!;
+  assert.equal(locate(failure, files).path, null);
 });
 
 test("a path with nothing findable in the file falls back to its first line", () => {

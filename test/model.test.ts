@@ -42,3 +42,17 @@ test("an empty note in a type folder is never offered as a name", () => {
   assert.ok(m.graph);
   assert.deepEqual(namesByType(m.graph!).get("skill"), ["Domain-Driven Design", "Java Programming", "Product Discovery"]);
 });
+
+test("the parser's own throw is the failure when the checks found nothing to say", () => {
+  // Two experiences of two profiles under one name. The checks read duplicate names per type
+  // folder, and an owned entity sits in its owner's folder rather than in one of those, so only
+  // the parser sees this one.
+  const files = example();
+  const tomas = "example/model/profiles/tomas-reyes/experiences/2022-beacon-systems.md";
+  const text = files.get(tomas)!.replace("# Deciding which billing goes first", "# Splitting the billing domain");
+  files.delete(tomas);
+  files.set("example/model/profiles/tomas-reyes/experiences/2022-splitting-the-billing-domain.md", text);
+  const m = buildModel(files, EXAMPLE);
+  assert.equal(m.graph, null);
+  assert.deepEqual(m.failures, ['R2: two experience entities share the name "Splitting the billing domain"']);
+});

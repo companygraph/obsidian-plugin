@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { contextAt, mayHoldContext } from "../src/context.ts";
+import { contextAt, frontmatterEnd, mayHoldContext } from "../src/context.ts";
 
 const FILE = [
   "---",            // 0
@@ -139,4 +139,8 @@ test("without frontmatter only a heading or a table row is worth reading the doc
   assert.equal(mayHoldContext(reader(lines), 0, 7), false);
   assert.equal(mayHoldContext(reader(lines), 2, 5), true);
   assert.equal(mayHoldContext(reader(lines), 4, 12), true);
+});
+
+test("a document whose lines end in \\r has no frontmatter, which is what the package's parser reads too", () => {
+  assert.equal(frontmatterEnd(["---\r", "source: Local\r", "---\r", ""]), -1);
 });
