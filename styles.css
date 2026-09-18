@@ -1,0 +1,14 @@
+/* A line a failure was located on. The message is the line's tooltip. */
+.companygraph-mark {
+  background-color: rgba(var(--color-red-rgb), 0.12);
+}
+
+/* An entry that opens its file reads as something to press. The instance's own failures and
+   what was not checked open nothing, so they do not. */
+.companygraph-pane li.companygraph-open {
+  cursor: pointer;
+}
+
+.companygraph-notice {
+  color: var(--text-warning);
+}

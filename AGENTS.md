@@ -30,17 +30,28 @@ vendored.
 ## No rule is implemented here
 
 **A rule the plugin needs that the package does not export is proposed to the meta-model and
-never written here.** The family keeps one definition of the slug, of table reading, of how a
-Type cell and an enum's values are read, and a second copy in a plugin is the drift that rule
-exists to prevent. The one admitted exception is `src/locate.ts`, which reads a failure's
-message to find its file and line; it stands only until the checks return a structure, and is
-deleted on that day.
+never written here.** The family keeps one definition of the slug, of table reading, of section
+reading, of how a Type cell and an enum's values are read, and a second copy in a plugin is the
+drift that rule exists to prevent. Where the package exports a reader the plugin calls it:
+`tableOf`, `sectionsOf`, `typeOfPath`, `declarationOf`, `enumTokensOf`, `isNewer`.
+
+What the plugin reads for itself is stated here, so that the sentence above stays true.
+`src/locate.ts` reads a failure's message to find its file and line; it stands only until the
+checks return a structure, and is deleted on that day. `src/vocabulary.ts` reads a schema's
+tables by their column names and tests four cell values the package reads only inside closures
+it does not export: `Yes` under Required, a Type that opens `array of `, the Type `enum`, and a
+Section cell that opens `## `. `src/context.ts` knows a frontmatter fence and the shape of a key
+line and of a list item, because where a cursor stands is the plugin's own question. None of
+these decides whether an entity is valid, each is a candidate for an export upstream, and the
+design's section on what goes upstream lists them.
 
 ## Layout
 
 Everything that decides anything is a pure module under `src/`, with a test beside it under
-`test/`: `manifest.ts`, `model.ts`, `locate.ts`, `context.ts`, `vocabulary.ts`, `candidates.ts`.
-The modules that touch Obsidian, `vault.ts`, `marks.ts`, `pane.ts`, `suggest.ts` and `main.ts`,
+`test/`: `manifest.ts`, `model.ts`, `locate.ts`, `context.ts`, `vocabulary.ts`, `candidates.ts`,
+`properties.ts`.
+The modules that touch Obsidian, `vault.ts`, `marks.ts`, `pane.ts`, `suggest.ts`, `addfield.ts`,
+`widget.ts` and `main.ts`,
 are kept thin because nothing here can run them; they are proven by hand on the reference
 instance. No module under `src/` imports from `node:`, because the plugin also runs on a phone.
 
@@ -50,9 +61,9 @@ imported with `import type`.
 
 ## Checks
 
-`npm run typecheck`, `npm test` and `npm run build`. Two jobs are required on `main`: `test`,
-which runs those three, and `conventions / conventions`, called from robertblust/conventions at
-the pinned tag. `npm test` fetches its two fixtures first, the meta-model at the pinned tag and
+`npm run typecheck`, `npm test` and `npm run build`. The job `test` runs those three, and
+`conventions / conventions` is called from robertblust/conventions at the pinned tag; both run
+on every pull request and on `main`. `npm test` fetches its two fixtures first, the meta-model at the pinned tag and
 the reference instance at the commit `scripts/fixtures.mjs` names.
 
 ## The pin

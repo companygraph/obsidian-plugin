@@ -146,7 +146,10 @@ A failure is a string. Most begin with the path of the file they are about, `mod
 …`; a few, such as two files sharing a canonical name, name no path. The plugin maps a failure
 to a file by that leading path when it has one, and to the instance root when it does not; it
 maps to a line by searching the file for the value the message quotes, the reference that did
-not resolve or the field that is not declared, and falls back to the first line. This mapping
+not resolve or the field that is not declared, and falls back to the first line. A quoted
+`## Section` is where the search starts and never its answer, and a line that holds the value
+whole, as a scalar, a list item, a cell or a heading, is preferred over one that merely contains
+it, because a half-typed name is contained in many lines and is whole on one. This mapping
 is admitted to be a reading of prose, the kind the meta-model's own boundary in the tooling
 spec rules out for schemas, and it is kept only until §7's structured failure lands upstream.
 The file mapping is exact because the checks build every path through one constant. The line
@@ -164,7 +167,19 @@ come from the schemas, and no names.
 
 The open file's failures are also marked inline, an editor decoration on the line found, with
 the message on hover. A status bar item carries the count of failures and the count of things
-not checked, so the state is visible without the pane open.
+not checked, so the state is visible without the pane open; a press on it opens the pane, and
+it says so in a tooltip, because the first person to use it read the count and did not find the
+pane.
+
+**Live Preview is the view most people never leave, and it draws the frontmatter as Obsidian's
+Properties widget, where a mark on a text line has nowhere to sit.** The by-hand trial settled
+this: without more, a failure in frontmatter was visible only to someone who opened the pane.
+Each row of the widget carries its field's name in the markup themes style it by, so a failing
+field's row is tinted by a rule scoped to its leaf, and a press on a failure in the pane brings
+the note forward and puts the focus into that row's value. Which field a line belongs to, its
+own key or the key above an entry of a list, is decided in a tested module. Both lean on markup
+and not on the plugin API, which offers neither; if the markup changes, the tint and the focus
+go and nothing else does. A row carries no tooltip, and the pane keeps the message.
 
 ---
 
@@ -195,6 +210,28 @@ offered is a name for an entity that does not exist; the add-entity skill's rule
 a referenced entity, holds for the editor too, and the diagnostic on the unresolved name is the
 prompt to create it.
 
+Four things the by-hand trial decided about when the popup speaks. Nothing is offered while text
+follows the cursor on its line or in its cell, because accepting would leave that text standing
+behind the inserted name. A value written directly after its colon brings its own space, since
+`source:Local` is one bare word to YAML and no field at all. An empty line in the frontmatter
+offers by itself, because it is how the fields a file may still take are found at all; an empty
+entry of a list and an empty cell wait for a first letter, because Enter there ends the list or
+the row and a popup that opened first would take it, and a command opens it on demand, as
+completion does in any editor. Enter accepts by Obsidian's default and Tab accepts as well.
+
+**In Live Preview a field is added through the widget, so that is where the schema has to
+speak.** Obsidian's own Add property lists every property name used anywhere in the vault and
+knows no schema: a long list, in which a field no file uses yet does not appear at all. In a
+note that is an entity, a press on that button, Obsidian's own command Add file property and the
+`---` typed at the top of an empty note, which runs that command, all open a picker with exactly
+the fields the schema declares and the file lacks, the required ones first. It writes through
+Obsidian's own writer of frontmatter, leaves the value empty, since a list written as `[]` would
+be the flow sequence R11 forbids, and puts the focus into the new value. Its last entry hands
+back to Obsidian's list, so it is never the only way on, and the checks report what R15 says of
+a field no schema declares. The button is found by its markup and the command by its identifier
+in a registry outside the public types, both read from the installed application before they
+were relied on; each is wrapped optionally and put back on unload.
+
 ---
 
 ## 6. Testing
@@ -217,6 +254,14 @@ instance's findings went into the tooling spec.
 CI runs the suite, the build and the conventions check on every pull request and on `main`; the
 pin test of §2 is part of the suite.
 
+The first by-hand trial ran on September 18, 2026, with the owner at the screen, on the reference
+instance in Obsidian 1.13.7 on macOS. Everything on the trial checklist that was tried works:
+the checks from text and from the Properties widget, the marks, the pane and its click, key,
+value and cell completion in Source mode, the row tint and focus in the widget, the field picker
+from the button, from Obsidian's command and from `---`, a note whose name holds a space, both
+guards, and disabling and enabling the plugin. Not tried: a phone, a window popped out of the
+main one, and what the Properties widget does to a list when it rewrites one.
+
 ---
 
 ## 7. What goes upstream
@@ -234,6 +279,13 @@ values, and the package has one reader of each, `declarationOf` in `lib/instance
 `enumTokensOf` in `lib/checks.mjs`, neither exported. §1 rules out a second copy, so both are
 exported upstream in a minor release, and that release is what the plugin's completion pins.
 Validation needs neither and is built against the release before it.
+
+**A reader of a schema's rows, and of a grouped section.** The package reads whether a field is
+required, whether it is a list and whether it is an enum inside closures it does not export, and
+the plugin's vocabulary reads the same cells by their column names; `AGENTS.md` lists each
+reading it holds. One exported reader that returns a type's fields, sections and columns as the
+checks see them would retire all of them. The same release could export the reader of a grouped
+section's heading table, which is what a fifth completion context needs (§9).
 
 **A note on the tooling spec.** `2026-08-25-companygraph-tooling-design.md` designed `check` as
 a command in a `tooling` repository; the instance-checks spec of 2026-09-10 amended that by
@@ -267,6 +319,32 @@ which the instance already carries, so the plugin's part is small: a command tha
 terminal in the vault folder, or the vault's own agent files kept current by `upgrade`. Nothing
 here decides for a vendor. What the plugin never does is call a model itself.
 
+**Content, beyond the frontmatter.** Asked by the owner at the end of the first trial: whether
+proposals and completion reach the body of an entity. The body holds four different things and
+each has its own answer, in the order they are worth building.
+
+A table is where most references of an instance live, a profile's Skills above all. Its cells
+complete in Source mode already; in Live Preview a table is Obsidian's table editor, and
+completion there has to learn which column a cell belongs to from inside that editor. Obsidian's
+own link suggestions work in those cells, so a suggest is reachable; how the column is found is
+not verified and is read from the installed application before anything is planned. The same
+work lets a failing row be tinted there.
+
+A section is offered on `## ` already. Beside it belong a picker that adds a section from Live
+Preview, built as the field picker is, and the scaffold of a whole new entity, its required
+fields and sections written at once, which is the entity command above.
+
+A heading that is a reference, an achievement kind under `## Achievements`, waits for the
+export §7 names and is then a fifth context.
+
+Running prose divides. Completing a name inside a sentence is easy and means nothing to the
+model: a reference exists only where a schema declares one, so a name in prose is a fact and
+draws no edge, and nothing would check it. It is not built unless it is missed. Proposing what
+a section should say is the agent's seat and stays there, since the plugin calls no model. What
+the plugin can do is show what the schema says of the section the cursor is in, its purpose and
+its writing rules, beside the editor: text the vault already holds, a brief for the person
+writing and the same brief for an agent started later.
+
 ---
 
 ## 9. Open questions
@@ -280,11 +358,39 @@ here decides for a vendor. What the plugin never does is call a model itself.
   mismatch. Whether the manifest should name the plugin's release too, or the field should be
   read as the release of the checks and no more, is a meta-model question the structured
   failure's release could settle.
-- **Live Preview.** Obsidian renders frontmatter as its Properties widget and a table as its
-  table editor in Live Preview, and an `EditorSuggest` fires in an editor, not in a widget.
-  Completion is designed for and proven in Source mode, and with Properties shown as source.
-  What Live Preview does, and whether the Properties widget rewrites a list in a form R11
-  accepts, is observed on the reference instance and recorded here.
+- **Live Preview, what the trial settled and what it left.** Validation works from the
+  Properties widget as it does from text: Obsidian saves when a field is committed and the
+  failure appears at once. The widget's rows are tinted and focused (§4) and a field is added
+  through the schema's picker (§5). Left open: a table is a widget in Live Preview too, so a
+  failing row of a profile's Skills table gets no tint and its cells no completion there; a
+  value in the widget is completed by Obsidian's own list of values seen in the vault, which
+  knows no schema; whether the widget rewrites a list in a form R11 accepts has not been looked
+  at; and a window popped out of the main one has its own document and gets neither the tint nor
+  the picker.
+- **A name that Obsidian's View already uses.** The pane rendered blank on its first run,
+  because it had a method named `open` and Obsidian's View has an internal one of that name,
+  which is what calls `onOpen`. The public types do not declare it, so the name typechecked and
+  no review could see it. Nothing guards against the next such name but running the build.
+- **A heading in a grouped section.** An experience's `## Achievements` groups its bullets under
+  `###` headings that name an achievement kind, so such a heading is a reference, and §5's four
+  contexts do not offer it. Validation catches a wrong one and the locator lands on it. Offering
+  it needs the package's reader of a heading table, which is not exported (§7), so it waits for
+  that export and is a fifth context when it comes.
+- **The editor and the disk can disagree about line endings.** The package reads a file with
+  CRLF endings as having no frontmatter, and so do the plugin's checks, which read the disk.
+  CodeMirror hands the editor's lines without the `\r`, so completion sees frontmatter the checks
+  do not. On a checkout that converts line endings the whole instance would read red while its CI
+  is green. The cure is upstream, in how the parser reads a fence.
+- **Files Obsidian does not list.** The vault's file list leaves out dot-files, so a stray
+  `.gitkeep` under `model/` is a finding in CI and invisible here.
+- **No key completion before the closing fence exists.** A new note with only its opening `---`
+  has no frontmatter as the package reads it, and the plugin agrees, so keys are offered once the
+  block is closed.
+- **What the review's probe found about the checks, none of it the plugin's to fix.** No check holds
+  a required section, so deleting one passes while completion labels it required. An unresolved
+  reference in frontmatter is reported by two checks, so the count in the status bar doubles. And
+  two experiences of two profiles that share a name pass every check while the parser refuses
+  them, which the plugin shows as one failure on the instance.
 - **Mobile.** Nothing in version one needs the desktop, and nothing has been tried on a phone.
   The pane and the popup are Obsidian's own components and should hold; the rebuild on every
   change is where a phone would show first.

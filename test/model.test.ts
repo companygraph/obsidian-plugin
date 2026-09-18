@@ -1,0 +1,58 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { buildModel, namesByType } from "../src/model.ts";
+import { example, EXAMPLE, reference, REFERENCE, edited } from "./helpers.ts";
+
+const ROLE = "example/model/roles/backend-engineer.md";
+
+test("the example passes and parses", () => {
+  const m = buildModel(example(), EXAMPLE);
+  assert.deepEqual(m.failures, []);
+  assert.deepEqual(m.skipped, []);
+  assert.ok(m.graph);
+  assert.deepEqual(namesByType(m.graph!).get("source"), ["Google Workspace", "Local"]);
+});
+
+test("the reference instance passes and parses, in its own layout", () => {
+  const m = buildModel(reference(), REFERENCE);
+  assert.deepEqual(m.failures, []);
+  assert.ok(m.graph);
+});
+
+test("an unresolvable reference is reported once: the checks speak, the parser's throw is dropped", () => {
+  const m = buildModel(edited(example(), ROLE, (t) => t.replace("source: Local", "source: Nowhere")), EXAMPLE);
+  assert.equal(m.graph, null);
+  assert.equal(m.failures.length, 1);
+  assert.ok(m.failures[0].startsWith(ROLE + ": "));
+});
+
+test("a core with a schema missing names the type as skipped", () => {
+  const files = example();
+  files.delete("core/skill-schema.md");
+  assert.ok(buildModel(files, EXAMPLE).skipped.includes("skill"));
+});
+
+test("an empty note in a type folder is never offered as a name", () => {
+  const files = example();
+  files.set("example/model/skills/untitled.md", "");
+  const m = buildModel(files, EXAMPLE);
+  // The empty note fails the checks and the graph parses all the same, which is what puts an
+  // entity named "" in front of completion.
+  assert.ok(m.failures.length > 0);
+  assert.ok(m.graph);
+  assert.deepEqual(namesByType(m.graph!).get("skill"), ["Domain-Driven Design", "Java Programming", "Product Discovery"]);
+});
+
+test("the parser's own throw is the failure when the checks found nothing to say", () => {
+  // Two experiences of two profiles under one name. The checks read duplicate names per type
+  // folder, and an owned entity sits in its owner's folder rather than in one of those, so only
+  // the parser sees this one.
+  const files = example();
+  const tomas = "example/model/profiles/tomas-reyes/experiences/2022-beacon-systems.md";
+  const text = files.get(tomas)!.replace("# Deciding which billing goes first", "# Splitting the billing domain");
+  files.delete(tomas);
+  files.set("example/model/profiles/tomas-reyes/experiences/2022-splitting-the-billing-domain.md", text);
+  const m = buildModel(files, EXAMPLE);
+  assert.equal(m.graph, null);
+  assert.deepEqual(m.failures, ['R2: two experience entities share the name "Splitting the billing domain"']);
+});

@@ -12,6 +12,8 @@
 
 **Proven before this plan was written:** every pure module and every test below ran green in a throwaway prototype against the meta-model's example and the reference instance, the Obsidian-facing modules typechecked, and the bundle built. What no prototype could prove is behavior inside Obsidian; Task 10 is where that is found out.
 
+**After review, 2026-09-18.** The task reviews and the whole-branch review overruled code in this plan's blocks for Tasks 4, 5, 6, 8 and 9: the locator's matching, the context reader's table and fence reading, what is offered when a name is already complete, the rebuild's error boundary and its guard against an older rebuild winning, and several decisions that moved out of the Obsidian-facing modules into tested ones. The blocks below stay as the record of what was first built. **The repository is what to read.**
+
 ## Global Constraints
 
 - No second implementation of a rule. The parser, the checks, `slug`, table reading, the reader of a Type cell and the reader of an enum's values come from `companygraph-meta-model`. A rule the package does not export is proposed upstream, never written here.
@@ -944,6 +946,8 @@ EOF
 
 ### Task 5: A failure, located
 
+> **Superseded by review, 2026-09-18.** The `src/locate.ts` and the tests below are what was first committed. Review found that a failure about a body table or a grouped heading quotes its section before its value, so the first match was the section's heading. The committed code treats a quoted `## Section` as an anchor for the search and scopes the field search to the frontmatter; three tests hold that. Read the repository, not this block. The signature `locate(failure, files): Located` did not change.
+
 **Files:**
 - Create: `src/locate.ts`
 - Test: `test/locate.test.ts`
@@ -1074,6 +1078,8 @@ EOF
 ---
 
 ### Task 6: The cursor's context
+
+> **Superseded by review, 2026-09-18.** The `src/context.ts` below carried `cellsOf`, its own copy of the package's cell splitter, which the design's first non-goal rules out. The committed code reads the header row with the package's `tableOf` and returns no cell context for a table without a valid separator row; one test holds that, and `tableOf` is declared in `src/meta-model.d.ts`. Read the repository, not this block. The signature `contextAt(lines, line, ch): Context | null` did not change.
 
 **Files:**
 - Create: `src/context.ts`
