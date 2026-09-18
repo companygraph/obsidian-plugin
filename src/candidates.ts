@@ -4,7 +4,7 @@
 import { sectionsOf } from "companygraph-meta-model/checks";
 import type { Context } from "./context.ts";
 import { frontmatterEnd } from "./context.ts";
-import type { Offer, TypeVocabulary } from "./vocabulary.ts";
+import type { Field, Offer, TypeVocabulary } from "./vocabulary.ts";
 
 export interface Candidate { label: string; insert: string }
 
@@ -37,6 +37,14 @@ function matching(values: string[], typed: string): string[] {
   return [...starts, ...holds];
 }
 
+// The fields a file may still take: those its schema declares and its frontmatter lacks, the
+// required ones first. One decision for the key popup and for the Add a field picker.
+export function absentFields(vocabulary: TypeVocabulary, lines: string[]): Field[] {
+  const end = frontmatterEnd(lines);
+  const present = new Set(lines.slice(1, Math.max(end, 1)).map((l) => l.match(/^([\w-]+):/)?.[1]).filter(Boolean));
+  return requiredFirst(vocabulary.fields.filter((f) => !present.has(f.name)));
+}
+
 export function candidatesFor(
   context: Context,
   vocabulary: TypeVocabulary,
@@ -65,9 +73,7 @@ function offers(
   lines: string[],
 ): Candidate[] {
   if (context.kind === "key") {
-    const end = frontmatterEnd(lines);
-    const present = new Set(lines.slice(1, end).map((l) => l.match(/^([\w-]+):/)?.[1]).filter(Boolean));
-    const absent = requiredFirst(vocabulary.fields.filter((f) => !present.has(f.name)));
+    const absent = absentFields(vocabulary, lines);
     return matching(absent.map((f) => f.name), context.typed).map((name) => {
       const field = absent.find((f) => f.name === name)!;
       return { label: field.required ? `${name} (required)` : name, insert: field.list ? `${name}:\n  - ` : `${name}: ` };

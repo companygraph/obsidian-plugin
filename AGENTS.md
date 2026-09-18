@@ -48,8 +48,10 @@ design's section on what goes upstream lists them.
 ## Layout
 
 Everything that decides anything is a pure module under `src/`, with a test beside it under
-`test/`: `manifest.ts`, `model.ts`, `locate.ts`, `context.ts`, `vocabulary.ts`, `candidates.ts`.
-The modules that touch Obsidian, `vault.ts`, `marks.ts`, `pane.ts`, `suggest.ts` and `main.ts`,
+`test/`: `manifest.ts`, `model.ts`, `locate.ts`, `context.ts`, `vocabulary.ts`, `candidates.ts`,
+`properties.ts`.
+The modules that touch Obsidian, `vault.ts`, `marks.ts`, `pane.ts`, `suggest.ts`, `addfield.ts`,
+`widget.ts` and `main.ts`,
 are kept thin because nothing here can run them; they are proven by hand on the reference
 instance. No module under `src/` imports from `node:`, because the plugin also runs on a phone.
 

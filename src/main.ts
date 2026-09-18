@@ -1,6 +1,6 @@
 // The wiring: when to rebuild, and the three places a rebuild shows — the pane, the open file's
 // lines and the status bar. Everything that decides anything is in the pure modules.
-import { MarkdownView, Plugin, debounce } from "obsidian";
+import { MarkdownView, Notice, Plugin, debounce } from "obsidian";
 import type { Debouncer } from "obsidian";
 import type { EditorView } from "@codemirror/view";
 import { guard } from "./manifest.ts";
@@ -15,6 +15,9 @@ import { Pane, VIEW_TYPE } from "./pane.ts";
 import { Suggest } from "./suggest.ts";
 import { marksField, setMarks } from "./marks.ts";
 import { fieldOfLine, propertyRules } from "./properties.ts";
+import { typeOfPath } from "companygraph-meta-model/checks";
+import { absentFields } from "./candidates.ts";
+import { AddField } from "./addfield.ts";
 
 // The release of companygraph-meta-model this build bundles; esbuild.config.mjs defines it.
 declare const __CHECKER_VERSION__: string;
@@ -64,6 +67,25 @@ export default class CompanyGraphPlugin extends Plugin {
     this.registerEditorExtension(marksField);
     const suggest = new Suggest(this.app, this);
     this.registerEditorSuggest(suggest);
+    this.addCommand({
+      id: "add-field",
+      name: "Add a field",
+      // Offered only in a note that is an entity of a type whose schema was read.
+      checkCallback: (checking) => {
+        const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+        const file = view?.file;
+        const layout = this.layout;
+        if (!view || !file || !layout || !file.path.startsWith(layout.model + "/")) return false;
+        const type = typeOfPath(file.path, layout.model);
+        const vocabulary = type ? this.vocabulary.get(type) : undefined;
+        if (!vocabulary) return false;
+        if (checking) return true;
+        const fields = absentFields(vocabulary, view.editor.getValue().split("\n"));
+        if (fields.length === 0) new Notice(`This ${type} has every field its schema declares.`);
+        else new AddField(this.app, file, view, fields).open();
+        return true;
+      },
+    });
     this.addCommand({
       id: "complete-here",
       name: "Complete here",

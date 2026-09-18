@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { buildModel, namesByType, schemasOf } from "../src/model.ts";
 import { vocabularyOf } from "../src/vocabulary.ts";
-import { candidatesFor, cursorAfter } from "../src/candidates.ts";
+import { absentFields, candidatesFor, cursorAfter } from "../src/candidates.ts";
 import { example, EXAMPLE } from "./helpers.ts";
 
 const files = example();
@@ -135,4 +135,16 @@ test("asked for, an empty list entry and an empty cell offer everything they cou
 test("an empty value after its key, and an empty heading, still offer", () => {
   assert.equal(candidatesFor({ kind: "value", field: "nature", typed: "", start: 8, item: false, glued: false }, profile, names, []).length, 2);
   assert.ok(candidatesFor({ kind: "heading", typed: "", start: 3 }, profile, names, ["## "]).length > 0);
+});
+
+// One decision, two callers: the key popup in Source mode and the Add a field picker, which is
+// how a field is added from the Properties widget, where Obsidian's own list knows no schema.
+test("the fields a file may still take are those its schema declares and it lacks, required first", () => {
+  const lines = ["---", "source: Local", "roles:", "  - Reviewer", "---", "", "# Mira", "nature: not a field down here"];
+  const absent = absentFields(profile, lines);
+  assert.equal(absent[0].name, "nature");
+  assert.ok(absent[0].required);
+  assert.ok(!absent.some((f) => f.name === "source" || f.name === "roles"));
+  assert.ok(absent.some((f) => f.name === "source-id"));
+  assert.deepEqual(absentFields(profile, ["# No frontmatter"]).map((f) => f.name), profile.fields.filter((f) => f.required).concat(profile.fields.filter((f) => !f.required)).map((f) => f.name));
 });

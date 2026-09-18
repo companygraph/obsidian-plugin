@@ -5,6 +5,7 @@ import type { WorkspaceLeaf } from "obsidian";
 import type CompanyGraphPlugin from "./main.ts";
 import type { Located } from "./locate.ts";
 import { fieldOfLine } from "./properties.ts";
+import { focusProperty } from "./widget.ts";
 
 export const VIEW_TYPE = "companygraph-checks";
 
@@ -85,15 +86,6 @@ export class Pane extends ItemView {
   focusRow(view: unknown, line: number): boolean {
     if (!(view instanceof MarkdownView)) return true;
     const field = fieldOfLine(view.editor.getValue().split("\n"), line);
-    if (!field) return true;
-    const row = view.containerEl.querySelector<HTMLElement>(`.metadata-property[data-property-key="${field}"]`);
-    if (!row) return false;
-    if (row.offsetParent === null) return true; // not drawn: Source mode, or properties hidden
-    row.scrollIntoView({ block: "center" });
-    // A row holds the key's input and then the value's; the value is what a failure is about,
-    // so it is looked for in the value's half first and the row's first input is the fallback.
-    const editable = '[contenteditable="true"], input';
-    (row.querySelector<HTMLElement>(`.metadata-property-value :is(${editable})`) ?? row.querySelector<HTMLElement>(editable))?.focus();
-    return true;
+    return field ? focusProperty(view, field) : true;
   }
 }

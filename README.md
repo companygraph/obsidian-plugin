@@ -37,7 +37,13 @@ they are found at all. On an empty entry of a list and in an empty cell the popu
 first letter, because Enter there ends the list or the row; the command `CompanyGraph: Complete
 here` opens it anyway, and takes a hotkey in Obsidian's settings. Nothing is offered while text
 follows the cursor on its line, or in its cell, because accepting would leave that text standing
-behind the inserted name. Completion works in Source
+behind the inserted name.
+
+In Live Preview the frontmatter is Obsidian's Properties widget, and its own Add property lists
+every property name used anywhere in the vault: a long list that knows no schema, in which a
+field no file uses yet does not appear at all. The command `CompanyGraph: Add a field` opens a
+picker with exactly the fields this file's schema declares and the file lacks, the required ones
+first, adds the chosen one and puts the cursor into its value. Completion works in Source
 mode and with properties shown as source; the spec's open questions say what is known about Live
 Preview.
 
