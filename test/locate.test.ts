@@ -7,6 +7,9 @@ import { example, EXAMPLE, edited } from "./helpers.ts";
 const ROLE = "example/model/roles/backend-engineer.md";
 const lineOf = (files: Map<string, string>, file: string, text: string) =>
   files.get(file)!.split("\n").findIndex((l) => l.includes(text));
+// Where a line reads exactly this, for the cases where an earlier line has it as a prefix.
+const lineIs = (files: Map<string, string>, file: string, text: string) =>
+  files.get(file)!.split("\n").findIndex((l) => l === text);
 
 test("a scalar reference that does not resolve lands on its field's line", () => {
   const files = edited(example(), ROLE, (t) => t.replace("source: Local", "source: Nowhere"));
@@ -82,4 +85,34 @@ test("a grouped heading that fails lands on the heading, not on the section it g
   const at = locate(failure, files);
   assert.equal(at.path, EXPERIENCE);
   assert.equal(at.line, lineOf(files, EXPERIENCE, "### Nonsense"));
+});
+
+test("a list entry that reads as the prefix of an earlier entry lands on itself", () => {
+  const files = edited(example(), ROLE, (t) => t.replace("  - Java Programming", "  - Java Programming\n  - Java"));
+  const failure = buildModel(files, EXAMPLE).failures.find((f) => f.includes('"Java"'))!;
+  const at = locate(failure, files);
+  assert.equal(at.path, ROLE);
+  assert.equal(at.line, lineIs(files, ROLE, "  - Java"));
+});
+
+test("a table cell whose text also reads inside an earlier row lands on its own row", () => {
+  const files = edited(example(), MIRA, (t) =>
+    t.replace(
+      "| Domain-Driven Design | Competent | Split the billing domain into two bounded contexts; the seams have held under two years of change. |",
+      "| Domain-Driven Design | Competent | Split the billing domain into two bounded contexts; the seams have held under two years of change. |\n| Ja | Expert | Tried it once. |",
+    ),
+  );
+  const failure = buildModel(files, EXAMPLE).failures.find((f) => f.includes('"Ja"'))!;
+  const at = locate(failure, files);
+  assert.equal(at.path, MIRA);
+  assert.equal(at.line, lineIs(files, MIRA, "| Ja | Expert | Tried it once. |"));
+});
+
+test("a one-letter entry lands on itself, not on an earlier frontmatter value holding the letter", () => {
+  const files = edited(example(), MIRA, (t) => t.replace("  - Backend Engineer", "  - Backend Engineer\n  - G"));
+  // The form without a backticked field: the search has no frontmatter field to scope it.
+  const failure = buildModel(files, EXAMPLE).failures.find((f) => f.includes("resolves to nothing"))!;
+  const at = locate(failure, files);
+  assert.equal(at.path, MIRA);
+  assert.equal(at.line, lineIs(files, MIRA, "  - G"));
 });

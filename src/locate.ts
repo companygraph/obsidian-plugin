@@ -8,6 +8,38 @@ export interface Located {
 
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+const unquoted = (s: string) => s.replace(/^"(.*)"$/, "$1").replace(/^'(.*)'$/, "$1");
+
+// The whole tokens a line offers: the scalar after a frontmatter key, the item of a list line,
+// every cell of a table row, the text of a `### ` heading. A value is a fragment of a longer
+// name until it is one of these.
+function tokens(line: string): string[] {
+  const t = line.trim();
+  const out: string[] = [];
+  const scalar = t.match(/^[\w-]+:\s*(.+)$/);
+  if (scalar) out.push(unquoted(scalar[1].trim()));
+  const item = t.match(/^-\s+(.+)$/);
+  if (item) out.push(unquoted(item[1].trim()));
+  if (t.startsWith("|")) {
+    const cells = t.split("|");
+    if (cells[cells.length - 1].trim() === "") cells.pop();
+    out.push(...cells.slice(1).map((c) => c.trim()));
+  }
+  if (t.startsWith("### ")) out.push(t.slice(4).trim());
+  return out;
+}
+
+// The first line of `scope` where a value sits as a whole token; failing that, the first where
+// one reads anywhere, which is how a half-typed value that is nobody's whole token still lands
+// somewhere. -1 when no value reads at all.
+function seek(lines: string[], scope: number[], values: string[]): number {
+  for (const value of values) for (const i of scope) if (tokens(lines[i]).includes(value)) return i;
+  for (const value of values) for (const i of scope) if (lines[i].includes(value)) return i;
+  return -1;
+}
+
+const upto = (from: number, to: number) => Array.from({ length: Math.max(0, to - from) }, (_, i) => from + i);
+
 export function locate(failure: string, files: Map<string, string>): Located {
   const lead = failure.match(/^(\S+?):? /)?.[1] ?? null;
   if (!lead || !files.has(lead)) return { path: null, line: 0, message: failure };
@@ -24,11 +56,10 @@ export function locate(failure: string, files: Map<string, string>): Located {
   for (const field of fields) {
     const at = lines.slice(0, fmEnd).findIndex((l) => new RegExp(`^${escape(field)}:`).test(l));
     if (at < 0) continue;
-    for (const value of values) {
-      for (let i = at; i < fmEnd && (i === at || /^\s+-\s/.test(lines[i])); i++)
-        if (lines[i].includes(value)) return { path: lead, line: i, message };
-    }
-    return { path: lead, line: at, message };
+    const scope = [at];
+    for (let i = at + 1; i < fmEnd && /^\s+-\s/.test(lines[i]); i++) scope.push(i);
+    const hit = seek(lines, scope, values);
+    return { path: lead, line: hit < 0 ? at : hit, message };
   }
 
   // A quoted value that opens with "## " is a section anchor, not a location: a body table's
@@ -40,15 +71,10 @@ export function locate(failure: string, files: Map<string, string>): Located {
   if (heading !== undefined) {
     const at = lines.findIndex((l) => l.trim() === heading);
     if (at >= 0) {
-      for (let i = at + 1; i < lines.length; i++)
-        for (const value of values)
-          if (value !== heading && lines[i].includes(value)) return { path: lead, line: i, message };
-      return { path: lead, line: at, message };
+      const hit = seek(lines, upto(at + 1, lines.length), values.filter((v) => v !== heading));
+      return { path: lead, line: hit < 0 ? at : hit, message };
     }
   }
-  for (const value of values) {
-    const at = lines.findIndex((l) => l.includes(value));
-    if (at >= 0) return { path: lead, line: at, message };
-  }
-  return { path: lead, line: 0, message };
+  const hit = seek(lines, upto(0, lines.length), values);
+  return { path: lead, line: hit < 0 ? 0 : hit, message };
 }
