@@ -45,7 +45,9 @@ field no file uses yet does not appear at all. In a note that is an entity, pres
 opens a picker instead, with exactly the fields this file's schema declares and the file lacks,
 the required ones first; it adds the chosen one and puts the cursor into its value. Its last
 entry hands over to Obsidian's own list, for a property the schema does not declare, which the
-checks will then report. The command `CompanyGraph: Add a field` opens the same picker. Completion works in Source
+checks will then report. Obsidian's own command Add file property opens the same picker in an
+entity, and so does typing `---` at the top of an empty one, which runs that command; the
+command `CompanyGraph: Add a field` opens it too. Completion works in Source
 mode and with properties shown as source; the spec's open questions say what is known about Live
 Preview.
 

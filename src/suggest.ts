@@ -34,8 +34,18 @@ export class Suggest extends EditorSuggest<Candidate> {
   // it the command does nothing rather than something wrong.
   ask(editor: Editor, file: TFile | null) {
     this.asked = true;
-    const trigger = (this as unknown as { trigger?: (editor: Editor, file: TFile | null, open: boolean) => void }).trigger;
-    trigger?.call(this, editor, file, true);
+    // Read from the installed application: the workspace keeps a manager of every suggest, whose
+    // trigger(editor, file, true) asks each in turn and makes the one that answers current; a
+    // suggest's own trigger does the asking without the bookkeeping. The manager where there is
+    // one, the suggest's own otherwise, nothing if neither.
+    type Trigger = { trigger?: (editor: Editor, file: TFile | null, open: boolean) => void };
+    const manager = (this.app.workspace as unknown as { editorSuggest?: Trigger }).editorSuggest;
+    // The manager does nothing unless the editor has the focus, and run from the command palette
+    // the focus may not be back in it yet.
+    editor.focus();
+    if (typeof manager?.trigger === "function") manager.trigger(editor, file, true);
+    else (this as unknown as Trigger).trigger?.(editor, file, true);
+    this.asked = false;
   }
 
   find(cursor: EditorPosition, editor: Editor, file: TFile | null, asked = false) {

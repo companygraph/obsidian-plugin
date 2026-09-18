@@ -89,6 +89,7 @@ export default class CompanyGraphPlugin extends Plugin {
     // button is found by the markup themes style it by: if that changes, the press is Obsidian's
     // again and nothing else changes. Capturing, so this runs before the widget's own handler.
     this.registerDomEvent(document, "click", (event) => this.onAddProperty(event), { capture: true });
+    this.wrapAddProperty();
     this.addCommand({
       id: "complete-here",
       name: "Complete here",
@@ -205,6 +206,30 @@ export default class CompanyGraphPlugin extends Plugin {
     const vocabulary = type ? this.vocabulary.get(type) : undefined;
     if (!type || !vocabulary) return null;
     return { file, type, fields: absentFields(vocabulary, view.editor.getValue().split("\n")) };
+  }
+
+  // The same, for the way in that is not the button: Obsidian's own command Add file property,
+  // which a hotkey runs and which Obsidian itself runs when `---` is typed at the top of an
+  // empty note. Read from the installed application: it is registered as
+  // "markdown:add-metadata-property" with a checkCallback. The registry is not in the public
+  // types, so every step is optional, and the original is put back when the plugin unloads.
+  wrapAddProperty() {
+    type Native = { checkCallback?: (checking: boolean) => boolean | void };
+    const registry = (this.app as unknown as { commands?: { commands?: Record<string, Native> } }).commands?.commands;
+    const native = registry?.["markdown:add-metadata-property"];
+    const original = native?.checkCallback;
+    if (!native || typeof original !== "function") return;
+    native.checkCallback = (checking: boolean) => {
+      const view = checking || this.passing ? null : this.app.workspace.getActiveViewOfType(MarkdownView);
+      const entity = view ? this.entityFields(view) : null;
+      if (!view || !entity) return original.call(native, checking);
+      new AddField(this.app, entity.file, view, entity.fields, () => {
+        this.passing = true;
+        try { original.call(native, false); } finally { this.passing = false; }
+      }).open();
+      return true;
+    };
+    this.register(() => { native.checkCallback = original; });
   }
 
   onAddProperty(event: MouseEvent) {
