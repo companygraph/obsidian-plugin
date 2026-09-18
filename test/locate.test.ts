@@ -42,3 +42,44 @@ test("a path with nothing findable in the file falls back to its first line", ()
   const at = locate(`${ROLE}: no H1, so nothing derives a filename (R2)`, example());
   assert.deepEqual([at.path, at.line], [ROLE, 0]);
 });
+
+const MIRA = "example/model/profiles/mira-halvorsen/mira-halvorsen.md";
+const EXPERIENCE = "example/model/profiles/mira-halvorsen/experiences/2018-northwind-atelier.md";
+
+test("a body table row that fails lands on the row, not on the section heading it is quoted beside", () => {
+  const files = edited(example(), MIRA, (t) =>
+    t.replace(
+      "| Domain-Driven Design | Competent | Split the billing domain into two bounded contexts; the seams have held under two years of change. |",
+      "| Domain-Driven Design | Competent | Split the billing domain into two bounded contexts; the seams have held under two years of change. |\n| Cobol Wizardry | Competent | Wrote some COBOL once. |",
+    ),
+  );
+  const failure = buildModel(files, EXAMPLE).failures.find((f) => f.includes("Cobol Wizardry"))!;
+  const at = locate(failure, files);
+  assert.equal(at.path, MIRA);
+  assert.equal(at.line, lineOf(files, MIRA, "| Cobol Wizardry"));
+  assert.notEqual(at.line, lineOf(files, MIRA, "## Skills"));
+});
+
+test("the same value read earlier in the file does not fool the section anchor", () => {
+  const files = edited(example(), MIRA, (t) => {
+    const withMention = t.replace(
+      "> Backend engineer who ended up owning the parts nobody else wanted to.",
+      "> Backend engineer who ended up owning the parts nobody else wanted to. Once tried Cobol Wizardry.",
+    );
+    return withMention.replace(
+      "| Domain-Driven Design | Competent | Split the billing domain into two bounded contexts; the seams have held under two years of change. |",
+      "| Domain-Driven Design | Competent | Split the billing domain into two bounded contexts; the seams have held under two years of change. |\n| Cobol Wizardry | Competent | Wrote some COBOL once. |",
+    );
+  });
+  const failure = buildModel(files, EXAMPLE).failures.find((f) => f.includes("Cobol Wizardry"))!;
+  const at = locate(failure, files);
+  assert.equal(at.line, lineOf(files, MIRA, "| Cobol Wizardry"));
+});
+
+test("a grouped heading that fails lands on the heading, not on the section it groups", () => {
+  const files = edited(example(), EXPERIENCE, (t) => t.replace("### Delivery", "### Nonsense"));
+  const failure = buildModel(files, EXAMPLE).failures.find((f) => f.includes("Nonsense"))!;
+  const at = locate(failure, files);
+  assert.equal(at.path, EXPERIENCE);
+  assert.equal(at.line, lineOf(files, EXPERIENCE, "### Nonsense"));
+});
