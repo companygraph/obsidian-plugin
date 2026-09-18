@@ -18,7 +18,9 @@ A vault with a `.companygraph/manifest.json` is an instance; in any other vault 
 idle. In an instance it checks the whole model on every change, because a reference crosses
 files, and shows the result in a pane that lists the failures by file and then what was not
 checked, as a mark on the line of each failure in the open file, and as a count in the status
-bar. A click on the status bar opens the pane, and so does the command `CompanyGraph: Open the
+bar. The pane's text can be selected and copied, and Copy report puts the whole of it on the
+clipboard as plain text, for an agent or an issue. A click on the status bar opens the pane, and
+so does the command `CompanyGraph: Open the
 checks pane`. `CompanyGraph: Check the instance now` runs the checks without waiting for a
 change, which is also how a vault that has only just become an instance is first read.
 
