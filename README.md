@@ -41,9 +41,11 @@ behind the inserted name.
 
 In Live Preview the frontmatter is Obsidian's Properties widget, and its own Add property lists
 every property name used anywhere in the vault: a long list that knows no schema, in which a
-field no file uses yet does not appear at all. The command `CompanyGraph: Add a field` opens a
-picker with exactly the fields this file's schema declares and the file lacks, the required ones
-first, adds the chosen one and puts the cursor into its value. Completion works in Source
+field no file uses yet does not appear at all. In a note that is an entity, pressing Add property
+opens a picker instead, with exactly the fields this file's schema declares and the file lacks,
+the required ones first; it adds the chosen one and puts the cursor into its value. Its last
+entry hands over to Obsidian's own list, for a property the schema does not declare, which the
+checks will then report. The command `CompanyGraph: Add a field` opens the same picker. Completion works in Source
 mode and with properties shown as source; the spec's open questions say what is known about Live
 Preview.
 

@@ -7,23 +7,34 @@ import type { App, MarkdownView, TFile } from "obsidian";
 import type { Field } from "./vocabulary.ts";
 import { focusProperty } from "./widget.ts";
 
-export class AddField extends FuzzySuggestModal<Field> {
+// The last entry of the picker: Obsidian's own list, for a property the schema does not declare.
+// The picker is opened in place of that list, so it must never be the only way on.
+const OTHER = "other";
+type Item = Field | typeof OTHER;
+
+export class AddField extends FuzzySuggestModal<Item> {
   file: TFile;
   view: MarkdownView;
   fields: Field[];
+  other: (() => void) | null;
 
-  constructor(app: App, file: TFile, view: MarkdownView, fields: Field[]) {
+  constructor(app: App, file: TFile, view: MarkdownView, fields: Field[], other: (() => void) | null = null) {
     super(app);
     this.file = file;
     this.view = view;
     this.fields = fields;
-    this.setPlaceholder("A field this file may still take");
+    this.other = other;
+    this.setPlaceholder(fields.length ? "A field this file may still take" : "This file has every field its schema declares");
   }
 
-  getItems() { return this.fields; }
-  getItemText(field: Field) { return field.required ? `${field.name} (required)` : field.name; }
+  getItems(): Item[] { return this.other ? [...this.fields, OTHER] : this.fields; }
+  getItemText(item: Item) {
+    if (item === OTHER) return "Another property (not declared by the schema)";
+    return item.required ? `${item.name} (required)` : item.name;
+  }
 
-  onChooseItem(field: Field) {
+  onChooseItem(field: Item) {
+    if (field === OTHER) return this.other?.();
     // Obsidian's own writer of frontmatter, so the file is changed the way the widget changes
     // it. The value is left empty: a list written as `[]` would be the flow sequence R11 forbids.
     void this.app.fileManager

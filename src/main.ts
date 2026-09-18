@@ -43,6 +43,8 @@ export default class CompanyGraphPlugin extends Plugin {
   statusBar: HTMLElement | null = null;
   // The rules that tint a failing field's row in Live Preview's Properties widget.
   rowStyle: HTMLStyleElement | null = null;
+  // True while a press on Add property is being handed back to Obsidian.
+  passing = false;
   soon: Debouncer<[], void> | null = null;
   // Bumped at the start of every rebuild, and once more on unload. A rebuild checks its own
   // number against this field after every await: whichever started last owns the field, so an
@@ -73,19 +75,20 @@ export default class CompanyGraphPlugin extends Plugin {
       // Offered only in a note that is an entity of a type whose schema was read.
       checkCallback: (checking) => {
         const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-        const file = view?.file;
-        const layout = this.layout;
-        if (!view || !file || !layout || !file.path.startsWith(layout.model + "/")) return false;
-        const type = typeOfPath(file.path, layout.model);
-        const vocabulary = type ? this.vocabulary.get(type) : undefined;
-        if (!vocabulary) return false;
+        const entity = view ? this.entityFields(view) : null;
+        if (!view || !entity) return false;
         if (checking) return true;
-        const fields = absentFields(vocabulary, view.editor.getValue().split("\n"));
-        if (fields.length === 0) new Notice(`This ${type} has every field its schema declares.`);
-        else new AddField(this.app, file, view, fields).open();
+        if (entity.fields.length === 0) new Notice(`This ${entity.type} has every field its schema declares.`);
+        else new AddField(this.app, entity.file, view, entity.fields).open();
         return true;
       },
     });
+    // The first thing anyone presses to add a field is the widget's own Add property, which lists
+    // every property name in the vault and knows no schema. In a note that is an entity, that
+    // press opens the picker instead; the picker's last entry hands back to Obsidian's list. The
+    // button is found by the markup themes style it by: if that changes, the press is Obsidian's
+    // again and nothing else changes. Capturing, so this runs before the widget's own handler.
+    this.registerDomEvent(document, "click", (event) => this.onAddProperty(event), { capture: true });
     this.addCommand({
       id: "complete-here",
       name: "Complete here",
@@ -190,6 +193,39 @@ export default class CompanyGraphPlugin extends Plugin {
     for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE))
       if (leaf.view instanceof Pane) leaf.view.render();
     this.paint();
+  }
+
+  // The fields the note in this view may still take, or null when it is no entity of a type
+  // whose schema was read.
+  entityFields(view: MarkdownView) {
+    const file = view.file;
+    const layout = this.layout;
+    if (!file || !layout || !file.path.startsWith(layout.model + "/")) return null;
+    const type = typeOfPath(file.path, layout.model);
+    const vocabulary = type ? this.vocabulary.get(type) : undefined;
+    if (!type || !vocabulary) return null;
+    return { file, type, fields: absentFields(vocabulary, view.editor.getValue().split("\n")) };
+  }
+
+  onAddProperty(event: MouseEvent) {
+    if (this.passing) return;
+    const target = event.target;
+    const button = target instanceof HTMLElement ? target.closest<HTMLElement>(".metadata-add-button") : null;
+    if (!button) return;
+    let view: MarkdownView | null = null;
+    this.app.workspace.iterateAllLeaves((leaf) => {
+      if (leaf.view instanceof MarkdownView && leaf.view.containerEl.contains(button)) view = leaf.view;
+    });
+    const found = view as MarkdownView | null;
+    const entity = found ? this.entityFields(found) : null;
+    if (!found || !entity) return;
+    event.preventDefault();
+    event.stopPropagation();
+    new AddField(this.app, entity.file, found, entity.fields, () => {
+      // Obsidian's own list: the same press, let through once.
+      this.passing = true;
+      try { button.click(); } finally { this.passing = false; }
+    }).open();
   }
 
   paint() {
