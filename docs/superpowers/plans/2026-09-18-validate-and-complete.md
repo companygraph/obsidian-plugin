@@ -944,6 +944,8 @@ EOF
 
 ### Task 5: A failure, located
 
+> **Superseded by review, 2026-09-18.** The `src/locate.ts` and the tests below are what was first committed. Review found that a failure about a body table or a grouped heading quotes its section before its value, so the first match was the section's heading. The committed code treats a quoted `## Section` as an anchor for the search and scopes the field search to the frontmatter; three tests hold that. Read the repository, not this block. The signature `locate(failure, files): Located` did not change.
+
 **Files:**
 - Create: `src/locate.ts`
 - Test: `test/locate.test.ts`
@@ -1074,6 +1076,8 @@ EOF
 ---
 
 ### Task 6: The cursor's context
+
+> **Superseded by review, 2026-09-18.** The `src/context.ts` below carried `cellsOf`, its own copy of the package's cell splitter, which the design's first non-goal rules out. The committed code reads the header row with the package's `tableOf` and returns no cell context for a table without a valid separator row; one test holds that, and `tableOf` is declared in `src/meta-model.d.ts`. Read the repository, not this block. The signature `contextAt(lines, line, ch): Context | null` did not change.
 
 **Files:**
 - Create: `src/context.ts`
