@@ -45,20 +45,20 @@ export function absentFields(vocabulary: TypeVocabulary, lines: string[]): Field
   return requiredFirst(vocabulary.fields.filter((f) => !present.has(f.name)));
 }
 
+// On an entry of a list and in a cell, Enter is the editor's while nothing is typed: it ends
+// the list, the row. The popup still shows there, since it is how what the position may hold is
+// seen at all, so whoever binds the keys asks this and lets that Enter through.
+export function entersThrough(context: Context): boolean {
+  const entryOrCell = context.kind === "cell" || (context.kind === "value" && context.item);
+  return entryOrCell && context.typed.trim() === "";
+}
+
 export function candidatesFor(
   context: Context,
   vocabulary: TypeVocabulary,
   names: Map<string, string[]>,
   lines: string[],
-  asked = false,
 ): Candidate[] {
-  // On a list entry and in a cell, Enter belongs to the editor: it ends the list, the row. A
-  // popup that opens before anything is typed takes that Enter and writes its first candidate,
-  // so there nothing is offered until something is typed, unless it was asked for. After
-  // `key: ` and after `## ` the position itself asks, and an empty key line does too: it is
-  // how the fields a file may still take are found at all.
-  const quiet = context.kind === "cell" || (context.kind === "value" && context.item);
-  if (quiet && !asked && context.typed.trim() === "") return [];
   const candidates = offers(context, vocabulary, names, lines);
   // What is typed is already one of the things on offer: there is nothing left to complete, and
   // a popup still open over it captures the Enter that belongs to the editor. One candidate is

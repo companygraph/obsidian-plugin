@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { buildModel, namesByType, schemasOf } from "../src/model.ts";
 import { vocabularyOf } from "../src/vocabulary.ts";
-import { absentFields, candidatesFor, cursorAfter } from "../src/candidates.ts";
+import { absentFields, candidatesFor, cursorAfter, entersThrough } from "../src/candidates.ts";
 import { example, EXAMPLE } from "./helpers.ts";
 
 const files = example();
@@ -109,9 +109,27 @@ test("a glued value typed in full still leaves nothing to complete", () => {
 // Also from that run: on an empty entry of a list the popup opened, and the Enter meant to end
 // the list inserted the first name instead. Where Enter belongs to the editor, nothing is
 // offered until something is typed; after `key: ` and after `## ` the position itself asks.
-test("nothing is offered on an empty list entry or an empty cell, where Enter is the editor's", () => {
-  assert.deepEqual(candidatesFor({ kind: "value", field: "roles", typed: "", start: 4, item: true, glued: false }, profile, names, []), []);
-  assert.deepEqual(candidatesFor({ kind: "cell", section: "Skills", column: "Level", typed: " ", start: 0 }, profile, names, []), []);
+// The second thing the owner said about an empty entry: with nothing shown until a letter is
+// typed, he could not see what the list may hold. So an empty entry and an empty cell offer
+// everything they could hold, like any other position, and whether Enter belongs to the editor
+// there is a separate question with its own answer below.
+test("an empty list entry and an empty cell offer everything they could hold", () => {
+  const entry = { kind: "value", field: "roles", typed: "", start: 4, item: true, glued: false } as const;
+  assert.deepEqual(labels(candidatesFor(entry, profile, names, [])), ["Backend Engineer", "Reviewer"]);
+  const cell = { kind: "cell", section: "Skills", column: "Level", typed: " ", start: 0 } as const;
+  assert.equal(candidatesFor(cell, profile, names, []).length, 4);
+});
+
+// The first thing he said: on an empty entry, Enter ends the list, and a popup that takes it
+// writes a name nobody chose. Where nothing is typed on an entry or in a cell, Enter is the
+// editor's, popup or not; everywhere else it accepts.
+test("Enter belongs to the editor on an empty list entry and in an empty cell, and nowhere else", () => {
+  assert.equal(entersThrough({ kind: "value", field: "roles", typed: "", start: 4, item: true, glued: false }), true);
+  assert.equal(entersThrough({ kind: "cell", section: "Skills", column: "Level", typed: "  ", start: 0 }), true);
+  assert.equal(entersThrough({ kind: "value", field: "roles", typed: "Re", start: 4, item: true, glued: false }), false);
+  assert.equal(entersThrough({ kind: "value", field: "source", typed: "", start: 8, item: false, glued: false }), false);
+  assert.equal(entersThrough({ kind: "key", typed: "", start: 0 }), false);
+  assert.equal(entersThrough({ kind: "heading", typed: "", start: 3 }), false);
 });
 
 // The owner, in the trial: "without typing s for source-id, I may not know the keys". An empty
@@ -122,19 +140,6 @@ test("an empty key line offers every field the file lacks, required first", () =
   assert.equal(c[0].label, "nature (required)");
   assert.ok(!labels(c).some((l) => l.startsWith("source ")));
   assert.ok(labels(c).includes("roles"));
-});
-
-// And where the popup stays quiet, it can be asked for: completion on demand, as in any editor.
-test("asked for, an empty list entry and an empty cell offer everything they could hold", () => {
-  const entry = { kind: "value", field: "roles", typed: "", start: 4, item: true, glued: false } as const;
-  assert.deepEqual(labels(candidatesFor(entry, profile, names, [], true)), ["Backend Engineer", "Reviewer"]);
-  const cell = { kind: "cell", section: "Skills", column: "Level", typed: "", start: 0 } as const;
-  assert.equal(candidatesFor(cell, profile, names, [], true).length, 4);
-});
-
-test("an empty value after its key, and an empty heading, still offer", () => {
-  assert.equal(candidatesFor({ kind: "value", field: "nature", typed: "", start: 8, item: false, glued: false }, profile, names, []).length, 2);
-  assert.ok(candidatesFor({ kind: "heading", typed: "", start: 3 }, profile, names, ["## "]).length > 0);
 });
 
 // One decision, two callers: the key popup in Source mode and the Add a field picker, which is

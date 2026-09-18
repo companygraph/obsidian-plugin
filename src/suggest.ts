@@ -5,7 +5,7 @@ import { typeOfPath } from "companygraph-meta-model/checks";
 import type CompanyGraphPlugin from "./main.ts";
 import { contextAt, mayHoldContext } from "./context.ts";
 import type { Context } from "./context.ts";
-import { candidatesFor, cursorAfter } from "./candidates.ts";
+import { candidatesFor, cursorAfter, entersThrough } from "./candidates.ts";
 import type { Candidate } from "./candidates.ts";
 
 export class Suggest extends EditorSuggest<Candidate> {
@@ -13,8 +13,11 @@ export class Suggest extends EditorSuggest<Candidate> {
   // What onTrigger last found, for getSuggestions to read straight back: Obsidian calls it only
   // after an onTrigger that returned non-null, for the same position, so find() need not run twice.
   found: { context: Context; candidates: Candidate[] } | null = null;
-  // Set by the command that asks for completion where it otherwise stays quiet; read once.
+  // Set by the command Complete here; read once. It matters only where Enter could not be put
+  // first, since there an empty entry stays quiet unless it is asked.
   asked = false;
+  // Whether this suggest's Enter runs before the chooser's own.
+  enterFirst = false;
 
   constructor(app: App, plugin: CompanyGraphPlugin) {
     super(app);
@@ -22,6 +25,28 @@ export class Suggest extends EditorSuggest<Candidate> {
     // Enter accepts by Obsidian's own default and Tab does not. The chooser that holds the
     // selection is not in the public types; plugins reach it this way, and if it ever goes the
     // optional call leaves Tab doing what it did before.
+    // Enter. The chooser bound its own when the popup was built, and a scope runs the first
+    // handler that matches, so this one is moved to the front of the scope's list, which is not
+    // in the public types. Read from the installed application: a handler that returns anything
+    // but false lets the key through to the editor. If the list cannot be reached, `enterFirst`
+    // stays false and an empty entry offers nothing, as before, rather than take an Enter.
+    const entry = this.scope.register([], "Enter", (event) => {
+      if (this.found && entersThrough(this.found.context)) {
+        this.close();
+        return true;
+      }
+      const chooser = (this as unknown as { suggestions?: { useSelectedItem?: (e: KeyboardEvent) => void } }).suggestions;
+      chooser?.useSelectedItem?.(event);
+      return false;
+    });
+    const keys = (this.scope as unknown as { keys?: unknown[] }).keys;
+    if (Array.isArray(keys) && keys.includes(entry)) {
+      keys.splice(keys.indexOf(entry), 1);
+      keys.unshift(entry);
+      this.enterFirst = true;
+    } else {
+      this.scope.unregister(entry);
+    }
     this.scope.register([], "Tab", (event) => {
       const chooser = (this as unknown as { suggestions?: { useSelectedItem?: (e: KeyboardEvent) => void } }).suggestions;
       chooser?.useSelectedItem?.(event);
@@ -65,7 +90,9 @@ export class Suggest extends EditorSuggest<Candidate> {
     const context = contextAt(lines, cursor.line, cursor.ch);
     if (!context) return null;
     // candidatesFor decides everything, including that what is typed is already complete.
-    const candidates = candidatesFor(context, vocabulary, this.plugin.names, lines, asked);
+    // An empty entry shows its names only where its Enter can be let through.
+    if (entersThrough(context) && !this.enterFirst && !asked) return null;
+    const candidates = candidatesFor(context, vocabulary, this.plugin.names, lines);
     return candidates.length ? { context, candidates } : null;
   }
 

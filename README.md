@@ -35,9 +35,11 @@ the permitted values of an enum, the canonical names of the type a reference dec
 by column in a table section, and the sections the file lacks. A name is inserted plain, as the
 conventions write a reference; the plugin resolves it and Obsidian's own graph view does not see
 it. An empty line in the frontmatter lists every field the file may still take, which is how
-they are found at all. On an empty entry of a list and in an empty cell the popup waits for a
-first letter, because Enter there ends the list or the row; the command `CompanyGraph: Complete
-here` opens it anyway, and takes a hotkey in Obsidian's settings. Nothing is offered while text
+they are found at all. An empty entry of a list and an empty cell show everything they may hold
+as well; there Enter stays the editor's while nothing is typed, so it ends the list or the row
+as it always did, and a name is taken with the arrow keys and Tab, or a click. The command
+`CompanyGraph: Complete here` opens the popup again after it was closed, and takes a hotkey in
+Obsidian's settings. Nothing is offered while text
 follows the cursor on its line, or in its cell, because accepting would leave that text standing
 behind the inserted name.
 
