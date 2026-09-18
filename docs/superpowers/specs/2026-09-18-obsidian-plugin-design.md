@@ -214,10 +214,16 @@ Four things the by-hand trial decided about when the popup speaks. Nothing is of
 follows the cursor on its line or in its cell, because accepting would leave that text standing
 behind the inserted name. A value written directly after its colon brings its own space, since
 `source:Local` is one bare word to YAML and no field at all. An empty line in the frontmatter
-offers by itself, because it is how the fields a file may still take are found at all; an empty
-entry of a list and an empty cell wait for a first letter, because Enter there ends the list or
-the row and a popup that opened first would take it, and a command opens it on demand, as
-completion does in any editor. Enter accepts by Obsidian's default and Tab accepts as well.
+offers by itself, because it is how the fields a file may still take are found at all. An empty
+entry of a list and an empty cell offer too, and took two attempts. At first the popup took the
+Enter meant to end the list and wrote a name nobody chose; the blunt cure, no popup until a
+letter is typed, hid what the list may hold, which the owner missed at once. The two wishes do
+not conflict: the popup shows, and while nothing is typed there Enter is let through to the
+editor, the popup's own Enter handler being placed ahead of the one Obsidian's chooser binds.
+That placement reaches into a scope's list outside the public types; where it cannot be done,
+the empty entry stays quiet and a command opens the popup on demand. Whether Enter is the
+editor's at a position is decided in a tested function. Enter accepts elsewhere by Obsidian's
+default and Tab accepts as well.
 
 **In Live Preview a field is added through the widget, so that is where the schema has to
 speak.** Obsidian's own Add property lists every property name used anywhere in the vault and
