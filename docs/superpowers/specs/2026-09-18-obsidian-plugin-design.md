@@ -167,7 +167,19 @@ come from the schemas, and no names.
 
 The open file's failures are also marked inline, an editor decoration on the line found, with
 the message on hover. A status bar item carries the count of failures and the count of things
-not checked, so the state is visible without the pane open.
+not checked, so the state is visible without the pane open; a press on it opens the pane, and
+it says so in a tooltip, because the first person to use it read the count and did not find the
+pane.
+
+**Live Preview is the view most people never leave, and it draws the frontmatter as Obsidian's
+Properties widget, where a mark on a text line has nowhere to sit.** The by-hand trial settled
+this: without more, a failure in frontmatter was visible only to someone who opened the pane.
+Each row of the widget carries its field's name in the markup themes style it by, so a failing
+field's row is tinted by a rule scoped to its leaf, and a press on a failure in the pane brings
+the note forward and puts the focus into that row's value. Which field a line belongs to, its
+own key or the key above an entry of a list, is decided in a tested module. Both lean on markup
+and not on the plugin API, which offers neither; if the markup changes, the tint and the focus
+go and nothing else does. A row carries no tooltip, and the pane keeps the message.
 
 ---
 
@@ -197,6 +209,28 @@ so an entity added a moment ago is offered as soon as its file has been read. Wh
 offered is a name for an entity that does not exist; the add-entity skill's rule, never invent
 a referenced entity, holds for the editor too, and the diagnostic on the unresolved name is the
 prompt to create it.
+
+Four things the by-hand trial decided about when the popup speaks. Nothing is offered while text
+follows the cursor on its line or in its cell, because accepting would leave that text standing
+behind the inserted name. A value written directly after its colon brings its own space, since
+`source:Local` is one bare word to YAML and no field at all. An empty line in the frontmatter
+offers by itself, because it is how the fields a file may still take are found at all; an empty
+entry of a list and an empty cell wait for a first letter, because Enter there ends the list or
+the row and a popup that opened first would take it, and a command opens it on demand, as
+completion does in any editor. Enter accepts by Obsidian's default and Tab accepts as well.
+
+**In Live Preview a field is added through the widget, so that is where the schema has to
+speak.** Obsidian's own Add property lists every property name used anywhere in the vault and
+knows no schema: a long list, in which a field no file uses yet does not appear at all. In a
+note that is an entity, a press on that button, Obsidian's own command Add file property and the
+`---` typed at the top of an empty note, which runs that command, all open a picker with exactly
+the fields the schema declares and the file lacks, the required ones first. It writes through
+Obsidian's own writer of frontmatter, leaves the value empty, since a list written as `[]` would
+be the flow sequence R11 forbids, and puts the focus into the new value. Its last entry hands
+back to Obsidian's list, so it is never the only way on, and the checks report what R15 says of
+a field no schema declares. The button is found by its markup and the command by its identifier
+in a registry outside the public types, both read from the installed application before they
+were relied on; each is wrapped optionally and put back on unload.
 
 ---
 
@@ -290,11 +324,19 @@ here decides for a vendor. What the plugin never does is call a model itself.
   mismatch. Whether the manifest should name the plugin's release too, or the field should be
   read as the release of the checks and no more, is a meta-model question the structured
   failure's release could settle.
-- **Live Preview.** Obsidian renders frontmatter as its Properties widget and a table as its
-  table editor in Live Preview, and an `EditorSuggest` fires in an editor, not in a widget.
-  Completion is designed for and proven in Source mode, and with Properties shown as source.
-  What Live Preview does, and whether the Properties widget rewrites a list in a form R11
-  accepts, is observed on the reference instance and recorded here.
+- **Live Preview, what the trial settled and what it left.** Validation works from the
+  Properties widget as it does from text: Obsidian saves when a field is committed and the
+  failure appears at once. The widget's rows are tinted and focused (§4) and a field is added
+  through the schema's picker (§5). Left open: a table is a widget in Live Preview too, so a
+  failing row of a profile's Skills table gets no tint and its cells no completion there; a
+  value in the widget is completed by Obsidian's own list of values seen in the vault, which
+  knows no schema; whether the widget rewrites a list in a form R11 accepts has not been looked
+  at; and a window popped out of the main one has its own document and gets neither the tint nor
+  the picker.
+- **A name that Obsidian's View already uses.** The pane rendered blank on its first run,
+  because it had a method named `open` and Obsidian's View has an internal one of that name,
+  which is what calls `onOpen`. The public types do not declare it, so the name typechecked and
+  no review could see it. Nothing guards against the next such name but running the build.
 - **A heading in a grouped section.** An experience's `## Achievements` groups its bullets under
   `###` headings that name an achievement kind, so such a heading is a reference, and §5's four
   contexts do not offer it. Validation catches a wrong one and the locator lands on it. Offering
