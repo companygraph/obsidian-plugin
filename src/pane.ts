@@ -90,7 +90,10 @@ export class Pane extends ItemView {
     if (!row) return false;
     if (row.offsetParent === null) return true; // not drawn: Source mode, or properties hidden
     row.scrollIntoView({ block: "center" });
-    row.querySelector<HTMLElement>('[contenteditable="true"], input')?.focus();
+    // A row holds the key's input and then the value's; the value is what a failure is about,
+    // so it is looked for in the value's half first and the row's first input is the fallback.
+    const editable = '[contenteditable="true"], input';
+    (row.querySelector<HTMLElement>(`.metadata-property-value :is(${editable})`) ?? row.querySelector<HTMLElement>(editable))?.focus();
     return true;
   }
 }
