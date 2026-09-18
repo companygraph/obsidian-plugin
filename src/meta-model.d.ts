@@ -7,6 +7,7 @@ declare module "companygraph-meta-model/checks" {
   ): { failures: string[]; skipped: string[] };
   export function typeOfPath(rel: string, model: string): string | null;
   export function isNewer(a: string, b: string): boolean;
+  export function tableOf(body: string): { columns: string[]; rows: string[][] } | null;
   export const COLUMN_CAPTION: RegExp;
 }
 

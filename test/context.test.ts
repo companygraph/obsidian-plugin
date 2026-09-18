@@ -56,3 +56,14 @@ test("the fences and a file with no frontmatter offer no key", () => {
   assert.equal(at(0), null);
   assert.equal(contextAt(["sou"], 0, 3), null);
 });
+
+test("a table with no valid separator row offers no cell, even on what looks like a data row", () => {
+  const lines = [
+    "## Skills",
+    "",
+    "| Skill | Level | Evidence |",
+    "| Java | Exp | ok |",
+    "| Cobol | Nov | eh",
+  ];
+  assert.equal(contextAt(lines, 4, lines[4].length), null);
+});

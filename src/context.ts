@@ -1,6 +1,8 @@
 // Where the cursor is, in the terms completion answers in. Pure: lines and a position in, a
 // context or null out. `start` is the column the typed text begins at, which is what a
 // candidate replaces.
+import { tableOf } from "companygraph-meta-model/checks";
+
 export type Context =
   | { kind: "key"; typed: string; start: number }
   | { kind: "value"; field: string; typed: string; start: number }
@@ -11,8 +13,6 @@ export type Context =
 export function frontmatterEnd(lines: string[]): number {
   return lines[0] === "---" ? lines.indexOf("---", 1) : -1;
 }
-
-const cellsOf = (row: string) => row.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim());
 
 export function contextAt(lines: string[], line: number, ch: number): Context | null {
   const before = (lines[line] ?? "").slice(0, ch);
@@ -40,11 +40,17 @@ export function contextAt(lines: string[], line: number, ch: number): Context | 
     let first = line;
     while (first > 0 && lines[first - 1].trim().startsWith("|")) first--;
     if (line - first < 2) return null; // the header row and the separator row are not cells
+    let last = line;
+    while (last + 1 < lines.length && lines[last + 1].trim().startsWith("|")) last++;
     let up = first - 1;
     while (up >= 0 && !lines[up].startsWith("## ")) up--;
     if (up < 0) return null;
+    // The table is read once, by the package that reads it everywhere else: a table without a
+    // valid GFM separator row is not a table, and has no column to be inside.
+    const table = tableOf(lines.slice(first, last + 1).join("\n"));
+    if (!table) return null;
     const index = before.split("|").length - 2;
-    const column = cellsOf(lines[first])[index];
+    const column = table.columns[index];
     if (!column) return null;
     const typed = before.slice(before.lastIndexOf("|") + 1).trimStart();
     return { kind: "cell", section: lines[up].slice(3).trim(), column, typed, start: ch - typed.length };
