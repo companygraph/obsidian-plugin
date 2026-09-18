@@ -42,13 +42,15 @@ export function candidatesFor(
   vocabulary: TypeVocabulary,
   names: Map<string, string[]>,
   lines: string[],
+  asked = false,
 ): Candidate[] {
-  // On a key line, a list entry and a cell, Enter belongs to the editor: it ends the block, the
-  // list, the row. A popup that opens before anything is typed takes that Enter and writes its
-  // first candidate, so there nothing is offered until something is typed. After `key: ` and
-  // after `## ` the position itself asks, and an empty one still offers.
-  const asks = context.kind === "heading" || (context.kind === "value" && !context.item);
-  if (!asks && context.typed.trim() === "") return [];
+  // On a list entry and in a cell, Enter belongs to the editor: it ends the list, the row. A
+  // popup that opens before anything is typed takes that Enter and writes its first candidate,
+  // so there nothing is offered until something is typed, unless it was asked for. After
+  // `key: ` and after `## ` the position itself asks, and an empty key line does too: it is
+  // how the fields a file may still take are found at all.
+  const quiet = context.kind === "cell" || (context.kind === "value" && context.item);
+  if (quiet && !asked && context.typed.trim() === "") return [];
   const candidates = offers(context, vocabulary, names, lines);
   // What is typed is already one of the things on offer: there is nothing left to complete, and
   // a popup still open over it captures the Enter that belongs to the editor. One candidate is

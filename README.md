@@ -32,8 +32,12 @@ While typing it offers what the file's schema declares: the frontmatter fields t
 the permitted values of an enum, the canonical names of the type a reference declares, the same
 by column in a table section, and the sections the file lacks. A name is inserted plain, as the
 conventions write a reference; the plugin resolves it and Obsidian's own graph view does not see
-it. Nothing is offered while text follows the cursor on its line, or in its cell, because
-accepting would leave that text standing behind the inserted name. Completion works in Source
+it. An empty line in the frontmatter lists every field the file may still take, which is how
+they are found at all. On an empty entry of a list and in an empty cell the popup waits for a
+first letter, because Enter there ends the list or the row; the command `CompanyGraph: Complete
+here` opens it anyway, and takes a hotkey in Obsidian's settings. Nothing is offered while text
+follows the cursor on its line, or in its cell, because accepting would leave that text standing
+behind the inserted name. Completion works in Source
 mode and with properties shown as source; the spec's open questions say what is known about Live
 Preview.
 

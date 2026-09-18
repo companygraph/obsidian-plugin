@@ -109,11 +109,27 @@ test("a glued value typed in full still leaves nothing to complete", () => {
 // Also from that run: on an empty entry of a list the popup opened, and the Enter meant to end
 // the list inserted the first name instead. Where Enter belongs to the editor, nothing is
 // offered until something is typed; after `key: ` and after `## ` the position itself asks.
-test("nothing is offered on an empty key line, an empty list entry or an empty cell", () => {
-  const lines = ["---", "source: Local", "", "---"];
-  assert.deepEqual(candidatesFor({ kind: "key", typed: "", start: 0 }, profile, names, lines), []);
+test("nothing is offered on an empty list entry or an empty cell, where Enter is the editor's", () => {
   assert.deepEqual(candidatesFor({ kind: "value", field: "roles", typed: "", start: 4, item: true, glued: false }, profile, names, []), []);
   assert.deepEqual(candidatesFor({ kind: "cell", section: "Skills", column: "Level", typed: " ", start: 0 }, profile, names, []), []);
+});
+
+// The owner, in the trial: "without typing s for source-id, I may not know the keys". An empty
+// key line is how the fields a file may still take are found at all, so it offers by itself.
+test("an empty key line offers every field the file lacks, required first", () => {
+  const lines = ["---", "source: Local", "", "---"];
+  const c = candidatesFor({ kind: "key", typed: "", start: 0 }, profile, names, lines);
+  assert.equal(c[0].label, "nature (required)");
+  assert.ok(!labels(c).some((l) => l.startsWith("source ")));
+  assert.ok(labels(c).includes("roles"));
+});
+
+// And where the popup stays quiet, it can be asked for: completion on demand, as in any editor.
+test("asked for, an empty list entry and an empty cell offer everything they could hold", () => {
+  const entry = { kind: "value", field: "roles", typed: "", start: 4, item: true, glued: false } as const;
+  assert.deepEqual(labels(candidatesFor(entry, profile, names, [], true)), ["Backend Engineer", "Reviewer"]);
+  const cell = { kind: "cell", section: "Skills", column: "Level", typed: "", start: 0 } as const;
+  assert.equal(candidatesFor(cell, profile, names, [], true).length, 4);
 });
 
 test("an empty value after its key, and an empty heading, still offer", () => {

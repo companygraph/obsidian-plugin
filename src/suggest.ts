@@ -13,6 +13,8 @@ export class Suggest extends EditorSuggest<Candidate> {
   // What onTrigger last found, for getSuggestions to read straight back: Obsidian calls it only
   // after an onTrigger that returned non-null, for the same position, so find() need not run twice.
   found: { context: Context; candidates: Candidate[] } | null = null;
+  // Set by the command that asks for completion where it otherwise stays quiet; read once.
+  asked = false;
 
   constructor(app: App, plugin: CompanyGraphPlugin) {
     super(app);
@@ -27,7 +29,16 @@ export class Suggest extends EditorSuggest<Candidate> {
     });
   }
 
-  find(cursor: EditorPosition, editor: Editor, file: TFile | null) {
+  // Completion on demand. Obsidian opens a suggest only from its own keypress handling; the
+  // method that does it is not in the public types, so it is called optionally, and without
+  // it the command does nothing rather than something wrong.
+  ask(editor: Editor, file: TFile | null) {
+    this.asked = true;
+    const trigger = (this as unknown as { trigger?: (editor: Editor, file: TFile | null, open: boolean) => void }).trigger;
+    trigger?.call(this, editor, file, true);
+  }
+
+  find(cursor: EditorPosition, editor: Editor, file: TFile | null, asked = false) {
     const layout = this.plugin.layout;
     if (!layout || !file || !file.path.startsWith(layout.model + "/")) return null;
     const type = typeOfPath(file.path, layout.model);
@@ -44,12 +55,14 @@ export class Suggest extends EditorSuggest<Candidate> {
     const context = contextAt(lines, cursor.line, cursor.ch);
     if (!context) return null;
     // candidatesFor decides everything, including that what is typed is already complete.
-    const candidates = candidatesFor(context, vocabulary, this.plugin.names, lines);
+    const candidates = candidatesFor(context, vocabulary, this.plugin.names, lines, asked);
     return candidates.length ? { context, candidates } : null;
   }
 
   onTrigger(cursor: EditorPosition, editor: Editor, file: TFile | null): EditorSuggestTriggerInfo | null {
-    this.found = this.find(cursor, editor, file);
+    const asked = this.asked;
+    this.asked = false;
+    this.found = this.find(cursor, editor, file, asked);
     if (!this.found) return null;
     return { start: { line: cursor.line, ch: this.found.context.start }, end: cursor, query: this.found.context.typed };
   }

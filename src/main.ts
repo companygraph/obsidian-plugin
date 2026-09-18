@@ -62,7 +62,13 @@ export default class CompanyGraphPlugin extends Plugin {
     this.statusBar.onClickEvent(() => void this.openPane());
     this.registerView(VIEW_TYPE, (leaf) => new Pane(leaf, this));
     this.registerEditorExtension(marksField);
-    this.registerEditorSuggest(new Suggest(this.app, this));
+    const suggest = new Suggest(this.app, this);
+    this.registerEditorSuggest(suggest);
+    this.addCommand({
+      id: "complete-here",
+      name: "Complete here",
+      editorCallback: (editor, ctx) => suggest.ask(editor, ctx.file),
+    });
     this.addCommand({ id: "open-checks", name: "Open the checks pane", callback: () => void this.openPane() });
     this.addCommand({ id: "check-now", name: "Check the instance now", callback: () => void this.rebuild() });
 
