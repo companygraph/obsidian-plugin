@@ -311,6 +311,32 @@ which the instance already carries, so the plugin's part is small: a command tha
 terminal in the vault folder, or the vault's own agent files kept current by `upgrade`. Nothing
 here decides for a vendor. What the plugin never does is call a model itself.
 
+**Content, beyond the frontmatter.** Asked by the owner at the end of the first trial: whether
+proposals and completion reach the body of an entity. The body holds four different things and
+each has its own answer, in the order they are worth building.
+
+A table is where most references of an instance live, a profile's Skills above all. Its cells
+complete in Source mode already; in Live Preview a table is Obsidian's table editor, and
+completion there has to learn which column a cell belongs to from inside that editor. Obsidian's
+own link suggestions work in those cells, so a suggest is reachable; how the column is found is
+not verified and is read from the installed application before anything is planned. The same
+work lets a failing row be tinted there.
+
+A section is offered on `## ` already. Beside it belong a picker that adds a section from Live
+Preview, built as the field picker is, and the scaffold of a whole new entity, its required
+fields and sections written at once, which is the entity command above.
+
+A heading that is a reference, an achievement kind under `## Achievements`, waits for the
+export §7 names and is then a fifth context.
+
+Running prose divides. Completing a name inside a sentence is easy and means nothing to the
+model: a reference exists only where a schema declares one, so a name in prose is a fact and
+draws no edge, and nothing would check it. It is not built unless it is missed. Proposing what
+a section should say is the agent's seat and stays there, since the plugin calls no model. What
+the plugin can do is show what the schema says of the section the cursor is in, its purpose and
+its writing rules, beside the editor: text the vault already holds, a brief for the person
+writing and the same brief for an agent started later.
+
 ---
 
 ## 9. Open questions
