@@ -17,6 +17,14 @@ export class Suggest extends EditorSuggest<Candidate> {
   constructor(app: App, plugin: CompanyGraphPlugin) {
     super(app);
     this.plugin = plugin;
+    // Enter accepts by Obsidian's own default and Tab does not. The chooser that holds the
+    // selection is not in the public types; plugins reach it this way, and if it ever goes the
+    // optional call leaves Tab doing what it did before.
+    this.scope.register([], "Tab", (event) => {
+      const chooser = (this as unknown as { suggestions?: { useSelectedItem?: (e: KeyboardEvent) => void } }).suggestions;
+      chooser?.useSelectedItem?.(event);
+      return false;
+    });
   }
 
   find(cursor: EditorPosition, editor: Editor, file: TFile | null) {

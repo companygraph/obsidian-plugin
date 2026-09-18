@@ -70,6 +70,10 @@ export class Pane extends ItemView {
   async openAt(path: string, line: number) {
     const file = this.app.vault.getAbstractFileByPath(path);
     if (!(file instanceof TFile)) return;
-    await this.app.workspace.getLeaf(false).openFile(file, { eState: { line } });
+    const leaf = this.app.workspace.getLeaf(false);
+    await leaf.openFile(file, { active: true, eState: { line } });
+    // In Live Preview a frontmatter line sits behind the Properties widget and the cursor has
+    // nowhere visible to land; bringing the note to the front keeps the click from feeling dead.
+    this.app.workspace.setActiveLeaf(leaf, { focus: true });
   }
 }

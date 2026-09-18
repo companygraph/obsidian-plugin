@@ -40,8 +40,11 @@ Preview.
 ## Installing it
 
 Copy `main.js`, `manifest.json` and `styles.css` from a release into
-`.obsidian/plugins/companygraph/` in the vault and enable CompanyGraph under community plugins,
-or point BRAT at this repository. An instance that is a git repository keeps `.obsidian/` in its
+`.obsidian/plugins/companygraph/` in the vault, or point BRAT at this repository. Then, in
+Obsidian's settings under Community plugins, turn community plugins on and switch CompanyGraph
+on in the section Installed plugins; Browse, above it, searches Obsidian's public directory,
+where this plugin is not listed. Completion is written for Source mode, which the command
+`Toggle Live Preview/Source mode` reaches. An instance that is a git repository keeps `.obsidian/` in its
 `.gitignore`.
 
 ## Working on it
