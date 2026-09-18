@@ -1,9 +1,10 @@
 // The report beside the editor: failures grouped by file, then what was not checked. It ends
 // that way on every render, because a green list alone reads as a validated instance.
-import { ItemView, TFile } from "obsidian";
+import { ItemView, MarkdownView, TFile } from "obsidian";
 import type { WorkspaceLeaf } from "obsidian";
 import type CompanyGraphPlugin from "./main.ts";
 import type { Located } from "./locate.ts";
+import { fieldOfLine } from "./properties.ts";
 
 export const VIEW_TYPE = "companygraph-checks";
 
@@ -75,5 +76,21 @@ export class Pane extends ItemView {
     // In Live Preview a frontmatter line sits behind the Properties widget and the cursor has
     // nowhere visible to land; bringing the note to the front keeps the click from feeling dead.
     this.app.workspace.setActiveLeaf(leaf, { focus: true });
+    // Where the widget is drawn, the failing field's row takes the focus, so the correction can
+    // be typed at once. Found through the same markup the tint uses; a note only just opened
+    // may not have drawn its rows yet, so it is tried once more a moment later.
+    if (!this.focusRow(leaf.view, line)) window.setTimeout(() => this.focusRow(leaf.view, line), 150);
+  }
+
+  focusRow(view: unknown, line: number): boolean {
+    if (!(view instanceof MarkdownView)) return true;
+    const field = fieldOfLine(view.editor.getValue().split("\n"), line);
+    if (!field) return true;
+    const row = view.containerEl.querySelector<HTMLElement>(`.metadata-property[data-property-key="${field}"]`);
+    if (!row) return false;
+    if (row.offsetParent === null) return true; // not drawn: Source mode, or properties hidden
+    row.scrollIntoView({ block: "center" });
+    row.querySelector<HTMLElement>('[contenteditable="true"], input')?.focus();
+    return true;
   }
 }

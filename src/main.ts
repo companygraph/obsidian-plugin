@@ -14,6 +14,7 @@ import { concerns, loadManifest, readInstance } from "./vault.ts";
 import { Pane, VIEW_TYPE } from "./pane.ts";
 import { Suggest } from "./suggest.ts";
 import { marksField, setMarks } from "./marks.ts";
+import { fieldOfLine, propertyRules } from "./properties.ts";
 
 // The release of companygraph-meta-model this build bundles; esbuild.config.mjs defines it.
 declare const __CHECKER_VERSION__: string;
@@ -37,6 +38,8 @@ export default class CompanyGraphPlugin extends Plugin {
   vocabulary = new Map<string, TypeVocabulary>();
   names = new Map<string, string[]>();
   statusBar: HTMLElement | null = null;
+  // The rules that tint a failing field's row in Live Preview's Properties widget.
+  rowStyle: HTMLStyleElement | null = null;
   soon: Debouncer<[], void> | null = null;
   // Bumped at the start of every rebuild, and once more on unload. A rebuild checks its own
   // number against this field after every await: whichever started last owns the field, so an
@@ -48,6 +51,8 @@ export default class CompanyGraphPlugin extends Plugin {
 
   async onload() {
     this.statusBar = this.addStatusBarItem();
+    this.rowStyle = document.head.createEl("style");
+    this.register(() => this.rowStyle?.remove());
     // Nothing but a command opened the pane, which is the one place a failure can be read.
     this.statusBar.addClass("mod-clickable");
     // Nothing on a status bar item says it can be pressed; the first person to use this read the
@@ -160,6 +165,8 @@ export default class CompanyGraphPlugin extends Plugin {
   }
 
   paint() {
+    const rules: string[] = [];
+    let leaves = 0;
     this.app.workspace.iterateAllLeaves((leaf) => {
       if (!(leaf.view instanceof MarkdownView) || !leaf.view.file) return;
       const path = leaf.view.file.path;
@@ -169,7 +176,19 @@ export default class CompanyGraphPlugin extends Plugin {
       // @ts-expect-error Obsidian's Editor wraps a CodeMirror 6 view and does not type it.
       const view = leaf.view.editor.cm as EditorView | undefined;
       view?.dispatch({ effects: setMarks.of(marks) });
+
+      // Live Preview draws the frontmatter as the Properties widget, where a line mark has no
+      // line to sit on, and Live Preview is the view most people never leave. The widget's rows
+      // carry their field's name in the markup themes style them by, so the row is tinted by a
+      // rule scoped to this leaf. It is markup and not API: if it changes, the tint goes and
+      // nothing else does.
+      const id = String(++leaves);
+      leaf.view.containerEl.setAttribute("data-companygraph-leaf", id);
+      const lines = leaf.view.editor.getValue().split("\n");
+      const fields = marks.map((mark) => fieldOfLine(lines, mark.line)).filter((f): f is string => f !== null);
+      rules.push(propertyRules(id, fields));
     });
+    if (this.rowStyle) this.rowStyle.textContent = rules.filter((rule) => rule !== "").join("\n");
   }
 
   async openPane() {
