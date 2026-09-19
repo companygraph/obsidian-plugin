@@ -51,7 +51,7 @@ design's section on what goes upstream lists them.
 
 Everything that decides anything is a pure module under `src/`, with a test beside it under
 `test/`: `manifest.ts`, `model.ts`, `locate.ts`, `context.ts`, `vocabulary.ts`, `candidates.ts`,
-`properties.ts`, `report.ts`, `tables.ts`.
+`properties.ts`, `report.ts`, `tables.ts`, `scope.ts`.
 The modules that touch Obsidian, `vault.ts`, `marks.ts`, `pane.ts`, `suggest.ts`, `addfield.ts`,
 `widget.ts`, `livetable.ts` and `main.ts`,
 are kept thin because nothing here can run them; they are proven by hand on the reference

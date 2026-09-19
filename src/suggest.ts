@@ -8,6 +8,7 @@ import type { Context } from "./context.ts";
 import { candidatesFor, cursorAfter, entersThrough } from "./candidates.ts";
 import type { Candidate } from "./candidates.ts";
 import { cellContextOf } from "./tables.ts";
+import { namesIn } from "./scope.ts";
 import { editedCell } from "./livetable.ts";
 
 export class Suggest extends EditorSuggest<Candidate> {
@@ -98,7 +99,7 @@ export class Suggest extends EditorSuggest<Candidate> {
       const context = cellContextOf({ ...cell, lines: editor.lineCount(), line: editor.getLine(cursor.line), ch: cursor.ch });
       if (!context) return null;
       if (entersThrough(context) && !this.enterFirst && !asked) return null;
-      const candidates = candidatesFor(context, vocabulary, this.plugin.names, []);
+      const candidates = candidatesFor(context, vocabulary, namesIn(this.plugin.named, file.path, layout.model), []);
       return candidates.length ? { context, candidates } : null;
     }
 
@@ -114,7 +115,8 @@ export class Suggest extends EditorSuggest<Candidate> {
     // candidatesFor decides everything, including that what is typed is already complete.
     // An empty entry shows its names only where its Enter can be let through.
     if (entersThrough(context) && !this.enterFirst && !asked) return null;
-    const candidates = candidatesFor(context, vocabulary, this.plugin.names, lines);
+    // The names this file may use: an owned type's are its owner's own, as core 0.30.1 holds.
+    const candidates = candidatesFor(context, vocabulary, namesIn(this.plugin.named, file.path, layout.model), lines);
     return candidates.length ? { context, candidates } : null;
   }
 
