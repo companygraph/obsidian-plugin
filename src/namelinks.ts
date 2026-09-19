@@ -54,6 +54,8 @@ export function nameLinks(plugin: CompanyGraphPlugin) {
           .sort((a, b) => a.at + a.from - (b.at + b.from));
         for (const ref of refs) {
           const path = resolver.resolve(ref.target, ref.name);
+          // An optional reference that names nothing is a fact, and drawn as the text it is.
+          if (!path && ref.optional) continue;
           builder.add(
             ref.at + ref.from,
             ref.at + ref.to,
@@ -80,10 +82,12 @@ export function markNames(plugin: CompanyGraphPlugin, view: MarkdownView, cm: Ed
   }
   const resolver = resolverFor(plugin, view.file?.path);
   if (!resolver) return;
-  const mark = (el: Element | null, target: string, name: string | null | undefined) => {
+  const mark = (el: Element | null, target: string, name: string | null | undefined, optional = false) => {
     const text = (name ?? "").trim();
     if (!el || !text) return;
     const path = resolver.resolve(target, text);
+    // An optional reference that names nothing is a fact, and drawn as the text it is.
+    if (!path && optional) return;
     el.setAttribute(MARK, "");
     el.addClass("companygraph-ref");
     if (path) el.setAttribute(PATH, path);
@@ -95,13 +99,14 @@ export function markNames(plugin: CompanyGraphPlugin, view: MarkdownView, cm: Ed
     const field = resolver.vocabulary.fields.find((f) => f.name.toLowerCase() === row.dataset.propertyKey);
     if (!field || field.offer.kind !== "names") continue;
     const target = field.offer.target;
+    const optional = field.offer.optional === true;
     // Not Obsidian's own `internal-link` class: a pill carrying it is opened by Obsidian as a link
     // to a note of that file name, which a canonical name is not, and would make one.
     for (const pill of Array.from(row.querySelectorAll(".multi-select-pill")))
-      mark(pill, target, pill.querySelector(".multi-select-pill-content")?.textContent);
+      mark(pill, target, pill.querySelector(".multi-select-pill-content")?.textContent, optional);
     if (!field.list) {
       const value = row.querySelector(".metadata-property-value .metadata-input-longtext");
-      mark(value, target, value?.textContent);
+      mark(value, target, value?.textContent, optional);
     }
   }
 
@@ -125,7 +130,7 @@ export function markNames(plugin: CompanyGraphPlugin, view: MarkdownView, cm: Ed
     Array.from(widget.querySelectorAll("tr")).slice(1).forEach((tr) =>
       Array.from(tr.children).forEach((cell, i) => {
         const column = columns.find((c) => c.name === header[i]);
-        if (column?.offer.kind === "names") mark(cell, column.offer.target, cell.textContent);
+        if (column?.offer.kind === "names") mark(cell, column.offer.target, cell.textContent, column.offer.optional === true);
       }),
     );
   }

@@ -346,7 +346,10 @@ and the plugin resolves them, and promised navigation it did not yet give. Now i
 three places a name is written, and it feeds the graph view.
 
 A name is styled as a link where a schema declares it a reference or a qualifier, and one that
-resolves to nothing is styled as Obsidian styles an unresolved link. Cmd+click, or Ctrl+click,
+resolves to nothing is styled as Obsidian styles an unresolved link. Not where the declaration is
+`ref?`: such a value draws an edge when it names an entity of its type and stays a fact when it
+does not, as an experience's `organization` names a client, so a value that names nothing there
+is drawn as the text it is. The owner's first trial found it drawn as a broken link. Cmd+click, or Ctrl+click,
 opens the entity it resolves to; a plain click still edits, since the name is text and not a
 link. It resolves as the checks do, by the declared type, and for an owned type within the
 owner the file is in, so a click can never open another owner's entity. Which spans of a file

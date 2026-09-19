@@ -80,3 +80,16 @@ test("a # in a table cell or inside quotes is part of the name", () => {
   const text = ["---", 'source: "Rock # 1"', "---", "", "## Skills", "", "| Skill | Level |", "| --- | --- |", "| C # Programming | Proficient |"];
   assert.deepEqual(referencesIn(text, vocabulary.get("profile")!).map((r) => r.name), ["Rock # 1", "C # Programming", "Proficient"]);
 });
+
+// Found in the owner's trial: an experience's `organization` is declared `ref? → identity`. It
+// draws an edge when it names the company the instance describes and stays a fact when it names
+// anyone else, so a client's name there is no broken link and is not drawn as one. The span still
+// says it was written in an optional reference; what is drawn of it is namelinks.ts's.
+test("a value in an optional reference is marked optional, and its own vocabulary says so", () => {
+  const exp = ["---", "source: Local", "kind: Role", "organization: A client", "start: 2020", "---"];
+  const found = referencesIn(exp, vocabulary.get("experience")!).find((r) => r.name === "A client")!;
+  assert.equal(found.target, "identity");
+  assert.equal(found.optional, true);
+  const source = referencesIn(exp, vocabulary.get("experience")!).find((r) => r.name === "Local")!;
+  assert.equal(source.optional, false);
+});
