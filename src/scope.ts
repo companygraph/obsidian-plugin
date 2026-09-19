@@ -15,22 +15,27 @@ export function namedOf(graph: Graph): Named[] {
 
 const sorted = (names: Iterable<string>) => [...new Set(names)].sort((a, b) => a.localeCompare(b));
 
-// The names by type that a file at `path` may use, under the container `model`.
-export function namesIn(named: Named[], path: string, model: string): Map<string, string[]> {
-  const byType = new Map<string, string[]>();
-  for (const n of named) byType.set(n.type, [...(byType.get(n.type) ?? []), n.name]);
-  const out = new Map([...byType].map(([type, names]) => [type, sorted(names)]));
-
+// The entities a file at `path`, under the container `model`, may name: of an owned type, those
+// of the owner the file is in, and of every other type, all of them.
+export function visibleIn(named: Named[], path: string, model: string): Named[] {
   // An owner's subtree is `<container>/<owner folder>/<owner>/`: every owner the conventions
   // allow sits one level under the container, as the checks read it.
   const rel = path.startsWith(`${model}/`) ? path.slice(model.length + 1).split("/") : [];
-  if (rel.length < 3) return out;
-  for (const owned of TYPES) {
-    if (!owned.owner || !owned.folder) continue;
-    const owner = TYPES.find((t) => t.type === owned.owner);
-    if (!owner?.folder || rel[0] !== owner.folder.split("/")[0]) continue;
-    const folder = `${model}/${rel[0]}/${rel[1]}/${owned.folder.split("/").pop()}/`;
-    out.set(owned.type, sorted(named.filter((n) => n.type === owned.type && n.path.startsWith(folder)).map((n) => n.name)));
-  }
-  return out;
+  const scoped = new Map<string, string>();
+  if (rel.length >= 3)
+    for (const owned of TYPES) {
+      if (!owned.owner || !owned.folder) continue;
+      const owner = TYPES.find((t) => t.type === owned.owner);
+      if (!owner?.folder || rel[0] !== owner.folder.split("/")[0]) continue;
+      scoped.set(owned.type, `${model}/${rel[0]}/${rel[1]}/${owned.folder.split("/").pop()}/`);
+    }
+  return named.filter((n) => !scoped.has(n.type) || n.path.startsWith(scoped.get(n.type)!));
+}
+
+// The names by type that a file at `path` may use.
+export function namesIn(named: Named[], path: string, model: string): Map<string, string[]> {
+  const byType = new Map<string, string[]>();
+  for (const n of named) byType.set(n.type, byType.get(n.type) ?? []);
+  for (const n of visibleIn(named, path, model)) byType.get(n.type)!.push(n.name);
+  return new Map([...byType].map(([type, names]) => [type, sorted(names)]));
 }

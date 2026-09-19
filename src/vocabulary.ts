@@ -6,7 +6,9 @@ import type { Table } from "companygraph-meta-model/instance";
 import { enumTokensOf, COLUMN_CAPTION } from "companygraph-meta-model/checks";
 
 export type Offer =
-  | { kind: "names"; target: string }   // the canonical names of one type
+  // The canonical names of one type. `optional` where the declaration is `ref?`: a value that
+  // names nothing is then a fact and not an error, and nothing marks it.
+  | { kind: "names"; target: string; optional?: true }
   | { kind: "values"; values: string[] } // an enum's permitted values
   | { kind: "none" };
 
@@ -19,7 +21,7 @@ const bare = (cell: string | undefined) => (cell ?? "").replace(/`/g, "").trim()
 
 function offerOf(type: string | undefined, description: string | undefined): Offer {
   const decl = declarationOf(type);
-  if (decl) return { kind: "names", target: decl.target };
+  if (decl) return decl.form === "ref?" ? { kind: "names", target: decl.target, optional: true } : { kind: "names", target: decl.target };
   if (bare(type) === "enum") return { kind: "values", values: enumTokensOf(description ?? "") };
   return { kind: "none" };
 }

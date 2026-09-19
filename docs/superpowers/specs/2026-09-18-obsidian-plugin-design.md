@@ -340,6 +340,52 @@ which the instance already carries, so the plugin's part is small: a command tha
 terminal in the vault folder, or the vault's own agent files kept current by `upgrade`. Nothing
 here decides for a vendor. What the plugin never does is call a model itself.
 
+**Names that act as links, and the graph view.** Asked by the owner once the phases stopped
+being links: a canonical name should act as one. §1 decided that references are plain names
+and the plugin resolves them, and promised navigation it did not yet give. Now it does, in the
+three places a name is written, and it feeds the graph view.
+
+A name is styled as a link where a schema declares it a reference or a qualifier, and one that
+resolves to nothing is styled as Obsidian styles an unresolved link. Not where the declaration is
+`ref?`: such a value draws an edge when it names an entity of its type and stays a fact when it
+does not, as an experience's `organization` names a client, so a value that names nothing there
+is drawn as the text it is. The owner's first trial found it drawn as a broken link. Cmd+click, or Ctrl+click,
+opens the entity it resolves to; a plain click still edits, since the name is text and not a
+link. It resolves as the checks do, by the declared type, and for an owned type within the
+owner the file is in, so a click can never open another owner's entity. Which spans of a file
+are references is decided in a tested module from the vocabulary; where a name sits on the
+screen is fetched per view. In Source mode a CodeMirror decoration styles the span and catches
+the click. In Live Preview the Properties widget draws a list value as a pill, and a pill that
+holds a reference is coloured as a link, with Obsidian's own link colours; a text value is
+styled in place. A cell of a table in Live Preview is found as the tint finds its
+row. The last two are markup and not API, like the tint. A pill does not take Obsidian's own
+`internal-link` class, though that would style it for free: Obsidian opens such a pill as a link
+to a note of that file name, which a canonical name is not, and would create one.
+
+The graph view, the local graph, the backlink count in the status bar and Bases' backlinks are
+drawn from one public map of Obsidian's metadata cache, which note links to which with a count,
+and the views redraw when the cache says it has resolved; read from the installed application.
+The plugin adds the model's edges to that map, one per declared reference the parser draws; a
+qualifier draws no edge in the model and none here. Obsidian's own entries are never replaced:
+what the plugin adds is remembered and taken away before it adds again, it adds only to entries
+Obsidian has, and when Obsidian rebuilds one note's entry and says so the note's edges go back
+into it at once. A rename moves the entry to the new path, and what was added moves with it. The
+cache is asked to say it has resolved only when it is clean, since that event promises every
+note has been resolved; while Obsidian is still resolving it sends the event itself.
+
+What it does not reach, found by a review that read Obsidian's code. The backlinks pane's list of
+linked mentions re-reads each file's own links and shows none of these, so the count in the
+status bar and the list can disagree. Deleting a note warns from the same real links and does not
+count them. Renaming rewrites text only from a file's real links, so nothing the plugin adds can
+make Obsidian write to a file, and the map is never saved: a restart without the plugin starts
+clean. Renaming an entity does not rewrite the names others hold, since nothing in them is a link;
+that is the model's own rule, a name is changed where it is written, and the checks name every
+place that no longer resolves.
+
+Every edge is drawn, `source` among them, so the graph shows the one source nearly every entity
+names as a hub. Whether a kind of edge should be left out of the graph is the owner's choice and
+not made here.
+
 **The agent pass, from the pane.** Asked by the owner on seeing the pane's closing line, that the
 writing rules are not checked: whether that check comes too. It cannot come as a check, since a
 writing rule is a judgment, that an Evidence cell states a fact, that a skill's prose is
