@@ -435,6 +435,68 @@ the plugin can do is show what the schema says of the section the cursor is in, 
 its writing rules, beside the editor: text the vault already holds, a brief for the person
 writing and the same brief for an agent started later.
 
+**The schema's structure, held in the editor.** Asked by the owner on September 19, 2026: a
+proficiency level has a mandatory section, and it should neither be removed nor renamed, so how
+can the plugin show that and prevent it. The question found a gap first. No check held a
+required section, so renaming or deleting one passed; meta-model 0.31.1 adds the check, and the
+plugin reports it as it reports every other once it bundles that release. Its design note,
+`2026-09-19-required-sections-design.md` in the meta-model, settles the rule the editor follows:
+a required section is present under its heading exactly as the schema writes it, and a page may
+carry sections of its own, which break nothing. What no script can tell, an optional section
+written with a typo, is the editor's to prevent.
+
+Four kinds of heading are drawn apart, by form and not by colour, with Obsidian's own icons so
+that they follow the theme. The mark sits at the end of the heading line in both modes, quiet
+until the pointer is on it.
+
+| Heading | Mark | On hover | Removed by |
+| --- | --- | --- | --- |
+| Declared, required | a lock | Required by the schema: cannot be renamed or removed | nothing in the editor |
+| Declared, optional | a lock and a remove button | Optional: cannot be renamed; the button removes the section | the button, which runs Remove section |
+| The page's own | an open circle | Not in the schema, yours to edit; a near miss adds "Did you mean …" | editing, as any text |
+| Required and missing | a dashed line with a plus | Required section missing: click to add | not applicable |
+
+A declared heading and the H1 are locked, and the lock is hard. There is no reason to rename a
+declared heading within an instance, since its text is the schema's. The one legitimate change
+is a core release that renames a section, and that is a change across the whole instance, made
+by an agent or in git and not typed in Obsidian. A CodeMirror transaction filter refuses any
+change that alters a locked line's text and says so in a notice; opening a new line before or
+after the heading still works, and so does everything in the section below it. The filter
+guards the editor only: a rename in the file explorer, a sync or another plugin passes it, and
+the checks remain what catches them. The plugin's own commands pass it on purpose.
+
+A section is removed whole or not at all. Remove section, from the button or the command
+palette with the cursor in the section, deletes an optional section's heading and body down to
+the next `##` heading, in one transaction, so one undo brings it back; it asks nothing first.
+It refuses a required section. A selection that crosses a locked heading is refused like any
+other change to it.
+
+A missing required section is drawn where it belongs, as a line that is not in the file: after
+the last declared section the page carries that comes before it in the schema's order, or after
+the tagline. A click writes its heading there. The pane lists the same finding, and clicking it
+lands on that line.
+
+A heading of the page's own is a near miss when it matches a declared heading of the type that
+the page does not carry, ignoring case, spacing and punctuation, or within two edits of one. The
+hover names the declared heading and offers to replace it, which is the one change the plugin
+makes to such a heading, and only on a click.
+
+The H1 changes through Rename entity only. The command asks for the new name and, in one step,
+rewrites the H1, renames the file or the entity's folder as R12 or the type's own derivation
+says, and rewrites every reference by name that resolves to the entity, resolved as the checks
+resolve, within the owner for an owned type. It lists what it will change before it writes.
+This goes further than the rule above that a name is changed where it is written: it is that
+rule applied to every place at once, and the checks confirm it after. Delete entity is its
+counterpart and cannot be a guard, since Obsidian gives a plugin no veto over a deletion: the
+command lists everything that names the entity before it deletes, and a file deleted any other
+way leaves its references to the checks.
+
+The order to build it in: the plugin bundles meta-model 0.31.1; the marks and the missing-section
+lines; the lock and Remove section; the Add a section picker and the new-entity scaffold above;
+Rename entity and Delete entity last. The marks and the lock lean on CodeMirror's public API and
+not on Obsidian's markup, so they are held by tests of the pure part, which spans are headings of
+which kind, and by a trial for the rest.
+
 ---
 
 ## 9. Open questions
@@ -477,8 +539,9 @@ writing and the same brief for an agent started later.
 - **No key completion before the closing fence exists.** A new note with only its opening `---`
   has no frontmatter as the package reads it, and the plugin agrees, so keys are offered once the
   block is closed.
-- **What the review's probe found about the checks, none of it the plugin's to fix.** No check holds
-  a required section, so deleting one passes while completion labels it required. An unresolved
+- **What the review's probe found about the checks, none of it the plugin's to fix.** No check held
+  a required section, so deleting one passed while completion labelled it required; meta-model
+  0.31.1 adds that check, and §8 says what the editor does with it. An unresolved
   reference in frontmatter is reported by two checks, so the count in the status bar doubles. And
   two experiences of two profiles that share a name pass every check while the parser refuses
   them, which the plugin shows as one failure on the instance.
