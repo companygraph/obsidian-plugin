@@ -94,3 +94,37 @@ export function tintRows(view: MarkdownView, cm: EditorView | undefined, marks: 
     }
   }
 }
+
+// Opens a cell of a drawn table, as a click on it would, for the pane to land a failure in the
+// cell it is about. A cursor put on a line inside a table has nowhere to stand in Live Preview,
+// and CodeMirror moves it to the end of the widget, the last row. Read from the installed
+// application: the widget is CodeMirror's own widget object, reached from its element through
+// the tile CodeMirror keeps on it (`cmTile`, `cmView` in older releases), and it opens a cell by
+// `receiveCellFocus(row, col)`, rows counted from the header. None of it is in the public
+// types: where any of it is missing, the row is scrolled to the middle of the view instead.
+// True when a table was found at `first`.
+export function openCell(view: MarkdownView, cm: EditorView, first: number, row: number, col: number): boolean {
+  for (const el of Array.from(view.containerEl.querySelectorAll<HTMLElement>(".cm-table-widget"))) {
+    let at: number;
+    try {
+      at = cm.state.doc.lineAt(cm.posAtDOM(el)).number - 1;
+    } catch {
+      continue;
+    }
+    if (at !== first) continue;
+    const tile = (el as unknown as { cmTile?: { widget?: unknown }; cmView?: { widget?: unknown } }).cmTile
+      ?? (el as unknown as { cmView?: { widget?: unknown } }).cmView;
+    const widget = tile?.widget as { receiveCellFocus?: (row: number, col: number) => unknown } | undefined;
+    if (typeof widget?.receiveCellFocus === "function") {
+      try {
+        widget.receiveCellFocus(row, col);
+        return true;
+      } catch {
+        // fall through to the scroll
+      }
+    }
+    el.querySelectorAll("tr")[row]?.scrollIntoView({ block: "center" });
+    return true;
+  }
+  return false;
+}
