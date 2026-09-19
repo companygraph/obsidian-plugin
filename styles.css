@@ -458,3 +458,49 @@
   font-size: var(--font-ui-smaller);
   font-style: italic;
 }
+
+/* A line the agent judged: a quiet amber, apart from a failure's red. */
+.companygraph-judged {
+  background-color: rgba(var(--color-yellow-rgb), 0.1);
+}
+
+/* The agent pass in the checks pane: the run under way, and the judgments below the failures. */
+.companygraph-run {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--size-4-2);
+  margin-top: var(--size-4-3);
+  padding: var(--size-4-2) var(--size-4-3);
+  border-radius: var(--radius-m);
+  background-color: rgba(var(--color-yellow-rgb), 0.1);
+  font-size: var(--font-ui-small);
+}
+
+.companygraph-judged-section {
+  margin-top: var(--size-4-6);
+  padding-top: var(--size-4-3);
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.companygraph-judged-title {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.companygraph-judged-rule {
+  color: var(--text-normal);
+  font-style: italic;
+}
+
+.companygraph-file.is-stale {
+  opacity: 0.55;
+}
+
+.companygraph-stale {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-faint);
+}

@@ -4,6 +4,7 @@ import { ItemView, MarkdownView, Notice, TFile, editorLivePreviewField, setIcon 
 import type { WorkspaceLeaf } from "obsidian";
 import type CompanyGraphPlugin from "./main.ts";
 import { IDLE_TEXT, groupsOf, headline, notChecked, reportText } from "./report.ts";
+import { judgedGroups } from "./judgedview.ts";
 import { fieldOfLine } from "./properties.ts";
 import { focusProperty } from "./widget.ts";
 import { cellOfFailure } from "./tables.ts";
@@ -53,6 +54,17 @@ export class Pane extends ItemView {
       void navigator.clipboard.writeText(reportText(state)).then(() => new Notice("CompanyGraph: report copied"));
     });
 
+    const judging = this.plugin.judging;
+    if (judging.running) {
+      const run = el.createDiv({ cls: "companygraph-run" });
+      const secs = Math.round((Date.now() - judging.running.started) / 1000);
+      const what = judging.running.scope.kind === "note" ? judging.running.scope.path : "the instance";
+      run.createSpan({ text: `Claude Code is judging ${what} · ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}` });
+      run.createEl("button", { text: "Cancel" }).onClickEvent(() => judging.cancel());
+    } else if (judging.failure) {
+      el.createDiv({ cls: "companygraph-pane-note companygraph-notice", text: judging.failure });
+    }
+
     if (state.status === "checking") return;
     if (state.status === "idle") {
       el.createDiv({ cls: "companygraph-pane-note", text: IDLE_TEXT });
@@ -94,6 +106,57 @@ export class Pane extends ItemView {
     not.createEl("summary", { text: `Not checked · ${lines.length}` });
     const ul = not.createEl("ul");
     for (const line of lines) ul.createEl("li", { text: line });
+
+    // The agent pass's own findings, kept apart from the mechanical checks above: writing rules
+    // are read, not run, so their verdicts are Claude Code's, not the plugin's own.
+    const store = this.plugin.judged;
+    const groups = judgedGroups(store, (p) => this.plugin.files.get(p) ?? null);
+    if (store.last || groups.length) {
+      const section = el.createDiv({ cls: "companygraph-judged-section" });
+      section.createDiv({ cls: "companygraph-judged-title", text: "Writing rules, judged by Claude Code" });
+      if (!groups.length) section.createDiv({ cls: "companygraph-pane-note", text: "No breach was judged." });
+      for (const group of groups) {
+        const file = section.createDiv({ cls: `companygraph-file${group.stale ? " is-stale" : ""}` });
+        const head = file.createDiv({ cls: "companygraph-file-head" });
+        head.createDiv({ cls: "companygraph-file-name", text: group.path ?? "The instance" });
+        if (group.stale) head.createSpan({ cls: "companygraph-stale", text: "judged an earlier version" });
+        const list = file.createEl("ul");
+        for (const j of group.judgments) {
+          const item = list.createEl("li");
+          if (group.path) item.createSpan({ cls: "companygraph-line", text: j.placed === "line" ? `${j.line + 1}` : "·" });
+          const words = item.createDiv({ cls: "companygraph-message" });
+          words.createDiv({ cls: "companygraph-judged-rule", text: j.rule });
+          words.createDiv({ text: group.path ? j.judgment : `${j.path}: ${j.judgment}` });
+          if (group.path) {
+            item.addClass("companygraph-open");
+            item.onClickEvent(() => {
+              if (activeWindow.getSelection()?.toString()) return;
+              void this.openAt(group.path!, j.line);
+            });
+          }
+        }
+      }
+      if (store.gaps.length) {
+        const gaps = section.createEl("details", { cls: "companygraph-not-checked" });
+        gaps.createEl("summary", { text: `Gaps · ${store.gaps.length}` });
+        const gapList = gaps.createEl("ul");
+        for (const g of store.gaps) gapList.createEl("li", { text: `${g.profile}: ${g.role} requires ${g.skill}` });
+      }
+      if (store.notJudged.length) {
+        const notRun = section.createEl("details", { cls: "companygraph-not-checked" });
+        notRun.createEl("summary", { text: `Not judged · ${store.notJudged.length}` });
+        const notRunList = notRun.createEl("ul");
+        for (const line of store.notJudged) notRunList.createEl("li", { text: line });
+      }
+      const last = store.last;
+      if (last) {
+        const when = new Date(last.at).toLocaleString();
+        const cost = last.cost === null ? "" : ` · $${last.cost.toFixed(2)}`;
+        const program = last.program ? ` · ${last.program.slice(last.program.lastIndexOf("/") + 1)}` : "";
+        const denied = last.denied.length ? ` · refused: ${last.denied.join(", ")}` : "";
+        section.createDiv({ cls: "companygraph-banner-sub", text: `Last run: ${last.scope === "note" ? last.path : "the instance"}, ${when}, ${last.seconds} s${cost}${program}${denied}` });
+      }
+    }
   }
 
   // Not `open`: Obsidian's View has an internal method of that name, which the leaf calls to set

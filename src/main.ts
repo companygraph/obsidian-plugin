@@ -37,8 +37,9 @@ import { PIN, RULES, changesOf, columnAfter, excludesOf, formOf, formed, inForm 
 import { CompanyGraphSettings, DEFAULTS } from "./settings.ts";
 import type { Settings } from "./settings.ts";
 import { Judging } from "./judge.ts";
-import { EMPTY, removedFrom, renamedIn, storeFrom } from "./judgments.ts";
+import { EMPTY, countsOf, isStale, removedFrom, renamedIn, storeFrom } from "./judgments.ts";
 import type { Store } from "./judgments.ts";
+import { judgedField, setJudged } from "./judgedmarks.ts";
 
 // The release of companygraph-meta-model this build bundles; esbuild.config.mjs defines it.
 declare const __CHECKER_VERSION__: string;
@@ -123,6 +124,7 @@ export default class CompanyGraphPlugin extends Plugin {
     );
     this.register(() => brief.cancel());
     this.registerEditorExtension(marksField);
+    this.registerEditorExtension(judgedField);
     this.registerEditorExtension(nameLinks(this));
     this.registerEditorExtension(headingMarks(this));
     this.registerEditorExtension(headingLock(this));
@@ -371,6 +373,11 @@ export default class CompanyGraphPlugin extends Plugin {
       }));
       void this.rebuild();
     });
+    // While a run is under way the pane redraws each second so its clock moves.
+    this.registerInterval(window.setInterval(() => {
+      if (!this.judging.running) return;
+      for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE)) if (leaf.view instanceof Pane) leaf.view.render();
+    }, 1000));
     // The initial state is painted once, or the status bar stays empty until the first check lands.
     this.show(CHECKING);
   }
@@ -558,11 +565,15 @@ export default class CompanyGraphPlugin extends Plugin {
     this.state = state;
     const failures = state.located.length;
     const unchecked = state.skipped.length + 1; // the writing rules, always
+    const judged = countsOf(this.judged, (p) => this.files.get(p) ?? null);
+    const judgedText = this.judging.running ? ", judging…"
+      : judged.current + judged.stale === 0 ? ""
+      : `, ${judged.current} judged${judged.stale ? ` (${judged.stale} stale)` : ""}`;
     this.statusBar?.setText(
       state.status === "checking" ? "CompanyGraph: checking"
         : state.status === "idle" ? ""
         : state.status === "refused" ? "CompanyGraph: not checked"
-        : `CompanyGraph: ${failures} failure${failures === 1 ? "" : "s"}, ${unchecked} not checked${state.pinDiffers ? ", pin differs" : ""}`,
+        : `CompanyGraph: ${failures} failure${failures === 1 ? "" : "s"}, ${unchecked} not checked${state.pinDiffers ? ", pin differs" : ""}${judgedText}`,
     );
     for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE))
       if (leaf.view instanceof Pane) leaf.view.render();
@@ -658,7 +669,11 @@ export default class CompanyGraphPlugin extends Plugin {
         .map((found) => ({ line: found.line, message: found.message }));
       // @ts-expect-error Obsidian's Editor wraps a CodeMirror 6 view and does not type it.
       const view = leaf.view.editor.cm as EditorView | undefined;
-      view?.dispatch({ effects: [setMarks.of(marks), refreshNames.of(null)] });
+      const entry = this.judged.entries[path];
+      const judged = entry && !isStale(entry, leaf.view.editor.getValue())
+        ? entry.judgments.filter((j) => j.placed === "line").map((j) => ({ line: j.line, message: `${j.rule}\n${j.judgment}` }))
+        : [];
+      view?.dispatch({ effects: [setMarks.of(marks), setJudged.of(judged), refreshNames.of(null)] });
 
       // Live Preview draws the frontmatter as the Properties widget, where a line mark has no
       // line to sit on, and Live Preview is the view most people never leave. The widget's rows
