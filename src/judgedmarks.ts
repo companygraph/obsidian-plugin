@@ -1,6 +1,10 @@
-// A judged line in the editor: a quiet amber mark with the rule and the judgment as its tooltip,
-// apart from a failure's red, and only on a note not changed since it was judged, since the lines
-// of one that has may have moved (spec: "Shown").
+// A judged line in the editor: a quiet amber mark with the rule and the judgment as its tooltip.
+// The tooltip is Obsidian's own, which it shows for any element carrying an aria-label, and not
+// the browser's `title` that a failure's mark uses: CodeMirror merges the attributes of two line
+// decorations on one line by overwriting, so two marks naming the same attribute would leave one
+// tooltip and lose the other, and a line can carry a failure and a judgment at once.
+// Amber, apart from a failure's red, and only on a note not changed since it was judged, since
+// the lines of one that has may have moved (spec: "Shown").
 import { RangeSetBuilder, StateEffect, StateField } from "@codemirror/state";
 import { Decoration, EditorView } from "@codemirror/view";
 import type { DecorationSet } from "@codemirror/view";
@@ -19,7 +23,7 @@ export const judgedField = StateField.define<DecorationSet>({
       for (const [line, messages] of [...byLine].sort((a, b) => a[0] - b[0])) {
         if (line >= tr.state.doc.lines) continue;
         const from = tr.state.doc.line(line + 1).from;
-        builder.add(from, from, Decoration.line({ class: "companygraph-judged", attributes: { title: messages.join("\n") } }));
+        builder.add(from, from, Decoration.line({ class: "companygraph-judged", attributes: { "aria-label": messages.join("\n") } }));
       }
       marks = builder.finish();
     }
