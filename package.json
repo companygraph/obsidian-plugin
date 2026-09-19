@@ -16,7 +16,7 @@
     "build": "node esbuild.config.mjs"
   },
   "dependencies": {
-    "companygraph-meta-model": "github:companygraph/meta-model#v0.31.1"
+    "companygraph-meta-model": "github:companygraph/meta-model#v0.31.2"
   },
   "devDependencies": {
     "@types/node": "^26.6.1",
