@@ -7,13 +7,13 @@
 // when the editor turns out to hold another file. The tooltip is Obsidian's, shown for any
 // element with an aria-label.
 import { Notice, editorEditorField, editorInfoField, setIcon } from "obsidian";
-import { RangeSetBuilder, StateField } from "@codemirror/state";
+import { EditorState as State, RangeSetBuilder, StateField, Transaction as Tr } from "@codemirror/state";
 import type { EditorState, Transaction } from "@codemirror/state";
 import { Decoration, EditorView, WidgetType } from "@codemirror/view";
 import type { DecorationSet } from "@codemirror/view";
 import { typeOfPath } from "companygraph-meta-model/checks";
 import type CompanyGraphPlugin from "./main.ts";
-import { headingsOf, insertionAt, isEntityText, missingOf, removalRange } from "./headings.ts";
+import { headingsOf, insertionAt, isEntityText, isHeld, lockedLines, lostLine, missingOf, removalRange } from "./headings.ts";
 import type { HeadingKind } from "./headings.ts";
 import type { TypeVocabulary } from "./vocabulary.ts";
 import { refreshNames } from "./namelinks.ts";
@@ -193,4 +193,32 @@ export function headingMarks(plugin: CompanyGraphPlugin) {
     },
     provide: (field) => EditorView.decorations.from(field, (drawn) => drawn.marks),
   });
+}
+
+// The lock (spec §8). An edit that loses a declared heading is refused whole, and one notice for
+// a burst of keystrokes says which heading held it. Compared as the declared headings before and
+// after the edit, so typing anywhere else, the H1 included, opening a line before or after a
+// heading and moving a heading whole all pass. Which edits are held is decided in headings.ts,
+// where it is tested. A rename in the file explorer, a sync or another program never reaches the
+// editor; the checks catch what they break.
+const eventOf = (tr: Transaction) => tr.annotation(Tr.userEvent);
+
+export function headingLock(plugin: CompanyGraphPlugin) {
+  let told = 0;
+  const filter = State.transactionFilter.of((tr) => {
+    if (!tr.docChanged || !isHeld(eventOf(tr))) return tr;
+    const found = vocabularyIn(plugin, tr.startState);
+    if (!found) return tr;
+    const before = tr.startState.doc.toString();
+    if (!isEntityText(before)) return tr;
+    const lost = lostLine(lockedLines(before.split("\n"), found.vocabulary), lockedLines(tr.newDoc.toString().split("\n"), found.vocabulary));
+    if (lost === null) return tr;
+    // One notice for a burst of refused keystrokes, not one each.
+    if (Date.now() - told > 2000) {
+      told = Date.now();
+      new Notice(`"${lost.slice(3).trim()}" is the schema's heading and cannot be edited here.`);
+    }
+    return [];
+  });
+  return filter;
 }
