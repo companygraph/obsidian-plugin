@@ -439,7 +439,12 @@ draws no edge, and nothing would check it. It is not built unless it is missed. 
 a section should say is the agent's seat and stays there, since the plugin calls no model. What
 the plugin can do is show what the schema says of the section the cursor is in, its purpose and
 its writing rules, beside the editor: text the vault already holds, a brief for the person
-writing and the same brief for an agent started later.
+writing and the same brief for an agent started later. The
+brief is built: `CompanyGraph: Open the writing brief` opens a pane beside the editor that follows
+the cursor and shows, in the schema's own words, the row of the sections or frontmatter table for
+the place the cursor is in, the type's writing rules with those that name the place first, and
+the type's purpose. It reads the vendored schema and interprets nothing, and it ends by saying
+that the writing rules are a judgment no check reads.
 
 **The schema's structure, held in the editor.** Asked by the owner on September 19, 2026: a
 proficiency level has a mandatory section, and it should neither be removed nor renamed, so how
