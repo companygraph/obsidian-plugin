@@ -398,7 +398,7 @@ The closing line then says when the agent pass last ran and on which commit, ins
 that it is owed. Three limits are part of the design: it runs on demand and never on a change,
 because a run takes minutes and costs tokens; it is desktop only, because it starts a program;
 and its result is a judgment and is shown as one. Copy report, which puts the pane's text on
-the clipboard, is the bridge until then: the mechanical failures pasted to an agent by hand.
+the clipboard, is the bridge until then: the mechanical failures pasted to an agent by hand. Its design is detailed in `2026-09-19-agent-pass-design.md`, decided with the owner on September 19, 2026: in the background, a note or the whole instance, kept in the plugin's data and greyed when stale, shown in the pane and as a quiet mark on the line.
 
 **Content, beyond the frontmatter.** Asked by the owner at the end of the first trial: whether
 proposals and completion reach the body of an entity. The body holds four different things and
