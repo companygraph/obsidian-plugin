@@ -60,3 +60,13 @@ test("two processes whose phases share their names are valid, as core 0.31.0 has
   assert.deepEqual(m.failures, []);
   assert.ok(m.graph);
 });
+test("a required section renamed is reported once, by the heading the schema expects (core 0.31.1)", () => {
+  const LEVEL = "example/model/proficiency-levels/expert.md";
+  const files = edited(example(), LEVEL, (t) => t.replace("## What it means", "## What it is"));
+  const m = buildModel(files, EXAMPLE);
+  assert.deepEqual(m.failures, [
+    `${LEVEL}: no \`## What it means\`, which proficiency-level-schema.md requires`,
+  ]);
+  // A section of the page's own breaks nothing, so the graph still parses.
+  assert.ok(m.graph);
+});
