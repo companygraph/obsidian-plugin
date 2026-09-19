@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { cellContextOf, sectionAbove, tableRowOf } from "../src/tables.ts";
+import { cellContextOf, sectionAbove, tableRowOf, cellOfFailure } from "../src/tables.ts";
 import { contextAt } from "../src/context.ts";
 
 const NOTE = [
@@ -64,4 +64,14 @@ test("a failing line is a row of the table widget drawn from its first line", ()
   assert.deepEqual(tableRowOf(15, 12, 4), { kind: "body", index: 1 });
   assert.equal(tableRowOf(16, 12, 4), null);
   assert.equal(tableRowOf(11, 12, 4), null);
+});
+
+test("a failure in a table row names its cell: the row as the widget counts it, the column from the message", () => {
+  const lines = ["## Skills", "", "| Skill | Level |", "| --- | --- |", "| Java | Exprt |", "| Go | Expert |", ""];
+  const message = '`Level` in "## Skills" is declared `qualifier → proficiency-level` and says "Exprt"';
+  assert.deepEqual(cellOfFailure(lines, 4, message), { first: 2, row: 1, col: 1 });
+  assert.deepEqual(cellOfFailure(lines, 5, "says nothing of a column"), { first: 2, row: 2, col: 0 });
+  // The header and the separator are the header row; a line outside a table is no cell.
+  assert.deepEqual(cellOfFailure(lines, 3, message), { first: 2, row: 0, col: 1 });
+  assert.equal(cellOfFailure(lines, 0, message), null);
 });
