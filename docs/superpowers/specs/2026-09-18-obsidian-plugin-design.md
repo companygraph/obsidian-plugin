@@ -200,7 +200,17 @@ Four contexts, each with its own candidates:
 | section heading | a line beginning `## ` | the sections the schema declares that the file lacks, required first |
 
 A candidate is inserted plain: the name, the value, the key with its colon, the heading. Nothing
-is wrapped in brackets, per §1. A reference column's candidates are the names of the type the
+is wrapped in brackets, per §1.
+
+**A name of an owned type is offered only where the checks will accept it.** Core 0.30.1 holds a
+name of an owned type, written inside an owner or in an entity the same owner owns, to that
+owner's own folder of the owned type: a profile's evidence names its own experiences, a process
+its own phases, a phase the next of its own process. Completion offers the same and no more, so
+the popup never proposes a name the pane would then report. Every other type is offered whole,
+and so is an owned type in a file under no owner, where nothing holds it. What owns what is read
+from the package's own list of types. This is right whichever way the open question in the
+meta-model is settled, whether an owned name is unique across its type or only within its
+owner. A reference column's candidates are the names of the type the
 column declares and of no other type, which is R2's resolution rule applied to the offer: a name
 that exists only under another type is not offered, because it would not resolve.
 

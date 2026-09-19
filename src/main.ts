@@ -4,7 +4,9 @@ import { MarkdownView, Notice, Plugin, debounce } from "obsidian";
 import type { Debouncer } from "obsidian";
 import type { EditorView } from "@codemirror/view";
 import { guard } from "./manifest.ts";
-import { buildModel, namesByType } from "./model.ts";
+import { buildModel } from "./model.ts";
+import { namedOf } from "./scope.ts";
+import type { Named } from "./scope.ts";
 import type { Layout } from "./model.ts";
 import { locate } from "./locate.ts";
 import type { Located } from "./locate.ts";
@@ -40,7 +42,8 @@ export default class CompanyGraphPlugin extends Plugin {
   state: State = CHECKING;
   layout: Layout | null = null;
   vocabulary = new Map<string, TypeVocabulary>();
-  names = new Map<string, string[]>();
+  // The entities of the last rebuild that parsed; completion asks which of them a file may name.
+  named: Named[] = [];
   statusBar: HTMLElement | null = null;
   // The rules that tint a failing field's row in Live Preview's Properties widget.
   rowStyle: HTMLStyleElement | null = null;
@@ -197,7 +200,7 @@ export default class CompanyGraphPlugin extends Plugin {
       if (generation !== this.generation) return;
       // Names are those of the last rebuild that parsed: a reference is unresolvable exactly
       // while its name is half typed, which is when completion is wanted.
-      if (model.graph) this.names = namesByType(model.graph);
+      if (model.graph) this.named = namedOf(model.graph);
       if (generation !== this.generation) return;
       const report = verdict.kind === "report" ? verdict.message : null;
       this.show({

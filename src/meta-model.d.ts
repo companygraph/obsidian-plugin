@@ -1,6 +1,9 @@
 // companygraph-meta-model ships JavaScript and no types. These are the exports this plugin
 // uses, as lib/checks.mjs and lib/instance.mjs define them.
 declare module "companygraph-meta-model/checks" {
+  // Every type core ships, as the package lists it: its folder or its single file, and what owns
+  // or is owned by it.
+  export const TYPES: { type: string; folder?: string; file?: string; owner?: string; owns?: string[] }[];
   export function checkInstance(
     files: Map<string, string>,
     options?: { core?: string; model?: string },
