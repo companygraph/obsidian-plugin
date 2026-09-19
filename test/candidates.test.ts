@@ -166,3 +166,21 @@ test("the fields a file may still take are those its schema declares and it lack
   assert.ok(absent.some((f) => f.name === "source-id"));
   assert.deepEqual(absentFields(profile, ["# No frontmatter"]).map((f) => f.name), profile.fields.filter((f) => f.required).concat(profile.fields.filter((f) => !f.required)).map((f) => f.name));
 });
+
+test("a grouped heading offers what the section's schema names, less what the section carries", () => {
+  const experience = vocabulary.get("experience")!;
+  const kinds = names.get("achievement-kind")!;
+  assert.ok(kinds.length >= 2);
+  const lines = ["# A", "", "## Achievements", "", `### ${kinds[0]}`, "", "- Did it.", "", "### "];
+  const c = candidatesFor({ kind: "grouped", section: "Achievements", typed: "", start: 4 }, experience, names, lines);
+  assert.deepEqual(labels(c), kinds.slice(1));
+  // A section its schema does not declare grouped offers nothing.
+  assert.deepEqual(candidatesFor({ kind: "grouped", section: "Summary", typed: "", start: 4 }, experience, names, lines), []);
+});
+
+test("a grouped heading typed in full is complete, and nothing replaces it on Enter", () => {
+  const experience = vocabulary.get("experience")!;
+  const kinds = names.get("achievement-kind")!;
+  const lines = ["# A", "", "## Achievements", "", `### ${kinds[0]}`];
+  assert.deepEqual(candidatesFor({ kind: "grouped", section: "Achievements", typed: kinds[0], start: 4 }, experience, names, lines), []);
+});
