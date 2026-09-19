@@ -10,17 +10,17 @@ with `git checkout -- model/`.
 1. In `model/proficiency-levels/expert.md`, put the cursor in `## What it means` and type a letter.
    Nothing should change, and a notice should say the heading is the schema's.
 2. Press Backspace at the end of that heading, and Delete at its start. Nothing should change.
-3. Type a letter into `# Expert`. Nothing should change, and the notice should say the H1 is the
-   entity's name.
-4. Select from the middle of the section above a heading to the middle of the section below it,
+3. Select from the middle of the section above a heading to the middle of the section below it,
    and press Delete. Nothing should change, since the heading is inside the selection.
-5. Select all and press Delete. Nothing should change.
-6. Hold a key down on a heading. There should be one notice, not a stream of them.
-7. Put the cursor in the middle of `## What it means` and press Shift+Enter. Nothing should
+4. Select all and press Delete. Nothing should change.
+5. Hold a key down on a heading. There should be one notice, not a stream of them.
+6. Put the cursor in the middle of `## What it means` and press Shift+Enter. Nothing should
    change. Then run "Toggle heading 3" from the command palette on it: nothing should change.
 
 ## What passes
 
+7. Type a letter into `# Expert`. It should be accepted: the H1 is the entity's name and yours to
+   change. The pane then lists every reference to Expert that no longer resolves. Undo it.
 8. Put the cursor at the end of a heading and press Enter. A new line opens below it.
 9. Put the cursor at the start of a heading and press Enter. A new line opens above it, and the
    heading moves down unchanged.
@@ -43,12 +43,11 @@ with `git checkout -- model/`.
 
 ## A new entity
 
-15. Create a new note in `model/skills/` and type `# ` and a name, letter by letter, with a few
-    corrections. Every letter should be accepted.
-16. Close the note and open it again. The H1 should now be locked.
+- Create a new note in `model/skills/` and type `# ` and a name, letter by letter, with a few
+  corrections. Every letter should be accepted.
 
 ## Obsidian's own changes
 
-17. With `expert.md` open, change its heading in another editor or with `git checkout` on a
+15. With `expert.md` open, change its heading in another editor or with `git checkout` on a
     modified copy. Obsidian reloads the file, and the editor should show the file as it is on
     disk, not refuse it.

@@ -161,22 +161,13 @@ export function insertionAt(text: string, at: number, heading: string): { insert
   return { insert: `${gap}${title}\n\n\n`, cursor: gap.length + title.length + 1 };
 }
 
-// The H1, the first `# ` line of the body, as the parser reads it; null where there is none.
-export function h1Of(lines: string[]): string | null {
-  const start = bodyStart(lines);
-  return lines.find((l, i) => i >= start && l.startsWith("# ")) ?? null;
-}
-
 // The lines the lock holds (spec §8): every heading the schema declares, whose text is the
-// schema's, and the H1, the page's canonical name, which changes only through Rename entity. The
-// H1 is held only as `opened`, the line it was when the file was loaded: a name being written in
-// a new note is not a name yet, and holding its first letters would leave it unfinishable. A
-// declared heading written twice is held once, so a pasted copy can be deleted again. Trailing
-// spaces are no part of a line held, since the parser trims them too.
-export function lockedLines(lines: string[], vocabulary: TypeVocabulary, opened: string | null): string[] {
+// schema's. Not the H1: it is the entity's name, and renaming an entity is an edit like any other,
+// whose references the checks then name wherever they no longer resolve. A declared heading
+// written twice is held once, so a pasted copy can be deleted again. Trailing spaces are no part
+// of a line held, since the parser trims them too.
+export function lockedLines(lines: string[], vocabulary: TypeVocabulary): string[] {
   const out: string[] = [];
-  const h1 = h1Of(lines);
-  if (opened !== null && h1 !== null && h1.trimEnd() === opened.trimEnd()) out.push(h1.trimEnd());
   const declared = new Set(vocabulary.sections.map((s) => s.heading));
   const seen = new Set<string>();
   for (const { line, heading } of headingLines(lines)) {
@@ -198,11 +189,6 @@ const PASS = ["set", "undo", "redo", "input.section", "delete.section", "input.t
 const matches = (event: string, name: string) => event === name || event.startsWith(`${name}.`);
 export const isHeld = (event: string | undefined) => !event || !PASS.some((name) => matches(event, name));
 
-// When the H1 held is read again: when the editor holds another file, and when Obsidian sets the
-// text from the file. Never on an edit, so a name typed or broken and restored is not taken for
-// the file's own.
-export const rereadsH1 = (pathChanged: boolean, event: string | undefined) =>
-  pathChanged || (event !== undefined && matches(event, "set"));
 
 // The first locked line an edit lost: one that the page held before more often than after. Held
 // by count and not by place, so a line moved whole is kept, and a heading written twice is held

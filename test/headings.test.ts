@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { typeOfPath } from "companygraph-meta-model/checks";
 import { schemasOf } from "../src/model.ts";
 import { vocabularyOf } from "../src/vocabulary.ts";
-import { headingsOf, insertionAt, isEntityText, h1Of, isHeld, lockedLines, lostLine, missingOf, rereadsH1, nearMissOf, removalAt, removalRange, sectionAt } from "../src/headings.ts";
+import { headingsOf, insertionAt, isEntityText, isHeld, lockedLines, lostLine, missingOf, nearMissOf, removalAt, removalRange, sectionAt } from "../src/headings.ts";
 import { example, EXAMPLE, reference, REFERENCE } from "./helpers.ts";
 
 const vocabulary = vocabularyOf(schemasOf(example(), EXAMPLE));
@@ -207,63 +207,48 @@ test("removal is refused where Remove section refuses", () => {
 
 // The lock (spec §8): the H1 and every declared heading keep their text. What is compared is the
 // locked lines before an edit and after it, so an edit anywhere else passes whatever it does.
-test("the locked lines are the H1 as opened and every declared heading, not the page's own", () => {
-  assert.deepEqual(lockedLines(lines(PAGE), role, "# Reviewer"), ["# Reviewer", "## What it takes", "## References", "## What it never does"]);
-});
-
-test("an H1 in the frontmatter or a second H1 is not the page's name", () => {
-  const text = "---\n# not this\n---\n\n# Reviewer\n\n# Another\n";
-  assert.equal(h1Of(lines(text)), "# Reviewer");
-  assert.deepEqual(lockedLines(lines(text), role, "# Reviewer"), ["# Reviewer"]);
-});
-
-test("a name being written in a new note is free: the H1 is held only as it was opened", () => {
-  // Opened empty, so nothing was opened; every letter of the name may be typed and changed.
-  const typing = ["# E", "# Ex", "# Exp"].map((t) => lockedLines(lines(t + "\n"), role, null));
-  assert.deepEqual(typing, [[], [], []]);
-  assert.equal(lostLine(lockedLines(lines("# Ex\n"), role, null), lockedLines(lines("# Exp\n"), role, null)), null);
+test("the locked lines are every declared heading, not the page's own and not the H1", () => {
+  assert.deepEqual(lockedLines(lines(PAGE), role), ["## What it takes", "## References", "## What it never does"]);
 });
 
 test("an edit that keeps every locked line passes, and one that loses one names it", () => {
-  const held = (text: string) => lockedLines(lines(text), role, "# Reviewer");
+  const held = (text: string) => lockedLines(lines(text), role);
   assert.equal(lostLine(held(PAGE), held(PAGE.replace("A branch.", "A branch and a plan."))), null);
   assert.equal(lostLine(held(PAGE), held(PAGE.replace("## What it takes", "## What it is"))), "## What it takes");
-  assert.equal(lostLine(held(PAGE), held(PAGE.replace("# Reviewer", "# Critic"))), "# Reviewer");
+  // The H1 is the entity's name, and renaming it is an edit like any other; the checks then name
+  // every reference that no longer resolves.
+  assert.equal(lostLine(held(PAGE), held(PAGE.replace("# Reviewer", "# Critic"))), null);
 });
 
 test("a new line before or after a heading, and a declared heading added, keep the lock", () => {
-  const before = lockedLines(lines(PAGE), role, "# Reviewer");
+  const before = lockedLines(lines(PAGE), role);
   for (const after of [
     PAGE.replace("## What it takes", "\n## What it takes"),
     PAGE.replace("## What it takes", "## What it takes\n"),
     PAGE + "\n\n## What it produces\n",
     PAGE.replace("## Notes", "## Notes, mine"),
   ])
-    assert.equal(lostLine(before, lockedLines(lines(after), role, "# Reviewer")), null);
+    assert.equal(lostLine(before, lockedLines(lines(after), role)), null);
 });
 
 test("a declared heading written twice is held once, so the copy can be deleted", () => {
   const twice = PAGE + "\n\n## References\n";
-  assert.equal(lostLine(lockedLines(lines(twice), role, null), lockedLines(lines(PAGE), role, null)), null);
+  assert.equal(lostLine(lockedLines(lines(twice), role), lockedLines(lines(PAGE), role)), null);
   // Both copies gone is the heading lost.
   const none = PAGE.replace("## References", "");
-  assert.equal(lostLine(lockedLines(lines(twice), role, null), lockedLines(lines(none), role, null)), "## References");
+  assert.equal(lostLine(lockedLines(lines(twice), role), lockedLines(lines(none), role)), "## References");
 });
 
 test("trailing spaces are no part of a held line, so they can be trimmed", () => {
-  const spaced = PAGE.replace("## What it takes", "## What it takes  ").replace("# Reviewer", "# Reviewer ");
-  const held = (text: string) => lockedLines(lines(text), role, "# Reviewer ");
+  const spaced = PAGE.replace("## What it takes", "## What it takes  ");
+  const held = (text: string) => lockedLines(lines(text), role);
   assert.equal(lostLine(held(spaced), held(PAGE)), null);
 });
 
 test("a `---` typed at the top of a page is not frontmatter until it closes", () => {
   const text = "---\n# Reviewer\n\n## What it takes\n";
-  assert.equal(h1Of(lines(text)), "# Reviewer");
-  assert.deepEqual(lockedLines(lines(text), role, "# Reviewer"), ["# Reviewer", "## What it takes"]);
-  assert.equal(
-    lostLine(lockedLines(lines(text.slice(4)), role, "# Reviewer"), lockedLines(lines(text), role, "# Reviewer")),
-    null,
-  );
+  assert.deepEqual(lockedLines(lines(text), role), ["## What it takes"]);
+  assert.equal(lostLine(lockedLines(lines(text.slice(4)), role), lockedLines(lines(text), role)), null);
 });
 
 test("the lock holds every edit but a reload, undo, redo, this plugin's own and a composing input method", () => {
@@ -273,12 +258,5 @@ test("the lock holds every edit but a reload, undo, redo, this plugin's own and 
     assert.equal(isHeld(passed), false, passed);
   // A name that merely begins like one that passes is still held.
   assert.equal(isHeld("settle"), true);
-});
-
-test("the H1 is read again when the file changes or Obsidian sets the text, never on an edit", () => {
-  assert.equal(rereadsH1(true, "input.type"), true);
-  assert.equal(rereadsH1(false, "set"), true);
-  for (const event of [undefined, "input.type", "input.section", "undo", "redo", "delete.backward"])
-    assert.equal(rereadsH1(false, event), false, String(event));
 });
 

@@ -13,7 +13,7 @@ import { Decoration, EditorView, WidgetType } from "@codemirror/view";
 import type { DecorationSet } from "@codemirror/view";
 import { typeOfPath } from "companygraph-meta-model/checks";
 import type CompanyGraphPlugin from "./main.ts";
-import { h1Of, headingsOf, insertionAt, isEntityText, isHeld, lockedLines, lostLine, missingOf, removalRange, rereadsH1 } from "./headings.ts";
+import { headingsOf, insertionAt, isEntityText, isHeld, lockedLines, lostLine, missingOf, removalRange } from "./headings.ts";
 import type { HeadingKind } from "./headings.ts";
 import type { TypeVocabulary } from "./vocabulary.ts";
 import { refreshNames } from "./namelinks.ts";
@@ -195,24 +195,13 @@ export function headingMarks(plugin: CompanyGraphPlugin) {
   });
 }
 
-// The lock (spec §8). An edit that loses the H1 or a declared heading is refused whole, and one
-// notice for a burst of keystrokes says which line held it. Compared as the locked lines before
-// and after the edit, so typing anywhere else, opening a line before or after a heading and moving
-// a heading whole all pass. Which edits are held and when the H1 is read again are decided in
-// headings.ts, where they are tested. A rename in the file explorer, a sync or another program
-// never reaches the editor; the checks catch what they break.
+// The lock (spec §8). An edit that loses a declared heading is refused whole, and one notice for
+// a burst of keystrokes says which heading held it. Compared as the declared headings before and
+// after the edit, so typing anywhere else, the H1 included, opening a line before or after a
+// heading and moving a heading whole all pass. Which edits are held is decided in headings.ts,
+// where it is tested. A rename in the file explorer, a sync or another program never reaches the
+// editor; the checks catch what they break.
 const eventOf = (tr: Transaction) => tr.annotation(Tr.userEvent);
-
-// The H1 as Obsidian last loaded the file: read when the editor is made, again when it holds
-// another file, and again when Obsidian sets the text from the file.
-const openedH1 = StateField.define<{ path: string | null; h1: string | null }>({
-  create: (state) => ({ path: fileIn(state), h1: h1Of(state.doc.toString().split("\n")) }),
-  update(value, tr) {
-    const path = fileIn(tr.state);
-    if (rereadsH1(path !== value.path, eventOf(tr))) return { path, h1: h1Of(tr.state.doc.toString().split("\n")) };
-    return value;
-  },
-});
 
 export function headingLock(plugin: CompanyGraphPlugin) {
   let told = 0;
@@ -222,22 +211,14 @@ export function headingLock(plugin: CompanyGraphPlugin) {
     if (!found) return tr;
     const before = tr.startState.doc.toString();
     if (!isEntityText(before)) return tr;
-    const opened = tr.startState.field(openedH1, false)?.h1 ?? null;
-    const lost = lostLine(
-      lockedLines(before.split("\n"), found.vocabulary, opened),
-      lockedLines(tr.newDoc.toString().split("\n"), found.vocabulary, opened),
-    );
+    const lost = lostLine(lockedLines(before.split("\n"), found.vocabulary), lockedLines(tr.newDoc.toString().split("\n"), found.vocabulary));
     if (lost === null) return tr;
     // One notice for a burst of refused keystrokes, not one each.
     if (Date.now() - told > 2000) {
       told = Date.now();
-      new Notice(
-        lost.startsWith("## ")
-          ? `"${lost.slice(3).trim()}" is the schema's heading and cannot be edited here.`
-          : "The H1 is the entity's name and cannot be edited here.",
-      );
+      new Notice(`"${lost.slice(3).trim()}" is the schema's heading and cannot be edited here.`);
     }
     return [];
   });
-  return [openedH1, filter];
+  return filter;
 }

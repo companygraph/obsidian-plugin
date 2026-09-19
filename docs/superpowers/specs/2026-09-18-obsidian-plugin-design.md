@@ -456,24 +456,27 @@ until the pointer is on it.
 | The page's own | an open circle | Not in the schema, yours to edit; a near miss adds "Did you mean …" | editing, as any text |
 | Required and missing | a dashed line with a plus | Required section missing: click to add | not applicable |
 
-A declared heading and the H1 are locked, and the lock is hard. There is no reason to rename a
-declared heading within an instance, since its text is the schema's. The one legitimate change
-is a core release that renames a section, and that is a change across the whole instance, made
-by an agent or in git and not typed in Obsidian. A CodeMirror transaction filter refuses any
-change that alters a locked line's text and says so in a notice; opening a new line before or
-after the heading still works, and so does everything in the section below it. The H1 is
-held as it was when the file was loaded, and not as it is being typed: in a new note the name is
-written letter by letter, and holding the first letters would leave it unfinishable, so a name is
-free until the note is opened again. What is compared is the locked lines before and after an
-edit, counted, so a heading moved whole passes; a declared heading written twice is held once, so
-a pasted copy can be deleted, and trailing spaces are no part of a line held. Every edit is held
-but what must pass. A review read Obsidian's code: its own heading commands, Shift+Enter and the
-Editor API that other plugins write through carry no event at all, so a lock on typing alone
-would have let them through. What passes is a file reloaded after a change on disk, which
-Obsidian applies as `set` and whose refusal would leave the editor out of step with the file;
-undo and redo; this plugin's own commands; and a character an input method is still composing,
-which is refused only at a cost to the screen. The H1 held is read again only when the editor
-holds another file or Obsidian sets the text, never on an edit. The filter
+A declared heading is locked, and the lock is hard. There is no reason to rename a declared
+heading within an instance, since its text is the schema's. The one legitimate change is a core
+release that renames a section, and that is a change across the whole instance, made by an agent
+or in git and not typed in Obsidian. A CodeMirror transaction filter refuses any change that
+alters a locked line's text and says so in a notice; opening a new line before or after the
+heading still works, and so does everything in the section below it.
+
+The H1 is not locked. The first build held it too, and the owner's trial reversed that: the H1 is
+the entity's name, a skill or a proficiency level is renamed as a matter of course, and when one
+is, the checks name every reference that no longer resolves. That is a refactor, and Rename
+entity below is the help for it, not a guard in front of it.
+
+What is compared is the declared headings before and after an edit, counted, so a heading moved
+whole passes; a declared heading written twice is held once, so a pasted copy can be deleted,
+and trailing spaces are no part of a line held. Every edit is held but what must pass. A review
+read Obsidian's code: its own heading commands, Shift+Enter and the Editor API that other
+plugins write through carry no event at all, so a lock on typing alone would have let them
+through. What passes is a file reloaded after a change on disk, which Obsidian applies as `set`
+and whose refusal would leave the editor out of step with the file; undo and redo; this plugin's
+own commands; and a character an input method is still composing, which is refused only at a
+cost to the screen. The filter
 guards the editor only: a rename in the file explorer, a sync or another plugin passes it, and
 the checks remain what catches them. The plugin's own commands pass it on purpose.
 
@@ -493,7 +496,7 @@ the page does not carry, ignoring case, spacing and punctuation, or within two e
 hover names the declared heading and offers to replace it, which is the one change the plugin
 makes to such a heading, and only on a click.
 
-The H1 changes through Rename entity only. The command asks for the new name and, in one step,
+Rename entity is the refactor for a renamed H1. The command asks for the new name and, in one step,
 rewrites the H1, renames the file or the entity's folder as R12 or the type's own derivation
 says, and rewrites every reference by name that resolves to the entity, resolved as the checks
 resolve, within the owner for an owned type. It lists what it will change before it writes.
