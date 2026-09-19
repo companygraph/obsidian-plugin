@@ -3,7 +3,7 @@
 // the schema writes it, and a page may carry sections of its own, which break nothing. A heading
 // is read as the parser reads it, a line that opens with `## `, and the frontmatter is not the
 // page's body. Pure; lines are counted from 0, as the editor's are.
-import type { TypeVocabulary } from "./vocabulary.ts";
+import type { SectionDecl, TypeVocabulary } from "./vocabulary.ts";
 
 export type HeadingKind = "required" | "optional" | "own";
 
@@ -76,28 +76,46 @@ export function headingsOf(lines: string[], vocabulary: TypeVocabulary): Heading
   });
 }
 
-// Each required section the page lacks goes after the last declared section it carries that the
-// schema lists before it, which is before the next heading after that one; with none, before the
-// first heading, which is after the H1 and its tagline. Either way the end of the page when
-// there is no such heading. A required section that a heading of the page's own nearly matches
-// is left to that heading's hint, so one mistake is offered one way to mend it.
+// Where a declared section belongs on a page: after the last declared section the page carries
+// that the schema lists before it, which is before the next heading after that one; with none,
+// before the first heading, which is after the H1 and its tagline. Either way the end of the
+// page when there is no such heading. The line its heading goes before.
+export function placementOf(lines: string[], vocabulary: TypeVocabulary, heading: string): number {
+  const found = headingLines(lines);
+  const order = vocabulary.sections.map((s) => s.heading);
+  const index = order.indexOf(heading);
+  const before = found.filter((h) => {
+    const at = order.indexOf(h.heading);
+    return at !== -1 && at < index;
+  });
+  const after = before.length ? before[before.length - 1].line : null;
+  const next = found.find((h) => (after === null ? true : h.line > after));
+  return next ? next.line : lines.length;
+}
+
+// Each required section the page lacks, where it belongs. A required section that a heading of the
+// page's own nearly matches is left to that heading's hint, so one mistake is offered one way to
+// mend it.
 export function missingOf(lines: string[], vocabulary: TypeVocabulary): Missing[] {
   const found = headingLines(lines);
   const hinted = new Set(headingsOf(lines, vocabulary).map((h) => h.nearMiss).filter(Boolean));
-  const order = vocabulary.sections.map((s) => s.heading);
-  const out: Missing[] = [];
-  for (const [index, section] of vocabulary.sections.entries()) {
-    if (!section.required || hinted.has(section.heading) || found.some((h) => h.heading === section.heading)) continue;
-    const before = found.filter((h) => {
-      const at = order.indexOf(h.heading);
-      return at !== -1 && at < index;
-    });
-    const after = before.length ? before[before.length - 1].line : null;
-    const next = found.find((h) => (after === null ? true : h.line > after));
-    out.push({ heading: section.heading, before: next ? next.line : lines.length });
-  }
-  return out;
+  return vocabulary.sections
+    .filter((s) => s.required && !hinted.has(s.heading) && !found.some((h) => h.heading === s.heading))
+    .map((s) => ({ heading: s.heading, before: placementOf(lines, vocabulary, s.heading) }));
 }
+
+// The declared sections a page does not carry, in the schema's order: what Add a section offers.
+export function addableSections(lines: string[], vocabulary: TypeVocabulary): SectionDecl[] {
+  const carried = new Set(headingLines(lines).map((h) => h.heading));
+  return vocabulary.sections.filter((s) => !carried.has(s.heading));
+}
+
+// What a section whose content is a table starts with: its header and separator, the columns as
+// the schema declares them, the separator of plain dashes the checks read.
+export const tableStart = (section: SectionDecl): string[] =>
+  section.columns?.length
+    ? [`| ${section.columns.map((c) => c.name).join(" | ")} |`, `| ${section.columns.map(() => "---").join(" | ")} |`]
+    : [];
 
 // The section a line is in: from its heading to the line before the next heading, or to the end
 // of the page. `to` is exclusive. Null above the first heading.
@@ -147,18 +165,26 @@ export function removalRange(text: string, line: number, vocabulary: TypeVocabul
   return { from: offset(above) + lines[above].length, to: text.length, insert: "\n" };
 }
 
-// What clicking a missing section writes at `at`, where its line is drawn, and where the cursor
-// goes after, counted from `at`. The heading stands on a line of its own after a blank line.
-// Before a heading that follows, it leaves a line to write on with a blank line either side of
-// it; at the end of the page, the line after it.
-export function insertionAt(text: string, at: number, heading: string): { insert: string; cursor: number } {
+// What writing a section at `at` puts there, and where the cursor goes after, counted from `at`.
+// The heading stands on a line of its own after a blank line, and `body`, a table's header where
+// the section is a table, after a blank line of its own. Before a heading that follows, it leaves
+// a line to write on and a blank line after it; at the end of the page, the line after it.
+export function insertionAt(text: string, at: number, heading: string, body: string[] = []): { insert: string; cursor: number } {
   const title = `## ${heading}\n`;
+  const rest = body.length ? `\n${body.join("\n")}\n` : "";
   const lineStart = text.lastIndexOf("\n", at - 1) + 1;
-  if (lineStart !== at) return { insert: `\n\n${title}`, cursor: title.length + 2 };
+  if (lineStart !== at) {
+    const insert = `\n\n${title}${rest}`;
+    return { insert, cursor: insert.length };
+  }
   const previous = at === 0 ? "" : text.slice(text.lastIndexOf("\n", at - 2) + 1, at - 1);
   const gap = at > 0 && previous.trim() !== "" ? "\n" : "";
-  if (at >= text.length) return { insert: gap + title, cursor: gap.length + title.length };
-  return { insert: `${gap}${title}\n\n\n`, cursor: gap.length + title.length + 1 };
+  if (at >= text.length) {
+    const insert = gap + title + rest;
+    return { insert, cursor: insert.length };
+  }
+  const opened = body.length ? `\n${body.join("\n")}\n` : "\n";
+  return { insert: `${gap}${title}${opened}\n\n`, cursor: gap.length + title.length + opened.length };
 }
 
 // The lines the lock holds (spec §8): every heading the schema declares, whose text is the

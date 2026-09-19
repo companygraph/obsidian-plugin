@@ -3,7 +3,13 @@
 declare module "companygraph-meta-model/checks" {
   // Every type core ships, as the package lists it: its folder or its single file, and what owns
   // or is owned by it.
-  export const TYPES: { type: string; folder?: string; file?: string; owner?: string; owns?: string[] }[];
+  export const TYPES: {
+    type: string; folder?: string; file?: string; owner?: string; owns?: string[];
+    // A type named other than by R12's slug says how: the year of a field, then a chosen slug.
+    filename?: { year: string; rest: string };
+  }[];
+  // R12's slug: lower case, every run of other characters one hyphen, none at either end.
+  export function slug(s: string): string;
   export function checkInstance(
     files: Map<string, string>,
     options?: { core?: string; model?: string },
