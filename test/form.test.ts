@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { excludesOf, formOf, formed, inForm, spanOf } from "../src/form.ts";
+import { changesOf, columnAfter, excludesOf, formOf, formed, inForm, spanOf } from "../src/form.ts";
 import { reference } from "./helpers.ts";
 
 // The rule set this repository vendored, the file a vault that took the form carries.
@@ -117,4 +117,37 @@ test("the change handed to an editor is the one span that differs", () => {
   const before = ALIGNED;
   const span = spanOf(before, COMPACT)!;
   assert.equal(before.slice(0, span.from) + span.text + before.slice(span.to), COMPACT);
+});
+
+// Review of a trial: Cmd+S wrote the form as one span from the first difference to the last, and
+// the cursor on a line in between was carried to the span's edge.
+const apply = (text: string, changes: { from: number; to: number; insert: string }[]) =>
+  [...changes].sort((x, y) => y.from - x.from).reduce((t, c) => t.slice(0, c.from) + c.insert + t.slice(c.to), text);
+
+test("a change is one span per run of changed lines, and an unchanged line is never in one", () => {
+  const before = "# A\n\n| a   | b   |\n| --- | --- |\n| 1   | 2   |\n\ntext\n";
+  const after = "# A\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n\ntext\n";
+  const changes = changesOf(before, after);
+  assert.equal(apply(before, changes), after);
+  // The separator line did not change, so the header and the row are two spans around it.
+  assert.equal(changes.length, 2);
+  const separator = before.indexOf("| --- |");
+  assert.ok(changes.every((c) => c.to <= separator || c.from >= separator + "| --- | --- |".length));
+});
+
+test("lines the form adds or removes are one span between the unchanged ones", () => {
+  for (const [before, after] of [
+    ["a\n\n\n\nb\n", "a\n\nb\n"],
+    ["a\nb\n", "a\n\nb\n"],
+    ["a\nb", "a\nb\n"],
+    ["a\n  b\nc\n", "a\nb\nc\nd\n"],
+  ]) assert.equal(apply(before, changesOf(before, after)), after, JSON.stringify([before, after]));
+  assert.deepEqual(changesOf("same", "same"), []);
+});
+
+test("a cursor keeps the characters before it that are not spaces, wherever the form moves them", () => {
+  assert.equal(columnAfter("| a   | b   |", "| a | b |", 9), 7);
+  assert.equal(columnAfter("| a   | b   |", "| a | b |", 0), 0);
+  assert.equal(columnAfter("  - x", "- x", 5), 3);
+  assert.equal(columnAfter("same", "same", 2), 2);
 });

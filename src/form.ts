@@ -78,3 +78,68 @@ export function spanOf(before: string, after: string): { from: number; to: numbe
   while (end < shorter - start && before[before.length - 1 - end] === after[after.length - 1 - end]) end++;
   return { from: start, to: before.length - end, text: after.slice(start, after.length - end) };
 }
+
+// The same change as spans of lines, one per run of changed lines, so a line that did not change
+// is never replaced. One span from the first difference to the last covered every line between
+// them, and a cursor on a line the form never touched was carried to the edge of the span: saving
+// a note whose table the form compacted moved the cursor to the table's end. Where the form adds
+// or removes lines the runs are found by matching the unchanged lines at both ends, and what lies
+// between them is one run. Offsets are into `before`.
+export function changesOf(before: string, after: string): { from: number; to: number; insert: string }[] {
+  if (before === after) return [];
+  const a = before.split("\n");
+  const b = after.split("\n");
+  const offsets: number[] = [0];
+  for (const line of a) offsets.push(offsets[offsets.length - 1] + line.length + 1);
+  // The unchanged lines at the head and the tail.
+  let head = 0;
+  while (head < a.length && head < b.length && a[head] === b[head]) head++;
+  let tail = 0;
+  while (tail < a.length - head && tail < b.length - head && a[a.length - 1 - tail] === b[b.length - 1 - tail]) tail++;
+  const midA = a.slice(head, a.length - tail);
+  const midB = b.slice(head, b.length - tail);
+  const out: { from: number; to: number; insert: string }[] = [];
+  const span = (fromLine: number, toLine: number, lines: string[]) => {
+    // Lines fromLine..toLine-1 of `before`, without the newline after the last, become `lines`.
+    const from = offsets[fromLine];
+    const to = offsets[toLine] - 1;
+    out.push({ from, to: Math.max(from, to), insert: lines.join("\n") });
+  };
+  if (midA.length === midB.length) {
+    // Line for line: each run of changed lines on its own.
+    for (let i = 0; i < midA.length; i++) {
+      if (midA[i] === midB[i]) continue;
+      let j = i;
+      while (j + 1 < midA.length && midA[j + 1] !== midB[j + 1]) j++;
+      span(head + i, head + j + 1, midB.slice(i, j + 1));
+      i = j;
+    }
+    return out;
+  }
+  if (midA.length === 0) {
+    // Lines added only: they go in before the first line of the tail, or at the end.
+    const at = offsets[head];
+    const insert = midB.join("\n") + "\n";
+    return head < a.length ? [{ from: at, to: at, insert }] : [{ from: offsets[a.length] - 1, to: offsets[a.length] - 1, insert: "\n" + midB.join("\n") }];
+  }
+  if (midB.length === 0) {
+    // Lines removed only: each with the newline after it.
+    return [{ from: offsets[head], to: Math.min(offsets[head + midA.length], before.length), insert: "" }];
+  }
+  span(head, head + midA.length, midB);
+  return out;
+}
+
+// Where a cursor at `ch` in a line stands once the form has rewritten the line. The form changes
+// spacing and never what is written, so the cursor keeps the characters before it that are not
+// spaces: in `| a   | b   |` just after `b`, it is just after `b` in `| a | b |` too.
+export function columnAfter(before: string, after: string, ch: number): number {
+  const kept = before.slice(0, ch).replace(/\s/g, "").length;
+  if (kept === 0) return Math.min(ch, after.length);
+  let seen = 0;
+  for (let i = 0; i < after.length; i++) {
+    if (!/\s/.test(after[i])) seen++;
+    if (seen === kept) return i + 1;
+  }
+  return after.length;
+}

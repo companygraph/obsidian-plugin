@@ -1,8 +1,9 @@
 // The wiring: when to rebuild, and the three places a rebuild shows — the pane, the open file's
 // lines and the status bar. Everything that decides anything is in the pure modules.
-import { Keymap, MarkdownView, Notice, Plugin, TFile, debounce } from "obsidian";
+import { Keymap, MarkdownView, Notice, Plugin, TFile, debounce, editorInfoField } from "obsidian";
 import type { WorkspaceLeaf } from "obsidian";
 import type { Debouncer } from "obsidian";
+import { EditorView as EditorViewClass } from "@codemirror/view";
 import type { EditorView } from "@codemirror/view";
 import { guard } from "./manifest.ts";
 import { buildModel } from "./model.ts";
@@ -21,17 +22,18 @@ import { Pane, VIEW_TYPE } from "./pane.ts";
 import { Suggest } from "./suggest.ts";
 import { marksField, setMarks } from "./marks.ts";
 import { fieldOfLine, propertyRules } from "./properties.ts";
-import { cellEditorOf, tintRows } from "./livetable.ts";
+import { cellEditorOf, editingCell, openCell, tintRows } from "./livetable.ts";
 import { typeOfPath } from "companygraph-meta-model/checks";
 import { absentFields } from "./candidates.ts";
 import { AddField } from "./addfield.ts";
+import { BRIEF_VIEW, BriefPane } from "./briefpane.ts";
 import { headingLock, headingMarks, removeSection } from "./headingmarks.ts";
 import { AddSection } from "./addsection.ts";
 import { addableSections } from "./headings.ts";
 import { PickType } from "./newentity.ts";
 import { targetsFor } from "./scaffold.ts";
 import { DeleteEntity, RenameEntity } from "./entitycommands.ts";
-import { PIN, RULES, excludesOf, formOf, formed, inForm, spanOf } from "./form.ts";
+import { PIN, RULES, changesOf, columnAfter, excludesOf, formOf, formed, inForm } from "./form.ts";
 
 // The release of companygraph-meta-model this build bundles; esbuild.config.mjs defines it.
 declare const __CHECKER_VERSION__: string;
@@ -53,6 +55,10 @@ export default class CompanyGraphPlugin extends Plugin {
   state: State = CHECKING;
   layout: Layout | null = null;
   vocabulary = new Map<string, TypeVocabulary>();
+  // The release of the checks this build bundles, for the pane to say.
+  checker = __CHECKER_VERSION__;
+  // The vendored schemas' text by file name, for the writing brief.
+  schemas = new Map<string, string>();
   // The entities of the last rebuild that parsed; completion asks which of them a file may name.
   named: Named[] = [];
   // The model's edges as links between files, and what of them was added to Obsidian's map.
@@ -86,6 +92,17 @@ export default class CompanyGraphPlugin extends Plugin {
     this.statusBar.setAttr("aria-label-position", "top");
     this.statusBar.onClickEvent(() => void this.openPane());
     this.registerView(VIEW_TYPE, (leaf) => new Pane(leaf, this));
+    this.registerView(BRIEF_VIEW, (leaf) => new BriefPane(leaf, this));
+    // The brief follows the cursor of the editor that has the focus, a moment after it settles.
+    const brief = debounce((view: EditorView) => this.showBrief(view), 150, true);
+    this.registerEditorExtension(
+      EditorViewClass.updateListener.of((update) => {
+        // Only the editor that has the focus: a note open in a second pane takes every change
+        // made in the first, and would otherwise answer for a cursor nobody is looking at.
+        if ((update.selectionSet || update.docChanged || update.focusChanged) && update.view.hasFocus) brief(update.view);
+      }),
+    );
+    this.register(() => brief.cancel());
     this.registerEditorExtension(marksField);
     this.registerEditorExtension(nameLinks(this));
     this.registerEditorExtension(headingMarks(this));
@@ -262,6 +279,7 @@ export default class CompanyGraphPlugin extends Plugin {
       const left = this.left;
       if (left) tasks.add(() => this.writeForm(left));
     }));
+    this.addCommand({ id: "open-brief", name: "Open the writing brief", callback: () => void this.openBrief() });
     this.addCommand({ id: "open-checks", name: "Open the checks pane", callback: () => void this.openPane() });
     this.addCommand({ id: "check-now", name: "Check the instance now", callback: () => void this.rebuild() });
 
@@ -270,6 +288,7 @@ export default class CompanyGraphPlugin extends Plugin {
     this.soon = debounce(() => void this.rebuild(), 400, true);
     const changed = (path: string) => { if (this.layout && concerns(path, this.layout)) this.soon?.(); };
     this.registerEvent(this.app.workspace.on("file-open", () => this.paint()));
+    this.registerEvent(this.app.workspace.on("active-leaf-change", () => this.refreshBrief()));
     // A table widget is drawn a moment after its note opens, and CodeMirror draws only what is in
     // view, so a table scrolled into sight is a new one: the rows are tinted again when the
     // layout settles and, once it pauses, on a scroll. Only the rows: a scroll should not send a
@@ -354,16 +373,43 @@ export default class CompanyGraphPlugin extends Plugin {
         if (loud) new Notice(`${file.path} is not held to the form here: conventions.json excludes it.`);
         return;
       }
-      let editor: MarkdownView["editor"] | null = null;
+      let holder: MarkdownView | null = null;
       this.app.workspace.iterateAllLeaves((leaf) => {
-        if (!editor && leaf.view instanceof MarkdownView && leaf.view.file === file) editor = leaf.view.editor;
+        if (!holder && leaf.view instanceof MarkdownView && leaf.view.file === file) holder = leaf.view;
       });
-      const open = editor as MarkdownView["editor"] | null;
+      const view = holder as MarkdownView | null;
+      const open = view ? view.editor : null;
       if (open) {
         const before = open.getValue();
-        const span = spanOf(before, inForm(before, config));
-        if (span) open.replaceRange(span.text, open.offsetToPos(span.from), open.offsetToPos(span.to));
-        else if (loud) new Notice("This note is already in the family's Markdown form.");
+        const changes = changesOf(before, inForm(before, config));
+        if (!changes.length) {
+          if (loud) new Notice("This note is already in the family's Markdown form.");
+          return;
+        }
+        // One run of changed lines at a time, so a line the form leaves alone is never replaced,
+        // and the cursor put back on its line and column after, the column held to the line's new
+        // length: a line the form did change is replaced whole, which would carry a cursor on it
+        // to the line's edge. The plugin's own event, so the lock on declared headings lets the
+        // form's own spacing through.
+        const cm = (open as unknown as { cm?: EditorView }).cm;
+        // In Live Preview a cursor in a table stands in the cell's own editor, which goes when
+        // the table is drawn anew after its text changes; that cell is opened again after, with
+        // the cursor as far into it as it was, since the form changes no cell's words.
+        const cell = view ? editingCell(view) : null;
+        const cursor = open.getCursor();
+        const was = open.getLine(cursor.line);
+        if (cm) {
+          const tr = cm.state.update({ changes, userEvent: "input.form" });
+          cm.dispatch(tr);
+          if (cell && view) {
+            const first = cm.state.doc.lineAt(tr.changes.mapPos(cell.start)).number - 1;
+            const reopen = () => openCell(view, cm, first, cell.row, cell.col, cell.ch);
+            window.setTimeout(() => { if (!reopen()) window.setTimeout(reopen, 200); }, 50);
+            return;
+          }
+        } else for (const c of [...changes].reverse()) open.replaceRange(c.insert, open.offsetToPos(c.from), open.offsetToPos(c.to));
+        const line = Math.min(cursor.line, open.lineCount() - 1);
+        open.setCursor({ line, ch: columnAfter(was, open.getLine(line), cursor.ch) });
         return;
       }
       const text = await this.app.vault.read(file);
@@ -423,6 +469,7 @@ export default class CompanyGraphPlugin extends Plugin {
       let schemas: string | null = null;
       try {
         this.vocabulary = vocabularyOf(model.schemas);
+        this.schemas = model.schemas;
       } catch (error) {
         // A vendored schema off the fixed shape. Core is never edited in an instance, so this is
         // a broken copy; the last vocabulary that read stays, and the manifest's hashes say which
@@ -573,6 +620,8 @@ export default class CompanyGraphPlugin extends Plugin {
     });
     if (this.rowStyle) this.rowStyle.textContent = rules.filter((rule) => rule !== "").join("\n");
     this.tintTables();
+    // A rebuild may have brought the schemas the brief had to wait for.
+    this.refreshBrief();
   }
 
   // The rows of Live Preview's table widgets, for every open note; see livetable.ts.
@@ -587,6 +636,36 @@ export default class CompanyGraphPlugin extends Plugin {
       tintRows(leaf.view, cm, marks);
       markNames(this, leaf.view, cm);
     });
+  }
+
+  // The brief for the cursor of an editor, if the pane is open. A table cell in Live Preview is
+  // edited in a small editor of its own, whose text is the cell's alone; the note it belongs to
+  // is the editor around the table, and its cursor sits on the table, in the right section.
+  showBrief(view: EditorView) {
+    const pane = this.app.workspace.getLeavesOfType(BRIEF_VIEW)[0]?.view;
+    if (!(pane instanceof BriefPane)) return;
+    const outer = view.dom.closest(".cm-table-widget")?.closest(".cm-editor");
+    const note = (outer instanceof HTMLElement ? EditorViewClass.findFromDOM(outer) : null) ?? view;
+    const path = note.state.field(editorInfoField, false)?.file?.path ?? null;
+    const line = note.state.doc.lineAt(note.state.selection.main.head).number - 1;
+    pane.show(path, note.state.doc.toString().split("\n"), line);
+  }
+
+  // The brief for the note in front, when something other than its cursor has changed: the pane
+  // opened, the model rebuilt, another note came forward.
+  refreshBrief() {
+    const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+    const cm = (view?.editor as unknown as { cm?: EditorView } | undefined)?.cm;
+    if (cm) this.showBrief(cm);
+  }
+
+  async openBrief() {
+    const open = this.app.workspace.getLeavesOfType(BRIEF_VIEW)[0];
+    const leaf = open ?? this.app.workspace.getRightLeaf(false);
+    if (!leaf) return;
+    if (!open) await leaf.setViewState({ type: BRIEF_VIEW, active: false });
+    await this.app.workspace.revealLeaf(leaf);
+    this.refreshBrief();
   }
 
   async openPane() {

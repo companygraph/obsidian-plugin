@@ -207,11 +207,12 @@ export function lockedLines(lines: string[], vocabulary: TypeVocabulary): string
 // Which edits the lock holds, by the event CodeMirror carries with them. Held is everything but
 // what must pass: `set`, which is how Obsidian applies a file reloaded after a change on disk, and
 // refusing it would leave the editor out of step with the file; undo and redo, which only take
-// back what was done; this plugin's own commands, `input.section` and `delete.section`; and a
+// back what was done; this plugin's own commands, `input.section` and `delete.section`, and its
+// writing of a note in the family's Markdown form, `input.form`; and a
 // character still being composed by an input method, which is refused only at a cost to the
 // screen. Obsidian's own heading commands, Shift+Enter and the Editor API carry no event at all,
 // and are held, which is the point of holding by default.
-const PASS = ["set", "undo", "redo", "input.section", "delete.section", "input.type.compose"];
+const PASS = ["set", "undo", "redo", "input.section", "delete.section", "input.form", "input.type.compose"];
 const matches = (event: string, name: string) => event === name || event.startsWith(`${name}.`);
 export const isHeld = (event: string | undefined) => !event || !PASS.some((name) => matches(event, name));
 
