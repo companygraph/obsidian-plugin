@@ -7,13 +7,13 @@
 // when the editor turns out to hold another file. The tooltip is Obsidian's, shown for any
 // element with an aria-label.
 import { Notice, editorEditorField, editorInfoField, setIcon } from "obsidian";
-import { RangeSetBuilder, StateField } from "@codemirror/state";
+import { EditorState as State, RangeSetBuilder, StateField } from "@codemirror/state";
 import type { EditorState, Transaction } from "@codemirror/state";
 import { Decoration, EditorView, WidgetType } from "@codemirror/view";
 import type { DecorationSet } from "@codemirror/view";
 import { typeOfPath } from "companygraph-meta-model/checks";
 import type CompanyGraphPlugin from "./main.ts";
-import { headingsOf, insertionAt, isEntityText, missingOf, removalRange } from "./headings.ts";
+import { h1Of, headingsOf, insertionAt, isEntityText, lockedLines, lostLine, missingOf, removalRange } from "./headings.ts";
 import type { HeadingKind } from "./headings.ts";
 import type { TypeVocabulary } from "./vocabulary.ts";
 import { refreshNames } from "./namelinks.ts";
@@ -193,4 +193,61 @@ export function headingMarks(plugin: CompanyGraphPlugin) {
     },
     provide: (field) => EditorView.decorations.from(field, (drawn) => drawn.marks),
   });
+}
+
+// The lock (spec §8). An edit typed, deleted, pasted or dropped in the editor that loses the H1
+// or a declared heading is refused whole, and a notice says which line held it. Compared as the
+// locked lines before and after the edit, so typing anywhere else, opening a line before or after
+// a heading and moving a heading whole all pass. Only what a person does in the editor is held:
+// Obsidian's own changes carry no such event, a file reloaded after a change on disk among them,
+// and refusing one would leave the editor out of step with the file. Undo and redo pass, since
+// they only take back what was done, and so do this plugin's own commands, which say so by their
+// event. A rename in the file explorer, a sync or another plugin never reaches here; the checks
+// catch what they break.
+const OWN_EVENTS = ["input.section", "delete.section", "undo", "redo"];
+const HELD_EVENTS = ["input", "delete", "move"];
+
+// A person's edit, as against Obsidian's own change and this plugin's commands.
+const byHand = (tr: Transaction) => !OWN_EVENTS.some((e) => tr.isUserEvent(e)) && HELD_EVENTS.some((e) => tr.isUserEvent(e));
+
+// The H1 as Obsidian last loaded the file: read when the editor is made, again when it holds
+// another file, and again after a change that no person typed, such as a reload from disk. What
+// is typed never moves it, so the name of an entity that exists is held, and a name being written
+// in a new note is free until the note is opened again.
+const openedH1 = StateField.define<{ path: string | null; h1: string | null }>({
+  create: (state) => ({ path: fileIn(state), h1: h1Of(state.doc.toString().split("\n")) }),
+  update(value, tr) {
+    const path = fileIn(tr.state);
+    if (path !== value.path || (tr.docChanged && !byHand(tr) && !tr.isUserEvent("undo") && !tr.isUserEvent("redo")))
+      return { path, h1: h1Of(tr.state.doc.toString().split("\n")) };
+    return value;
+  },
+});
+
+export function headingLock(plugin: CompanyGraphPlugin) {
+  let told = 0;
+  const filter = State.transactionFilter.of((tr) => {
+    if (!tr.docChanged || !byHand(tr)) return tr;
+    const found = vocabularyIn(plugin, tr.startState);
+    if (!found) return tr;
+    const before = tr.startState.doc.toString();
+    if (!isEntityText(before)) return tr;
+    const opened = tr.startState.field(openedH1, false)?.h1 ?? null;
+    const lost = lostLine(
+      lockedLines(before.split("\n"), found.vocabulary, opened),
+      lockedLines(tr.newDoc.toString().split("\n"), found.vocabulary, opened),
+    );
+    if (lost === null) return tr;
+    // One notice for a burst of refused keystrokes, not one each.
+    if (Date.now() - told > 2000) {
+      told = Date.now();
+      new Notice(
+        lost.startsWith("## ")
+          ? `"${lost.slice(3).trim()}" is the schema's heading and cannot be edited here.`
+          : "The H1 is the entity's name and cannot be edited here.",
+      );
+    }
+    return [];
+  });
+  return [openedH1, filter];
 }

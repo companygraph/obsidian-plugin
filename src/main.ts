@@ -25,7 +25,7 @@ import { cellEditorOf, tintRows } from "./livetable.ts";
 import { typeOfPath } from "companygraph-meta-model/checks";
 import { absentFields } from "./candidates.ts";
 import { AddField } from "./addfield.ts";
-import { headingMarks, removeSection } from "./headingmarks.ts";
+import { headingLock, headingMarks, removeSection } from "./headingmarks.ts";
 
 // The release of companygraph-meta-model this build bundles; esbuild.config.mjs defines it.
 declare const __CHECKER_VERSION__: string;
@@ -81,6 +81,7 @@ export default class CompanyGraphPlugin extends Plugin {
     this.registerEditorExtension(marksField);
     this.registerEditorExtension(nameLinks(this));
     this.registerEditorExtension(headingMarks(this));
+    this.registerEditorExtension(headingLock(this));
     const suggest = new Suggest(this.app, this);
     this.registerEditorSuggest(suggest);
     this.addCommand({

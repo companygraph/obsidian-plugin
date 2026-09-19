@@ -159,3 +159,36 @@ export function insertionAt(text: string, at: number, heading: string): { insert
   if (at >= text.length) return { insert: gap + title, cursor: gap.length + title.length };
   return { insert: `${gap}${title}\n\n\n`, cursor: gap.length + title.length + 1 };
 }
+
+// The H1, the first `# ` line of the body, as the parser reads it; null where there is none.
+export function h1Of(lines: string[]): string | null {
+  const start = bodyStart(lines);
+  return lines.find((l, i) => i >= start && l.startsWith("# ")) ?? null;
+}
+
+// The lines the lock holds (spec §8): every heading the schema declares, whose text is the
+// schema's, and the H1, the page's canonical name, which changes only through Rename entity. The
+// H1 is held only as `opened`, the line it was when the file was loaded: a name being written in
+// a new note is not a name yet, and holding its first letters would leave it unfinishable. Each
+// is the line exactly as written.
+export function lockedLines(lines: string[], vocabulary: TypeVocabulary, opened: string | null): string[] {
+  const out: string[] = [];
+  const h1 = h1Of(lines);
+  if (opened !== null && h1 === opened) out.push(h1);
+  for (const h of headingsOf(lines, vocabulary)) if (h.kind !== "own") out.push(lines[h.line]);
+  return out;
+}
+
+// The first locked line an edit lost: one that the page held before more often than after. Held
+// by count and not by place, so a line moved whole is kept, and a heading written twice is held
+// twice. Null when every locked line is still there.
+export function lostLine(before: string[], after: string[]): string | null {
+  const left = new Map<string, number>();
+  for (const l of after) left.set(l, (left.get(l) ?? 0) + 1);
+  for (const l of before) {
+    const n = left.get(l) ?? 0;
+    if (n === 0) return l;
+    left.set(l, n - 1);
+  }
+  return null;
+}

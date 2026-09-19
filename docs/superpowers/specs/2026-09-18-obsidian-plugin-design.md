@@ -461,7 +461,14 @@ declared heading within an instance, since its text is the schema's. The one leg
 is a core release that renames a section, and that is a change across the whole instance, made
 by an agent or in git and not typed in Obsidian. A CodeMirror transaction filter refuses any
 change that alters a locked line's text and says so in a notice; opening a new line before or
-after the heading still works, and so does everything in the section below it. The filter
+after the heading still works, and so does everything in the section below it. The H1 is
+held as it was when the file was loaded, and not as it is being typed: in a new note the name is
+written letter by letter, and holding the first letters would leave it unfinishable, so a name is
+free until the note is opened again. What is compared is the locked lines before and after an
+edit, counted, so a heading moved whole passes and one written twice is held twice. Only what a
+person does in the editor is held, typing, deleting, pasting and dropping: Obsidian's own
+changes, a file reloaded after a change on disk among them, pass, since refusing one would leave
+the editor out of step with the file, and so do undo and redo. The filter
 guards the editor only: a rename in the file explorer, a sync or another plugin passes it, and
 the checks remain what catches them. The plugin's own commands pass it on purpose.
 
