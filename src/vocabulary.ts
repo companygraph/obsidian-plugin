@@ -3,7 +3,7 @@
 // enumTokensOf; this file reads tables by their column names and interprets nothing.
 import { parseSchemas, declarationOf } from "companygraph-meta-model/instance";
 import type { Table } from "companygraph-meta-model/instance";
-import { enumTokensOf, COLUMN_CAPTION } from "companygraph-meta-model/checks";
+import { enumTokensOf, COLUMN_CAPTION, HEADING_CAPTION } from "companygraph-meta-model/checks";
 
 export type Offer =
   // The canonical names of one type. `optional` where the declaration is `ref?`: a value that
@@ -14,7 +14,8 @@ export type Offer =
 
 export interface Field { name: string; required: boolean; list: boolean; offer: Offer }
 export interface Column { name: string; offer: Offer }
-export interface SectionDecl { heading: string; required: boolean; columns: Column[] | null }
+// `grouped`: what the `###` headings of a section declared "Grouped." name, where it is one.
+export interface SectionDecl { heading: string; required: boolean; columns: Column[] | null; grouped?: Offer | null }
 export interface TypeVocabulary { fields: Field[]; sections: SectionDecl[] }
 
 const bare = (cell: string | undefined) => (cell ?? "").replace(/`/g, "").trim();
@@ -49,12 +50,23 @@ export function vocabularyOf(schemas: Map<string, string>): Map<string, TypeVoca
       if (!section) continue;
       columnsBySection.set(section.trim(), rowsOf(t).map((r) => ({ name: bare(r.Column), offer: offerOf(r.Type, r.Description) })));
     }
+    const groupedBySection = new Map<string, Offer>();
+    for (const t of tables) {
+      const section = t.caption?.match(HEADING_CAPTION)?.[1];
+      const row = rowsOf(t)[0];
+      if (section && row) groupedBySection.set(section.trim(), offerOf(row.Type, row.Description));
+    }
     const index = tables.find((t) => !t.caption);
     const sections = rowsOf(index)
       .filter((r) => bare(r.Section).startsWith("## "))
       .map((r) => {
         const heading = bare(r.Section).slice(3).trim();
-        return { heading, required: bare(r.Required) === "Yes", columns: columnsBySection.get(heading) ?? null };
+        return {
+          heading,
+          required: bare(r.Required) === "Yes",
+          columns: columnsBySection.get(heading) ?? null,
+          grouped: groupedBySection.get(heading) ?? null,
+        };
       });
     vocabulary.set(type, { fields, sections });
   }

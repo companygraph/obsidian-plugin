@@ -20,13 +20,18 @@ in the system's trash as well.
    Rename should write nothing.
 6. Rename an experience. Its file should keep its name, since an experience's filename is chosen.
 7. Rename the process `Delivery`. Its folder should move with everything in it.
+8. Rename an achievement kind, such as `Architecture`. The `### Architecture` headings in the
+   experiences' Achievements sections should follow, and Review should count them.
+9. Try the name `Plan | Next`. Review should refuse it, since a pipe would split a table cell.
 
 ## Delete entity
 
-8. Open a skill that profiles claim and run `CompanyGraph: Delete entity`. The dialog should list
+10. Open a skill that profiles claim and run `CompanyGraph: Delete entity`. The dialog should list
    the file and every file that names the skill, before anything happens.
-9. Press Cancel. Nothing should change.
-10. Run it again and press Delete. The file should go to the trash, and the pane should list each
+11. Press Cancel. Nothing should change.
+12. Run it again and press Delete. The file should go to the trash, and the pane should list each
     reference that now names nothing.
-11. From a process, the dialog should list the process's whole folder, and only references from
+13. From a process, the dialog should list the process's whole folder, and only references from
     outside it.
+14. Open `model/vision.md` and run Delete entity. The dialog should say the model holds exactly one
+    vision, and offer no Delete button.

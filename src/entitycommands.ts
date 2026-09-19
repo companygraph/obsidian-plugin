@@ -7,6 +7,8 @@ import { MarkdownView, Modal, Notice, Setting, TFile } from "obsidian";
 import type { App } from "obsidian";
 import type CompanyGraphPlugin from "./main.ts";
 import { readInstance } from "./vault.ts";
+import { buildModel } from "./model.ts";
+import { namedOf } from "./scope.ts";
 import { deletePlan, renamePlan } from "./refactor.ts";
 import type { Mention } from "./refactor.ts";
 import type { Named } from "./scope.ts";
@@ -17,6 +19,26 @@ async function saveOpenNotes(app: App) {
     if (leaf.view instanceof MarkdownView) saves.push(leaf.view.save());
   });
   await Promise.all(saves);
+}
+
+// The vault as it is now, and the entity as the model now reads it. The names a plan resolves
+// against are parsed from these files, not taken from the last rebuild, which may be a rename
+// behind; and the entity is found again by its file, so a name typed into its H1 since is seen.
+type Current =
+  | { refused: string }
+  | { layout: NonNullable<CompanyGraphPlugin["layout"]>; files: Map<string, string>; named: Named[]; now: Named };
+
+async function current(plugin: CompanyGraphPlugin, target: Named): Promise<Current> {
+  const layout = plugin.layout;
+  if (!layout) return { refused: "This vault is not an instance." };
+  await saveOpenNotes(plugin.app);
+  const files = await readInstance(plugin.app, layout);
+  const graph = buildModel(files, layout).graph;
+  if (!graph) return { refused: "The model does not parse now; the pane says why. Mend that first." };
+  const named = namedOf(graph);
+  const now = named.find((n) => n.path === target.path);
+  if (!now) return { refused: `${target.path} is no longer an entity the model holds.` };
+  return { layout, files, named, now };
 }
 
 // Mentions counted per file, for a plan's list.
@@ -68,11 +90,12 @@ export class RenameEntity extends Modal {
 
   async review(el: HTMLElement) {
     el.empty();
-    const layout = this.plugin.layout;
-    if (!layout) return;
-    await saveOpenNotes(this.app);
-    const files = await readInstance(this.app, layout);
-    const plan = renamePlan(files, this.plugin.vocabulary, this.plugin.named, layout.model, this.target, this.name);
+    const state = await current(this.plugin, this.target);
+    if ("refused" in state) {
+      el.createEl("p", { text: state.refused, cls: "companygraph-notice" });
+      return;
+    }
+    const plan = renamePlan(state.files, this.plugin.vocabulary, state.named, state.layout.model, state.now, this.name);
     if ("refused" in plan) {
       el.createEl("p", { text: plan.refused, cls: "companygraph-notice" });
       return;
@@ -83,25 +106,30 @@ export class RenameEntity extends Modal {
   }
 
   async rename() {
-    const layout = this.plugin.layout;
-    if (this.busy || !layout) return;
+    if (this.busy) return;
     this.busy = true;
     try {
-      await saveOpenNotes(this.app);
-      const files = await readInstance(this.app, layout);
-      const plan = renamePlan(files, this.plugin.vocabulary, this.plugin.named, layout.model, this.target, this.name);
-      if ("refused" in plan) {
-        new Notice(plan.refused);
-        return;
-      }
+      const state = await current(this.plugin, this.target);
+      if ("refused" in state) return void new Notice(state.refused);
+      const plan = renamePlan(state.files, this.plugin.vocabulary, state.named, state.layout.model, state.now, this.name);
+      if ("refused" in plan) return void new Notice(plan.refused);
       const vault = this.app.vault;
+      // Every move is checked before anything is written, so a rename is refused whole rather
+      // than stopped half done. An owner's inner file is checked at its place before the move.
+      for (const [i, move] of plan.moves.entries()) {
+        const inMovedFolder = i > 0 && move.from.startsWith(`${plan.moves[0].to}/`);
+        const from = inMovedFolder ? plan.moves[0].from + move.from.slice(plan.moves[0].to.length) : move.from;
+        if (!vault.getAbstractFileByPath(from)) return void new Notice(`${from} is not in the vault; nothing was changed.`);
+        if (vault.getAbstractFileByPath(move.to)) return void new Notice(`${move.to} exists already; nothing was changed.`);
+      }
       for (const [path, text] of plan.texts) {
         const file = vault.getAbstractFileByPath(path);
-        if (file instanceof TFile && text !== files.get(path)) await vault.modify(file, text);
+        if (file instanceof TFile && text !== state.files.get(path)) await vault.modify(file, text);
       }
       for (const move of plan.moves) {
         const from = vault.getAbstractFileByPath(move.from);
-        if (from) await this.app.fileManager.renameFile(from, move.to);
+        if (!from) throw new Error(`${move.from} went missing`);
+        await this.app.fileManager.renameFile(from, move.to);
       }
       this.close();
       const count = plan.mentions.length;
@@ -127,13 +155,24 @@ export class DeleteEntity extends Modal {
     this.target = target;
   }
 
-  async onOpen() {
+  onOpen() {
     this.titleEl.setText(`Delete ${this.target.type} "${this.target.name}"`);
-    const layout = this.plugin.layout;
-    if (!layout) return;
-    await saveOpenNotes(this.app);
-    const files = await readInstance(this.app, layout);
-    const plan = deletePlan(files, this.plugin.vocabulary, this.plugin.named, layout.model, this.target);
+    void this.show().catch((error) => {
+      this.contentEl.createEl("p", { text: `The plan could not be made: ${error instanceof Error ? error.message : String(error)}`, cls: "companygraph-notice" });
+    });
+  }
+
+  async show() {
+    const state = await current(this.plugin, this.target);
+    if ("refused" in state) {
+      this.contentEl.createEl("p", { text: state.refused, cls: "companygraph-notice" });
+      return;
+    }
+    const plan = deletePlan(state.files, this.plugin.vocabulary, state.named, state.layout.model, state.now);
+    if ("refused" in plan) {
+      this.contentEl.createEl("p", { text: plan.refused, cls: "companygraph-notice" });
+      return;
+    }
     list(this.contentEl, "Goes to the trash:", plan.removed);
     list(this.contentEl, `References that will name nothing, ${plan.mentions.length}:`, perFile(plan.mentions));
     if (!plan.mentions.length) this.contentEl.createEl("p", { text: "No reference from outside names it." });
@@ -143,10 +182,20 @@ export class DeleteEntity extends Modal {
         b.setButtonText("Delete").setWarning().onClick(async () => {
           if (this.busy) return;
           this.busy = true;
-          const item = this.app.vault.getAbstractFileByPath(plan.remove);
-          if (item) await this.app.vault.trash(item, true);
-          this.close();
-          new Notice(`Deleted "${this.target.name}". The pane names what no longer resolves.`);
+          try {
+            const item = this.app.vault.getAbstractFileByPath(plan.remove);
+            if (!item) {
+              new Notice(`${plan.remove} is no longer in the vault; nothing was deleted.`);
+              return;
+            }
+            await this.app.vault.trash(item, true);
+            this.close();
+            new Notice(`Deleted "${state.now.name}". The pane names what no longer resolves.`);
+          } catch (error) {
+            new Notice(`Nothing was deleted: ${error instanceof Error ? error.message : String(error)}`);
+          } finally {
+            this.busy = false;
+          }
         }),
       );
   }

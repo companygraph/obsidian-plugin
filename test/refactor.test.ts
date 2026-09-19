@@ -96,13 +96,46 @@ test("an experience keeps its chosen filename, and a name taken in the same scop
   assert.ok("refused" in empty);
 });
 
-test("renaming in the reference instance leaves the checks as clean as it found them", () => {
+test("renaming any entity of the reference instance leaves the checks as clean as it found them", () => {
+  // Every entity, one at a time: a review found the achievement kinds, named by the `###` headings
+  // of grouped sections, left behind by a rename that read only fields and cells.
   const { files, named, vocabulary, model } = setup(reference(), REFERENCE);
-  for (const [type, name] of [["proficiency-level", "Expert"], ["role", "Writer"], ["phase", "Plan"]]) {
-    const target = named.find((n) => n.type === type && n.name === name);
-    assert.ok(target, `${type} ${name} is in the reference instance`);
-    const plan = renamePlan(files, vocabulary, named, model, target, `${name} Renamed`);
-    assert.deepEqual(checkInstance(carried(files, plan), REFERENCE).failures, [], `${type} ${name}`);
+  assert.deepEqual(checkInstance(files, REFERENCE).failures, []);
+  const broken: string[] = [];
+  for (const target of named) {
+    const plan = renamePlan(files, vocabulary, named, model, target, `${target.name} X`);
+    if ("refused" in plan) {
+      broken.push(`${target.type} ${target.name}: refused, ${plan.refused}`);
+      continue;
+    }
+    const failures = checkInstance(carried(files, plan), REFERENCE).failures;
+    if (failures.length) broken.push(`${target.type} ${target.name}: ${failures[0]}`);
+  }
+  assert.deepEqual(broken, []);
+});
+
+test("an achievement kind's references are the grouped headings that name it", () => {
+  const { files, named, vocabulary, model } = setup(reference(), REFERENCE);
+  const kind = named.find((n) => n.type === "achievement-kind")!;
+  const found = referencesTo(files, vocabulary, named, model, kind);
+  assert.ok(found.length > 0);
+  for (const m of found) assert.equal(files.get(m.path)!.split("\n")[m.line].slice(0, 4), "### ");
+});
+
+test("a name a table or YAML would read as its own is refused", () => {
+  const { files, named, vocabulary, model } = setup(example(), EXAMPLE);
+  const java = entity(named, "skill", "Java Programming");
+  for (const bad of ["Java | JVM", '"Java"', "Java'", "[Java]", "#Java", "- Java", "> Java", "&Java", "Java: JVM", "Java #1"])
+    assert.ok("refused" in renamePlan(files, vocabulary, named, model, java, bad), bad);
+  for (const good of ["Java 21", "C#", "Rob's Java", "Java/JVM", "Java (JVM)"])
+    assert.ok(!("refused" in renamePlan(files, vocabulary, named, model, java, good)), good);
+});
+
+test("the model's one identity or vision cannot be deleted", () => {
+  const { files, named, vocabulary, model } = setup(reference(), REFERENCE);
+  for (const type of ["identity", "vision"]) {
+    const one = named.find((n) => n.type === type)!;
+    assert.ok("refused" in deletePlan(files, vocabulary, named, model, one), type);
   }
 });
 
@@ -110,6 +143,7 @@ test("deleting a skill lists every reference that would name nothing", () => {
   const { files, named, vocabulary, model } = setup(example(), EXAMPLE);
   const java = entity(named, "skill", "Java Programming");
   const plan = deletePlan(files, vocabulary, named, model, java);
+  assert.ok(!("refused" in plan));
   assert.equal(plan.remove, java.path);
   assert.deepEqual(plan.removed, [java.path]);
   assert.equal(plan.mentions.length, referencesTo(files, vocabulary, named, model, java).length);
@@ -119,6 +153,7 @@ test("deleting a skill lists every reference that would name nothing", () => {
 test("deleting an owner removes its folder and what it owns, and lists only references from outside", () => {
   const { files, named, vocabulary, model } = setup(example(), EXAMPLE);
   const plan = deletePlan(files, vocabulary, named, model, entity(named, "process", "Delivery"));
+  assert.ok(!("refused" in plan));
   assert.equal(plan.remove, "example/model/processes/delivery");
   assert.ok(plan.removed.includes("example/model/processes/delivery/phases/build.md"));
   // The phases name each other and the process lists them, but all of that goes with them.
