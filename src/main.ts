@@ -91,6 +91,20 @@ export default class CompanyGraphPlugin extends Plugin {
     // again and nothing else changes. Capturing, so this runs before the widget's own handler.
     this.registerDomEvent(document, "click", (event) => this.onAddProperty(event), { capture: true });
     this.wrapAddProperty();
+    // A cell that is clicked into shows what its column may hold at once. Obsidian asks a suggest
+    // when the focus moves into a cell but does not let it open unless something was typed, so
+    // the popup is asked for here, a moment after the click, when the cell's editor exists. Only
+    // on a click: a cell reached with Tab or an arrow key is being passed through, and a list in
+    // every such cell would be in the way of the keys that move on.
+    this.registerDomEvent(document, "click", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement) || !target.closest(".cm-table-widget")) return;
+      window.setTimeout(() => {
+        const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+        const cell = view ? cellEditorOf(view) : null;
+        if (view && cell && cell.getValue().trim() === "") suggest.ask(cell, view.file);
+      }, 80);
+    });
     this.addCommand({
       id: "complete-here",
       name: "Complete here",

@@ -45,3 +45,18 @@ edits afterwards with `git checkout -- model/profiles/robert-blust/robert-blust.
     expected in that cell.
 16. Disable and enable the plugin with a failing row in place: the tint and its tooltip should go
     and come back.
+
+## Added after the first test: the list on entering a cell
+
+The owner confirmed steps 1 to 4 and asked for the full list at once in an empty cell.
+
+17. **Click** into an empty Skill cell. Does the list of skills open by itself?
+18. With that list open and nothing typed, press **Tab**. It should move to the next cell and
+    insert nothing. Click into an empty cell again and press **Enter**: it should do what Enter
+    does in a table and insert nothing.
+19. Click into an empty cell, press **ArrowDown** twice, then **Enter**. The highlighted name
+    should be written. Same with Tab in place of Enter.
+20. Move through a row of empty cells with **Tab** only, without clicking. No list should open,
+    and no cell should be filled.
+21. In the frontmatter in Source mode, on an empty `  - ` entry: ArrowDown, then Enter, writes the
+    name; Enter alone still ends the list.

@@ -132,6 +132,19 @@ test("Enter belongs to the editor on an empty list entry and in an empty cell, a
   assert.equal(entersThrough({ kind: "heading", typed: "", start: 3 }), false);
 });
 
+// Once the list is a table's, Tab matters as much as Enter: it moves to the next cell, and a
+// popup that accepted on it would fill every empty cell one tabs through. So the rule is one for
+// both keys: while nothing is typed they are the editor's, until an arrow key has moved in the
+// list, which is choosing, and from then on they accept.
+test("moving in the list with an arrow key is choosing, and then the key accepts even with nothing typed", () => {
+  const entry = { kind: "value", field: "roles", typed: "", start: 4, item: true, glued: false } as const;
+  const cell = { kind: "cell", section: "Skills", column: "Level", typed: "", start: 0 } as const;
+  assert.equal(entersThrough(entry, false), true);
+  assert.equal(entersThrough(entry, true), false);
+  assert.equal(entersThrough(cell, false), true);
+  assert.equal(entersThrough(cell, true), false);
+});
+
 // The owner, in the trial: "without typing s for source-id, I may not know the keys". An empty
 // key line is how the fields a file may still take are found at all, so it offers by itself.
 test("an empty key line offers every field the file lacks, required first", () => {

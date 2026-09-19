@@ -221,9 +221,14 @@ letter is typed, hid what the list may hold, which the owner missed at once. The
 not conflict: the popup shows, and while nothing is typed there Enter is let through to the
 editor, the popup's own Enter handler being placed ahead of the one Obsidian's chooser binds.
 That placement reaches into a scope's list outside the public types; where it cannot be done,
-the empty entry stays quiet and a command opens the popup on demand. Whether Enter is the
-editor's at a position is decided in a tested function. Enter accepts elsewhere by Obsidian's
-default and Tab accepts as well.
+the empty entry stays quiet and a command opens the popup on demand. Tables made Tab matter as
+much as Enter, since Tab moves to the next cell and a popup that accepted on it would fill every
+empty cell one tabs through, so the rule is one for both keys: while nothing is typed they are
+the editor's, until an arrow key has moved in the list, which is choosing, and from then on they
+accept. Whether a key is the editor's at a position is decided in a tested function. Obsidian
+asks a suggest when the focus moves into a cell and does not let it open unless something was
+typed, so an empty cell shows its list when it is clicked into, asked for a moment after the
+click, and not when it is reached with Tab or an arrow key, where it would be in the way.
 
 **In Live Preview a field is added through the widget, so that is where the schema has to
 speak.** Obsidian's own Add property lists every property name used anywhere in the vault and
