@@ -132,14 +132,163 @@
   -webkit-user-select: text;
 }
 
-/* The writing brief: the schema's words for where the cursor is. Selectable, since a rule is
-   something one quotes to an agent. */
+/* The writing brief: the schema's words for where the cursor is. Built on the theme's own
+   variables, so it follows light, dark and any theme. Selectable, since a rule is something one
+   quotes to an agent. */
 .companygraph-brief {
   user-select: text;
   -webkit-user-select: text;
-  font-size: var(--font-ui-small);
+  padding: var(--size-4-3);
+  line-height: var(--line-height-normal);
+}
+
+.companygraph-brief p {
+  margin: 0;
 }
 
 .companygraph-brief-idle {
   color: var(--text-muted);
+  font-size: var(--font-ui-small);
+}
+
+/* Where the cursor is, and what the schema says of it. */
+.companygraph-brief-card {
+  padding: var(--size-4-3);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  background-color: var(--background-secondary);
+}
+
+.companygraph-brief-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--size-4-2);
+  margin-bottom: var(--size-4-2);
+}
+
+.companygraph-brief-type {
+  padding: 0 var(--size-4-2);
+  border-radius: var(--radius-s);
+  background-color: var(--background-modifier-hover);
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.companygraph-brief-place {
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-small);
+  color: var(--text-normal);
+  background: none;
+  padding: 0;
+}
+
+/* Required, optional or the page's own, told apart by the dot's fill as well as its colour. */
+.companygraph-brief-badge {
+  margin-inline-start: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--size-2-2);
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+}
+
+.companygraph-brief-badge::before {
+  content: "";
+  width: 0.55em;
+  height: 0.55em;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+}
+
+.companygraph-brief-badge.is-required {
+  color: var(--text-accent);
+}
+
+.companygraph-brief-badge.is-required::before {
+  background-color: currentColor;
+}
+
+.companygraph-brief-badge.is-own::before {
+  border-style: dashed;
+}
+
+.companygraph-brief-lead {
+  font-size: var(--font-ui-medium);
+  color: var(--text-normal);
+}
+
+.companygraph-brief-lead.is-muted {
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+}
+
+/* The rules: those for this place set off by the accent, the rest quieter. */
+.companygraph-brief-rules {
+  margin-top: var(--size-4-4);
+}
+
+.companygraph-brief-label {
+  margin-bottom: var(--size-4-1);
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.companygraph-brief-rules ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.companygraph-brief-rules li {
+  padding: var(--size-4-2) 0;
+  border-bottom: 1px solid var(--background-modifier-border);
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+}
+
+.companygraph-brief-rules li:last-child {
+  border-bottom: none;
+}
+
+.companygraph-brief-rules.is-named ul {
+  padding-inline-start: var(--size-4-3);
+  border-inline-start: 3px solid var(--interactive-accent);
+}
+
+.companygraph-brief-rules.is-named li {
+  color: var(--text-normal);
+  font-size: var(--font-ui-medium);
+}
+
+.companygraph-brief-purpose {
+  margin-top: var(--size-4-4);
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+}
+
+.companygraph-brief-purpose summary {
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.companygraph-brief-purpose > div {
+  margin-top: var(--size-4-2);
+}
+
+.companygraph-brief-foot {
+  margin-top: var(--size-4-4);
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+  font-style: italic;
 }

@@ -56,22 +56,47 @@ export class BriefPane extends ItemView {
     const place = placeAt(lines, line);
     if (!place) return this.say(`A ${type}: the cursor is on the frontmatter's fence.`);
     const brief = briefOf(schema, place);
-
-    const md: string[] = [];
-    const status = brief.required === null ? "not in the schema" : brief.required ? "required" : "optional";
-    md.push(`**${type}** · ${brief.place ? `\`${brief.place}\`` : "here"} · ${status}`, "");
-    if (brief.description) md.push(brief.description, "");
-    const named = brief.rules.filter((r) => r.names);
-    if (named.length) md.push("#### Writing rules for this", "", ...named.map((r) => `- ${r.text}`), "");
-    const rest = brief.rules.filter((r) => !r.names);
-    if (rest.length) md.push(named.length ? "#### The type's other writing rules" : "#### The type's writing rules", "", ...rest.map((r) => `- ${r.text}`), "");
-    if (brief.purpose) md.push(`#### What a ${type} is for`, "", brief.purpose, "");
-    md.push("*Writing rules are a judgment: no check reads them, and the agent pass holds a page to them.*");
-    const text = md.join("\n");
-    if (this.shown === text) return;
-    this.shown = text;
+    const status = brief.required === null ? "own" : brief.required ? "required" : "optional";
+    const key = JSON.stringify([path, type, brief]);
+    if (this.shown === key) return;
+    this.shown = key;
     this.clear();
-    this.rendered = this.addChild(new Component());
-    void MarkdownRenderer.render(this.app, text, this.contentEl.createDiv(), path ?? "", this.rendered);
+    const component = (this.rendered = this.addChild(new Component()));
+    // The schema's words are Markdown: a name in backticks reads as it does in the schema.
+    const markdown = (text: string, into: HTMLElement) =>
+      void MarkdownRenderer.render(this.app, text, into, path ?? "", component);
+
+    const card = this.contentEl.createDiv({ cls: "companygraph-brief-card" });
+    const head = card.createDiv({ cls: "companygraph-brief-head" });
+    head.createSpan({ cls: "companygraph-brief-type", text: type });
+    if (brief.place) head.createEl("code", { cls: "companygraph-brief-place", text: brief.place });
+    head.createSpan({
+      cls: `companygraph-brief-badge is-${status}`,
+      text: status === "own" ? "not in the schema" : status,
+    });
+    if (brief.description) markdown(brief.description, card.createDiv({ cls: "companygraph-brief-lead" }));
+    else if (status === "own") card.createDiv({ cls: "companygraph-brief-lead is-muted", text: "A section of the page's own: the schema says nothing of it, and the type's rules still hold." });
+
+    const named = brief.rules.filter((r) => r.names);
+    const rest = brief.rules.filter((r) => !r.names);
+    const rules = (title: string, list: typeof brief.rules, cls: string) => {
+      if (!list.length) return;
+      const block = this.contentEl.createDiv({ cls: `companygraph-brief-rules ${cls}` });
+      block.createDiv({ cls: "companygraph-brief-label", text: title });
+      const ul = block.createEl("ul");
+      for (const rule of list) markdown(rule.text, ul.createEl("li"));
+    };
+    rules(named.length === 1 ? "The rule for this" : "The rules for this", named, "is-named");
+    rules(named.length ? "The type's other writing rules" : "The type's writing rules", rest, "is-rest");
+
+    if (brief.purpose) {
+      const details = this.contentEl.createEl("details", { cls: "companygraph-brief-purpose" });
+      details.createEl("summary", { text: `What a ${type} is for` });
+      markdown(brief.purpose, details.createDiv());
+    }
+    this.contentEl.createDiv({
+      cls: "companygraph-brief-foot",
+      text: "Writing rules are a judgment: no check reads them, and the agent pass holds a page to them.",
+    });
   }
 }
