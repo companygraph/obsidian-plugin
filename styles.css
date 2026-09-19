@@ -131,3 +131,15 @@
   user-select: text;
   -webkit-user-select: text;
 }
+
+/* The writing brief: the schema's words for where the cursor is. Selectable, since a rule is
+   something one quotes to an agent. */
+.companygraph-brief {
+  user-select: text;
+  -webkit-user-select: text;
+  font-size: var(--font-ui-small);
+}
+
+.companygraph-brief-idle {
+  color: var(--text-muted);
+}
