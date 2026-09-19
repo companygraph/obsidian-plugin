@@ -146,6 +146,7 @@ export default class CompanyGraphPlugin extends Plugin {
     // Obsidian sends after it, which the graph redraws on, already carries them.
     this.registerEvent(this.app.metadataCache.on("resolve", (file) => this.relinkPath(file.path)));
     this.wrapAddProperty();
+    this.wrapSave();
     // A cell that is clicked into shows what its column may hold at once. Obsidian asks a suggest
     // when the focus moves into a cell but does not let it open unless something was typed, so
     // the popup is asked for here, a moment after the click, when the cell's editor exists. Only
@@ -485,6 +486,27 @@ export default class CompanyGraphPlugin extends Plugin {
   // empty note. Read from the installed application: it is registered as
   // "markdown:add-metadata-property" with a checkCallback. The registry is not in the public
   // types, so every step is optional, and the original is put back when the plugin unloads.
+  // Saving writes the form too. Cmd+S, Ctrl+S elsewhere, is Obsidian's own command Save current
+  // file, read from the installed application as "editor:save-file" with a checkCallback that
+  // saves the active view. An explicit save is someone saying the note is done, where the saves
+  // Obsidian makes on its own while typing are not, so only the command writes the form; the
+  // form goes in through the editor first and Obsidian's save then writes what it holds. Every
+  // step is optional, as for Add file property, and the original is put back on unload.
+  wrapSave() {
+    type Native = { checkCallback?: (checking: boolean) => boolean | void };
+    const registry = (this.app as unknown as { commands?: { commands?: Record<string, Native> } }).commands?.commands;
+    const native = registry?.["editor:save-file"];
+    const original = native?.checkCallback;
+    if (!native || typeof original !== "function") return;
+    native.checkCallback = (checking: boolean) => {
+      const file = checking ? null : this.app.workspace.getActiveViewOfType(MarkdownView)?.file ?? null;
+      if (!file) return original.call(native, checking);
+      void this.writeForm(file).finally(() => original.call(native, false));
+      return true;
+    };
+    this.register(() => { native.checkCallback = original; });
+  }
+
   wrapAddProperty() {
     type Native = { checkCallback?: (checking: boolean) => boolean | void };
     const registry = (this.app as unknown as { commands?: { commands?: Record<string, Native> } }).commands?.commands;
