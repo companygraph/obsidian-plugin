@@ -13,32 +13,6 @@ import type { Named } from "./scope.ts";
 export interface Mention { path: string; line: number; from: number; to: number }
 export interface Move { from: string; to: string }
 
-// The `###` headings of the sections a schema declares grouped, as the parser reads them: a line
-// that opens with `### ` inside such a section, its text trimmed.
-function groupedReferences(lines: string[], vocabulary: TypeVocabulary): { line: number; from: number; to: number; name: string; target: string }[] {
-  const out: { line: number; from: number; to: number; name: string; target: string }[] = [];
-  let start = 0;
-  if (lines[0] === "---") {
-    const end = lines.indexOf("---", 1);
-    if (end !== -1) start = end + 1;
-  }
-  let grouped: string | null = null;
-  for (let i = start; i < lines.length; i++) {
-    const line = lines[i];
-    if (line.startsWith("## ")) {
-      const offer = vocabulary.sections.find((s) => s.heading === line.slice(3).trim())?.grouped;
-      grouped = offer?.kind === "names" ? offer.target : null;
-      continue;
-    }
-    if (!grouped || !line.startsWith("### ")) continue;
-    const name = line.slice(4).trim();
-    if (!name) continue;
-    const from = line.indexOf(name, 4);
-    out.push({ line: i, from, to: from + name.length, name, target: grouped });
-  }
-  return out;
-}
-
 // Every span in the model that names `target`.
 export function referencesTo(
   files: Map<string, string>,
@@ -54,7 +28,7 @@ export function referencesTo(
     const v = type ? vocabulary.get(type) : undefined;
     if (!v) continue;
     const lines = text.split("\n");
-    for (const ref of [...referencesIn(lines, v), ...groupedReferences(lines, v)])
+    for (const ref of referencesIn(lines, v))
       if (ref.target === target.type && ref.name === target.name && resolveIn(named, path, model, ref.target, ref.name) === target.path)
         out.push({ path, line: ref.line, from: ref.from, to: ref.to });
   }
