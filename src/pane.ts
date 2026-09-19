@@ -110,7 +110,7 @@ export class Pane extends ItemView {
     // The agent pass's own findings, kept apart from the mechanical checks above: writing rules
     // are read, not run, so their verdicts are Claude Code's, not the plugin's own.
     const store = this.plugin.judged;
-    const groups = judgedGroups(store, (p) => this.plugin.files.get(p) ?? null);
+    const groups = judgedGroups(store, (p) => this.plugin.textOf(p));
     if (store.last || groups.length) {
       const section = el.createDiv({ cls: "companygraph-judged-section" });
       section.createDiv({ cls: "companygraph-judged-title", text: "Writing rules, judged by Claude Code" });

@@ -46,30 +46,21 @@ export class Judging {
 
     const model = plugin.settings.model.trim() || null;
     const cwd = adapter.getBasePath();
-    const bin = program.slice(0, program.lastIndexOf("/"));
-    const env = { ...process.env, PATH: [bin, "/opt/homebrew/bin", "/usr/local/bin", process.env.PATH ?? ""].join(":") };
-    this.controller = new AbortController();
-    this.running = { scope, started: Date.now() };
-    this.failure = null;
-    plugin.show(plugin.state);
-    const outcome = await run(cp.spawn, program, argsFor(promptFor(scope), ANSWER_SCHEMA, model), cwd, env, scope.kind === "note" ? NOTE_MS : INSTANCE_MS, this.controller.signal);
-    this.running = null;
-    this.controller = null;
+    // A configured program with no directory in it (a bare "claude", found on the shell's own
+    // PATH before Obsidian ever saw it) has no bin to prepend; and a PATH segment left empty by a
+    // trailing colon, or by process.env.PATH being unset, would otherwise resolve against the
+    // vault's own root.
+    const slash = program.lastIndexOf("/");
+    const bin = slash === -1 ? null : program.slice(0, slash);
+    const env = { ...process.env, PATH: [bin, "/opt/homebrew/bin", "/usr/local/bin", process.env.PATH].filter((part): part is string => !!part).join(":") };
 
-    if (outcome.kind !== "done") {
-      // A failed run may still have printed the agent's own JSON envelope with `is_error`, whose
-      // reason (e.g. error_max_turns) says more than the exit code does; read for it, but never
-      // let a failure to read one produce a second, confusing message.
-      const reported = outcome.kind === "failed" && outcome.stdout ? readAnswer(outcome.stdout, () => null) : null;
-      this.failure =
-        outcome.kind === "timeout" ? "The judgment ran past its time and was ended; nothing was stored."
-          : outcome.kind === "cancelled" ? "The judgment was canceled; nothing was stored."
-          : reported && !reported.ok && reported.why.includes("reported an error") ? `${reported.why}. Nothing was stored.`
-          : `The judgment failed: ${outcome.why}. Nothing was stored.`;
-      plugin.show(plugin.state);
-      return;
-    }
-    // The texts judged, read now, so the hash kept is of the text the agent read.
+    // The texts to be judged, read before the run starts rather than after it ends: the hash kept
+    // is then of the text the agent was actually handed, so a note edited while the run is under
+    // way reads as changed since it was judged, not as current — the safe direction, since the
+    // judgment's line may no longer be where the edit left it. `lineCount` answers only for a path
+    // in this same map, so a path outside the run's own scope — a schema under core/, say — is
+    // never wrongly placed on a line only to be dropped unrecorded by recordRun; it is placed
+    // under the instance instead, as agent.ts intends for a path that names no entity here.
     const layout = plugin.layout;
     const texts = new Map<string, string>();
     for (const file of plugin.app.vault.getMarkdownFiles()) {
@@ -78,9 +69,34 @@ export class Judging {
       texts.set(file.path, await plugin.app.vault.cachedRead(file));
     }
     const lineCount = (path: string) => {
-      const text = texts.get(path) ?? plugin.files.get(path);
+      const text = texts.get(path);
       return text === undefined ? null : text.split("\n").length;
     };
+
+    this.controller = new AbortController();
+    this.running = { scope, started: Date.now() };
+    this.failure = null;
+    plugin.show(plugin.state);
+    const outcome = await run(cp.spawn, program, argsFor(promptFor(scope), ANSWER_SCHEMA, model), cwd, env, scope.kind === "note" ? NOTE_MS : INSTANCE_MS, this.controller.signal);
+    // The plugin may have been unloaded while the process ran; writing into a Judging that is no
+    // longer this vault's own would overwrite whatever the freshly loaded plugin instance wrote.
+    if (plugin.unloaded) return;
+    this.running = null;
+    this.controller = null;
+
+    if (outcome.kind !== "done") {
+      // A failed run may still have printed the agent's own JSON envelope with `is_error`, whose
+      // reason (e.g. error_max_turns) says more than the exit code does; read for it, but never
+      // let a failure to read one produce a second, confusing message.
+      const reported = outcome.kind === "failed" && outcome.stdout ? readAnswer(outcome.stdout, lineCount) : null;
+      this.failure =
+        outcome.kind === "timeout" ? "The judgment ran past its time and was ended; nothing was stored."
+          : outcome.kind === "cancelled" ? "The judgment was canceled; nothing was stored."
+          : reported && !reported.ok && reported.why.includes("reported an error") ? `${reported.why}. Nothing was stored.`
+          : `The judgment failed: ${outcome.why}. Nothing was stored.`;
+      plugin.show(plugin.state);
+      return;
+    }
     const read = readAnswer(outcome.stdout, lineCount);
     if (!read.ok) {
       this.failure = `The agent's answer could not be read: ${read.why}. It began: ${read.head}`;

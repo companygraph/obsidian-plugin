@@ -19,7 +19,7 @@ export const judgedField = StateField.define<DecorationSet>({
       for (const [line, messages] of [...byLine].sort((a, b) => a[0] - b[0])) {
         if (line >= tr.state.doc.lines) continue;
         const from = tr.state.doc.line(line + 1).from;
-        builder.add(from, from, Decoration.line({ class: "companygraph-judged", attributes: { "aria-label": messages.join("\n") } }));
+        builder.add(from, from, Decoration.line({ class: "companygraph-judged", attributes: { title: messages.join("\n") } }));
       }
       marks = builder.finish();
     }

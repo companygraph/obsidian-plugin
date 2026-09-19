@@ -35,6 +35,12 @@ test("a note run's own judgment placed under the instance is not stored, only th
   assert.deepEqual(second.instance, first.instance);
 });
 
+test("an instance run's judgment already placed under the instance is kept there even for a path texts never read, nothing lost", () => {
+  const s = recordRun(EMPTY, { kind: "instance", model: "model" }, answer([j("model/a.md", 1), j("core/role/schema.md", 0, "instance")]), info, texts, meta);
+  assert.equal(s.entries["model/a.md"].judgments.length, 1);
+  assert.deepEqual(s.instance.map((x) => x.path), ["core/role/schema.md"]);
+});
+
 test("an instance run replaces every entry, and a clean entity has an entry of its own", () => {
   const first = recordRun(EMPTY, { kind: "instance", model: "model" }, answer([j("model/a.md", 1)]), info, texts, meta);
   assert.deepEqual(first.entries["model/b.md"].judgments, []);

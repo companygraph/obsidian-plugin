@@ -1,6 +1,6 @@
 // The wiring: when to rebuild, and the three places a rebuild shows — the pane, the open file's
 // lines and the status bar. Everything that decides anything is in the pure modules.
-import { Keymap, MarkdownView, Notice, Plugin, TFile, debounce, editorInfoField } from "obsidian";
+import { Keymap, MarkdownView, Notice, Platform, Plugin, TFile, debounce, editorInfoField } from "obsidian";
 import type { WorkspaceLeaf } from "obsidian";
 import type { Debouncer } from "obsidian";
 import { EditorView as EditorViewClass } from "@codemirror/view";
@@ -94,6 +94,17 @@ export default class CompanyGraphPlugin extends Plugin {
 
   async saveAll() {
     await this.saveData({ settings: this.settings, judged: this.judged });
+  }
+
+  // A note's text as it is now, for staleness: an open editor's, since that is ahead of the last
+  // rebuild the moment a keystroke lands, else the last rebuild's own read. One source, so the
+  // pane, the status bar and the editor's marks never disagree about whether a judgment is stale.
+  textOf(path: string): string | null {
+    let text: string | null = null;
+    this.app.workspace.iterateAllLeaves((leaf) => {
+      if (text === null && leaf.view instanceof MarkdownView && leaf.view.file?.path === path) text = leaf.view.editor.getValue();
+    });
+    return text ?? this.files.get(path) ?? null;
   }
 
   async onload() {
@@ -306,9 +317,11 @@ export default class CompanyGraphPlugin extends Plugin {
     this.addCommand({
       id: "judge-note",
       name: "Judge this note against its writing rules",
+      // Offered on desktop only: Obsidian allows the plugin no way to start a program elsewhere,
+      // as Judging.start itself would say if the command reached it.
       checkCallback: (checking) => {
         const file = this.app.workspace.getActiveFile();
-        const ok = !!file && !!this.layout && file.path.startsWith(`${this.layout.model}/`);
+        const ok = Platform.isDesktop && !!file && !!this.layout && file.path.startsWith(`${this.layout.model}/`);
         if (ok && !checking) void this.judging.start({ kind: "note", path: file!.path });
         return ok;
       },
@@ -318,8 +331,9 @@ export default class CompanyGraphPlugin extends Plugin {
       name: "Judge the instance against its writing rules",
       checkCallback: (checking) => {
         const layout = this.layout;
-        if (layout && !checking) void this.judging.start({ kind: "instance", model: layout.model });
-        return !!layout;
+        const ok = Platform.isDesktop && !!layout;
+        if (ok && !checking) void this.judging.start({ kind: "instance", model: layout!.model });
+        return ok;
       },
     });
     this.addCommand({
@@ -357,8 +371,11 @@ export default class CompanyGraphPlugin extends Plugin {
       this.registerEvent(this.app.vault.on("modify", (file) => changed(file.path)));
       this.registerEvent(this.app.vault.on("create", (file) => changed(file.path)));
       this.registerEvent(this.app.vault.on("delete", (file) => {
-        this.judged = removedFrom(this.judged, file.path);
-        void this.saveAll();
+        // removedFrom hands back the same store, unchanged, when the path names no entry: most
+        // deletes in a vault are not of a judged note, and a save on every one of them would be
+        // one more than the judgment store ever needed.
+        const judged = removedFrom(this.judged, file.path);
+        if (judged !== this.judged) { this.judged = judged; void this.saveAll(); }
         changed(file.path);
       }));
       this.registerEvent(this.app.vault.on("rename", (file, old) => {
@@ -366,8 +383,8 @@ export default class CompanyGraphPlugin extends Plugin {
         // model added to it, and the model's links from and to it, move with it before anything
         // else happens, or they would stay behind under a path that no longer exists.
         rename(this.links, this.added, old, file.path);
-        this.judged = renamedIn(this.judged, old, file.path);
-        void this.saveAll();
+        const judged = renamedIn(this.judged, old, file.path);
+        if (judged !== this.judged) { this.judged = judged; void this.saveAll(); }
         changed(file.path);
         changed(old);
       }));
@@ -386,6 +403,10 @@ export default class CompanyGraphPlugin extends Plugin {
     this.unloaded = true;
     this.generation++;
     this.soon?.cancel();
+    // A run started by this plugin does not outlive it: cancelling ends the process, and
+    // Judging.start's own check of `unloaded` keeps a run already past its process from writing
+    // into the data of whatever plugin instance loads next.
+    this.judging.cancel();
     // What the model added to Obsidian's map of links goes with the plugin.
     this.links = {};
     this.relink();
@@ -565,7 +586,7 @@ export default class CompanyGraphPlugin extends Plugin {
     this.state = state;
     const failures = state.located.length;
     const unchecked = state.skipped.length + 1; // the writing rules, always
-    const judged = countsOf(this.judged, (p) => this.files.get(p) ?? null);
+    const judged = countsOf(this.judged, (p) => this.textOf(p));
     const judgedText = this.judging.running ? ", judging…"
       : judged.current + judged.stale === 0 ? ""
       : `, ${judged.current} judged${judged.stale ? ` (${judged.stale} stale)` : ""}`;
@@ -670,7 +691,7 @@ export default class CompanyGraphPlugin extends Plugin {
       // @ts-expect-error Obsidian's Editor wraps a CodeMirror 6 view and does not type it.
       const view = leaf.view.editor.cm as EditorView | undefined;
       const entry = this.judged.entries[path];
-      const judged = entry && !isStale(entry, leaf.view.editor.getValue())
+      const judged = entry && !isStale(entry, this.textOf(path))
         ? entry.judgments.filter((j) => j.placed === "line").map((j) => ({ line: j.line, message: `${j.rule}\n${j.judgment}` }))
         : [];
       view?.dispatch({ effects: [setMarks.of(marks), setJudged.of(judged), refreshNames.of(null)] });
