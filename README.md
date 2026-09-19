@@ -76,10 +76,11 @@ Obsidian's table editor rewrites a whole table the moment one cell is edited, ev
 to its widest cell, and undo gives back the cell but not the padding, so a note that was only
 opened carries a diff. In a vault that vendors the family's conventions at a release with
 `conventions/markdown.markdownlint-cli2.jsonc`, any vault and not only an instance, the plugin
-writes a note back into that Markdown form when the note is left, and when Obsidian quits: the
-same rules and the same markdownlint that `conventions-format` runs in CI, so the note comes out
-byte for byte as the CI's fix would write it, and an edit that was undone leaves no diff at all.
-Not while the note is edited, because the table editor would pad the table again at the next key.
+writes a note back into that Markdown form when the note is left, when it is saved with Cmd+S or
+Ctrl+S, and when Obsidian quits: the same rules and the same markdownlint that
+`conventions-format` runs in CI, so the note comes out byte for byte as the CI's fix would write
+it, and an edit that was undone leaves no diff at all. Not on the saves Obsidian makes by itself
+while the note is edited, because the table editor would pad the table again at the next key.
 A note still open in another tab is changed in its editor and saved as any edit is. The folders
 `conventions.json` excludes are left as they are, and `CompanyGraph: Write this note in the
 family's Markdown form` does it at once and says when there is nothing to do.
