@@ -2,7 +2,7 @@
 // cursor, in the note that has the focus, and renders the schema's own words as Markdown, so a
 // name in backticks reads as it does in the schema. A note that is no entity, or a vault that is
 // no instance, gets a line saying so and nothing else.
-import { ItemView, MarkdownRenderer } from "obsidian";
+import { Component, ItemView, MarkdownRenderer } from "obsidian";
 import type { WorkspaceLeaf } from "obsidian";
 import { typeOfPath } from "companygraph-meta-model/checks";
 import type CompanyGraphPlugin from "./main.ts";
@@ -14,6 +14,9 @@ export class BriefPane extends ItemView {
   plugin: CompanyGraphPlugin;
   // What is shown now, so a cursor that moves within one place does not draw it again.
   shown = "";
+  // The component the current render hangs on, unloaded when the next one replaces it, so what
+  // a post-processor adds to a render does not pile up for as long as the pane is open.
+  rendered: Component | null = null;
 
   constructor(leaf: WorkspaceLeaf, plugin: CompanyGraphPlugin) {
     super(leaf);
@@ -27,12 +30,19 @@ export class BriefPane extends ItemView {
   async onOpen() {
     this.contentEl.addClass("companygraph-brief");
     this.say("Put the cursor in an entity's note.");
+    this.plugin.refreshBrief();
+  }
+
+  clear() {
+    if (this.rendered) this.removeChild(this.rendered);
+    this.rendered = null;
+    this.contentEl.empty();
   }
 
   say(text: string) {
     if (this.shown === text) return;
     this.shown = text;
-    this.contentEl.empty();
+    this.clear();
     this.contentEl.createEl("p", { text, cls: "companygraph-brief-idle" });
   }
 
@@ -44,7 +54,7 @@ export class BriefPane extends ItemView {
     const schema = type ? this.plugin.schemas.get(`${type}-schema.md`) : undefined;
     if (!type || !schema) return this.say("Put the cursor in an entity's note.");
     const place = placeAt(lines, line);
-    if (!place) return this.say(`A ${type}: the cursor is on a fence of the frontmatter.`);
+    if (!place) return this.say(`A ${type}: the cursor is on the frontmatter's fence.`);
     const brief = briefOf(schema, place);
 
     const md: string[] = [];
@@ -60,7 +70,8 @@ export class BriefPane extends ItemView {
     const text = md.join("\n");
     if (this.shown === text) return;
     this.shown = text;
-    this.contentEl.empty();
-    void MarkdownRenderer.render(this.app, text, this.contentEl.createDiv(), path ?? "", this);
+    this.clear();
+    this.rendered = this.addChild(new Component());
+    void MarkdownRenderer.render(this.app, text, this.contentEl.createDiv(), path ?? "", this.rendered);
   }
 }

@@ -60,7 +60,11 @@ export function briefOf(schema: string, place: Place): Brief {
       required = bare(row[1]) === "Yes";
       description = (row[2] ?? "").trim() || null;
     }
-    if (place.kind === "section") mentions = (rule) => rule.includes(`## ${place.heading}`);
+    if (place.kind === "section") {
+      // `## Skill` names no rule about `## Skills`: the heading ends where a word does.
+      const at = new RegExp(`## ${place.heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}\\p{N}])`, "u");
+      mentions = (rule) => at.test(rule);
+    }
     else if (place.kind === "tagline") mentions = (rule) => /tagline|`>`/i.test(rule);
   }
 
@@ -84,9 +88,11 @@ export function placeAt(lines: string[], line: number): Place | null {
     for (let i = line; i > 0; i--) {
       const key = lines[i].match(/^([\w-]+):/)?.[1];
       if (key) return { kind: "field", name: key };
-      if (!/^\s/.test(lines[i]) && lines[i].trim() !== "") return null;
+      // A comment or a blank line belongs to no field; the field above it answers.
+      if (/^\s*#/.test(lines[i]) || lines[i].trim() === "") continue;
+      if (!/^\s/.test(lines[i])) return null;
     }
-    return null;
+    return { kind: "top" };
   }
   if (end > 0 && line <= end) return null;
   for (let i = line; i > end; i--) {

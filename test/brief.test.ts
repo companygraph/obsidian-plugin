@@ -52,3 +52,16 @@ test("the place of a line: a field, a list's entry, a section, the H1 part or th
   assert.deepEqual(placeAt(lines, 8), { kind: "tagline" });
   assert.deepEqual(placeAt(lines, 12), { kind: "section", heading: "What it takes" });
 });
+
+test("a section names a rule only where its heading ends: `## Skill` is not `## Skills`", () => {
+  const schema = "# X Schema\n\n## Purpose\n\nP.\n\n## Writing rules\n\n- `## Skills` rows are claims.\n- Other.\n";
+  assert.equal(briefOf(schema, { kind: "section", heading: "Skill" }).rules.filter((r) => r.names).length, 0);
+  assert.equal(briefOf(schema, { kind: "section", heading: "Skills" }).rules.filter((r) => r.names).length, 1);
+});
+
+test("a comment line in the frontmatter belongs to the field above it", () => {
+  const lines = ["---", "source: Local", "# a note to self", "---", "# A"];
+  assert.deepEqual(placeAt(lines, 2), { kind: "field", name: "source" });
+  // Above every field there is no field to name, and the brief is the page's.
+  assert.deepEqual(placeAt(["---", "# first", "source: Local", "---"], 1), { kind: "top" });
+});

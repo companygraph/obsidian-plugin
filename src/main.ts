@@ -95,7 +95,9 @@ export default class CompanyGraphPlugin extends Plugin {
     const brief = debounce((view: EditorView) => this.showBrief(view), 150, true);
     this.registerEditorExtension(
       EditorViewClass.updateListener.of((update) => {
-        if (update.selectionSet || update.docChanged || update.focusChanged) brief(update.view);
+        // Only the editor that has the focus: a note open in a second pane takes every change
+        // made in the first, and would otherwise answer for a cursor nobody is looking at.
+        if ((update.selectionSet || update.docChanged || update.focusChanged) && update.view.hasFocus) brief(update.view);
       }),
     );
     this.register(() => brief.cancel());
@@ -284,6 +286,7 @@ export default class CompanyGraphPlugin extends Plugin {
     this.soon = debounce(() => void this.rebuild(), 400, true);
     const changed = (path: string) => { if (this.layout && concerns(path, this.layout)) this.soon?.(); };
     this.registerEvent(this.app.workspace.on("file-open", () => this.paint()));
+    this.registerEvent(this.app.workspace.on("active-leaf-change", () => this.refreshBrief()));
     // A table widget is drawn a moment after its note opens, and CodeMirror draws only what is in
     // view, so a table scrolled into sight is a new one: the rows are tinted again when the
     // layout settles and, once it pauses, on a scroll. Only the rows: a scroll should not send a
@@ -588,6 +591,8 @@ export default class CompanyGraphPlugin extends Plugin {
     });
     if (this.rowStyle) this.rowStyle.textContent = rules.filter((rule) => rule !== "").join("\n");
     this.tintTables();
+    // A rebuild may have brought the schemas the brief had to wait for.
+    this.refreshBrief();
   }
 
   // The rows of Live Preview's table widgets, for every open note; see livetable.ts.
@@ -604,15 +609,25 @@ export default class CompanyGraphPlugin extends Plugin {
     });
   }
 
-  // The brief for the cursor of an editor, if the pane is open. A table cell's own small editor
-  // is asked about the note it belongs to, at the cell's row.
+  // The brief for the cursor of an editor, if the pane is open. A table cell in Live Preview is
+  // edited in a small editor of its own, whose text is the cell's alone; the note it belongs to
+  // is the editor around the table, and its cursor sits on the table, in the right section.
   showBrief(view: EditorView) {
     const pane = this.app.workspace.getLeavesOfType(BRIEF_VIEW)[0]?.view;
     if (!(pane instanceof BriefPane)) return;
-    const info = view.state.field(editorInfoField, false);
-    const own = (info?.editor as unknown as { cm?: EditorView } | undefined)?.cm ?? view;
-    const line = own.state.doc.lineAt(own.state.selection.main.head).number - 1;
-    pane.show(info?.file?.path ?? null, own.state.doc.toString().split("\n"), line);
+    const outer = view.dom.closest(".cm-table-widget")?.closest(".cm-editor");
+    const note = (outer instanceof HTMLElement ? EditorViewClass.findFromDOM(outer) : null) ?? view;
+    const path = note.state.field(editorInfoField, false)?.file?.path ?? null;
+    const line = note.state.doc.lineAt(note.state.selection.main.head).number - 1;
+    pane.show(path, note.state.doc.toString().split("\n"), line);
+  }
+
+  // The brief for the note in front, when something other than its cursor has changed: the pane
+  // opened, the model rebuilt, another note came forward.
+  refreshBrief() {
+    const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+    const cm = (view?.editor as unknown as { cm?: EditorView } | undefined)?.cm;
+    if (cm) this.showBrief(cm);
   }
 
   async openBrief() {
@@ -621,9 +636,7 @@ export default class CompanyGraphPlugin extends Plugin {
     if (!leaf) return;
     if (!open) await leaf.setViewState({ type: BRIEF_VIEW, active: false });
     await this.app.workspace.revealLeaf(leaf);
-    const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-    const cm = (view?.editor as unknown as { cm?: EditorView } | undefined)?.cm;
-    if (cm) this.showBrief(cm);
+    this.refreshBrief();
   }
 
   async openPane() {
