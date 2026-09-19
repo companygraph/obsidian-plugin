@@ -52,3 +52,20 @@ export function tableRowOf(line: number, first: number, lines: number): TableRow
   if (at < 0 || at >= lines) return null;
   return at < 2 ? { kind: "header" } : { kind: "body", index: at - 2 };
 }
+
+// The cell of a drawn table a failure on `line` is in, for the pane to open it: the table's first
+// line, the row as Obsidian's table counts it, the header being 0 and the separator no row, and
+// the column the failure's message names in backticks, as the checks name a column; the first
+// column where it names none. Null when the line is in no table the package reads as one.
+export function cellOfFailure(lines: string[], line: number, message: string): { first: number; row: number; col: number } | null {
+  if (!(lines[line] ?? "").trimStart().startsWith("|")) return null;
+  let first = line;
+  while (first > 0 && lines[first - 1].trimStart().startsWith("|")) first--;
+  let last = line;
+  while (last + 1 < lines.length && lines[last + 1].trimStart().startsWith("|")) last++;
+  const columns = tableOf(lines.slice(first, last + 1).join("\n"))?.columns;
+  if (!columns) return null;
+  const at = line - first;
+  const named = [...message.matchAll(/`([^`]+)`/g)].map((m) => m[1]).find((name) => columns.includes(name));
+  return { first, row: at < 2 ? 0 : at - 1, col: named ? columns.indexOf(named) : 0 };
+}

@@ -1,11 +1,14 @@
 // The report beside the editor: failures grouped by file, then what was not checked. It ends
 // that way on every render, because a green list alone reads as a validated instance.
-import { ItemView, MarkdownView, Notice, TFile } from "obsidian";
+import { ItemView, MarkdownView, Notice, TFile, editorLivePreviewField } from "obsidian";
 import type { WorkspaceLeaf } from "obsidian";
 import type CompanyGraphPlugin from "./main.ts";
 import { IDLE_TEXT, groupsOf, headline, notChecked, reportText } from "./report.ts";
 import { fieldOfLine } from "./properties.ts";
 import { focusProperty } from "./widget.ts";
+import { cellOfFailure } from "./tables.ts";
+import { openCell } from "./livetable.ts";
+import type { EditorView } from "@codemirror/view";
 
 export const VIEW_TYPE = "companygraph-checks";
 
@@ -61,7 +64,7 @@ export class Pane extends ItemView {
           item.onClickEvent(() => {
             // A press that ends a drag over the text was a selection, not a wish to leave.
             if (activeWindow.getSelection()?.toString()) return;
-            void this.openAt(found.path!, found.line);
+            void this.openAt(found.path!, found.line, found.message);
           });
         }
       }
@@ -75,7 +78,7 @@ export class Pane extends ItemView {
   // Not `open`: Obsidian's View has an internal method of that name, which the leaf calls to set
   // a view up and which is what calls `onOpen`. The public types do not declare it, so a method
   // named `open` here typechecks, replaces it, and leaves the pane blank.
-  async openAt(path: string, line: number) {
+  async openAt(path: string, line: number, message = "") {
     const file = this.app.vault.getAbstractFileByPath(path);
     if (!(file instanceof TFile)) return;
     const leaf = this.app.workspace.getLeaf(false);
@@ -86,7 +89,33 @@ export class Pane extends ItemView {
     // Where the widget is drawn, the failing field's row takes the focus, so the correction can
     // be typed at once. Found through the same markup the tint uses; a note only just opened
     // may not have drawn its rows yet, so it is tried once more a moment later.
-    if (!this.focusRow(leaf.view, line)) window.setTimeout(() => this.focusRow(leaf.view, line), 150);
+    const view = leaf.view;
+    const inFrontmatter = view instanceof MarkdownView && fieldOfLine(view.editor.getValue().split("\n"), line) !== null;
+    if (inFrontmatter) {
+      if (!this.focusRow(view, line)) window.setTimeout(() => this.focusRow(view, line), 150);
+    } else this.place(view, line, message);
+  }
+
+  // Where a failure in the body lands, in the editor; Reading view scrolls to the line and
+  // highlights it from the line handed to openFile. A line is scrolled to the middle of the view
+  // and the cursor put on it, except in a table drawn by Live Preview, where a cursor has no row
+  // to stand on: there the failing cell is opened, as a click on it would open it.
+  place(view: unknown, line: number, message: string) {
+    if (!(view instanceof MarkdownView) || view.getMode() !== "source") return;
+    const editor = view.editor;
+    if (line < 0 || line >= editor.lineCount()) return;
+    const at = { line, ch: 0 };
+    editor.scrollIntoView({ from: at, to: at }, true);
+    const cm = (editor as unknown as { cm?: EditorView }).cm;
+    const live = cm?.state.field(editorLivePreviewField, false) === true;
+    const cell = live ? cellOfFailure(editor.getValue().split("\n"), line, message) : null;
+    if (!cell || !cm) {
+      editor.setCursor(at);
+      return;
+    }
+    // The table is drawn once it is in view, so it is asked for a moment after the scroll.
+    const open = () => openCell(view, cm, cell.first, cell.row, cell.col);
+    window.setTimeout(() => { if (!open()) window.setTimeout(open, 200); }, 50);
   }
 
   focusRow(view: unknown, line: number): boolean {
