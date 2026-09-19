@@ -21,6 +21,7 @@ declare module "companygraph-meta-model/checks" {
   // the first `## `.
   export function sectionsOf(text: string): Map<string, string>;
   export const COLUMN_CAPTION: RegExp;
+  export const HEADING_CAPTION: RegExp;
   export function enumTokensOf(description: string): string[];
 }
 

@@ -30,6 +30,7 @@ import { AddSection } from "./addsection.ts";
 import { addableSections } from "./headings.ts";
 import { PickType } from "./newentity.ts";
 import { targetsFor } from "./scaffold.ts";
+import { DeleteEntity, RenameEntity } from "./entitycommands.ts";
 import { PIN, RULES, excludesOf, formOf, formed, inForm, spanOf } from "./form.ts";
 
 // The release of companygraph-meta-model this build bundles; esbuild.config.mjs defines it.
@@ -212,6 +213,33 @@ export default class CompanyGraphPlugin extends Plugin {
         const active = this.app.workspace.getActiveFile()?.path ?? null;
         const targets = targetsFor(layout.model, active, (path) => this.app.vault.getAbstractFileByPath(path) !== null);
         new PickType(this.app, targets, this.vocabulary).open();
+        return true;
+      },
+    });
+    // Rename entity and Delete entity act on the entity the open note is, as the last parse
+    // that succeeded knows it; a note the model does not hold, or a model that has not parsed,
+    // offers neither.
+    const openEntity = () => {
+      const path = this.app.workspace.getActiveFile()?.path;
+      return path && this.layout ? this.named.find((n) => n.path === path) ?? null : null;
+    };
+    this.addCommand({
+      id: "rename-entity",
+      name: "Rename entity",
+      checkCallback: (checking) => {
+        const target = openEntity();
+        if (!target) return false;
+        if (!checking) new RenameEntity(this, target).open();
+        return true;
+      },
+    });
+    this.addCommand({
+      id: "delete-entity",
+      name: "Delete entity",
+      checkCallback: (checking) => {
+        const target = openEntity();
+        if (!target) return false;
+        if (!checking) new DeleteEntity(this, target).open();
         return true;
       },
     });

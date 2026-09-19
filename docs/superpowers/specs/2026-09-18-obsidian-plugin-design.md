@@ -519,6 +519,24 @@ counterpart and cannot be a guard, since Obsidian gives a plugin no veto over a 
 command lists everything that names the entity before it deletes, and a file deleted any other
 way leaves its references to the checks.
 
+How the two entity commands were built. Each shows its plan in a dialog and writes nothing until
+it is confirmed, and works it out again at that moment from the vault as it then is, after every
+open note is saved. A reference is a span a schema declares as one, resolved as the checks
+resolve, in a field, a table cell or a `###` heading of a section the schema declares grouped,
+which the vocabulary now reads; a name in prose is a fact and stays as written. The names a plan
+resolves against are parsed from the vault at that moment, not taken from the last rebuild. Rename
+entity refuses a name its type already holds in the same scope, a name with no letter or digit to
+name a file by, and a name a table or YAML would read as its own: a pipe, a quote at either end,
+`: ` or ` #` inside, or a sign YAML takes at the start. Every move is checked before anything is
+written, so a rename is refused whole rather than stopped half done. A review renamed every entity
+of the reference instance in turn, and the checks pass after each. Where the filename derives it moves the file, and for an owner
+the folder with everything the owner holds; a singular type's file and an experience's chosen
+filename stay. Delete entity sends the file to the system's trash, and for an owner the whole
+folder, and lists only the references from outside what it removes; it refuses the model's one
+identity or vision, whose file the container must hold. The files are changed through
+the vault, so an open note reloads as it does after any change on disk, and the heading lock lets
+that through.
+
 The order to build it in: the plugin bundles meta-model 0.31.1; the marks and the missing-section
 lines; the lock and Remove section; the Add a section picker and the new-entity scaffold above;
 Rename entity and Delete entity last. The marks and the lock lean on CodeMirror's public API and
