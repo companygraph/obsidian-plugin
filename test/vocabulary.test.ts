@@ -30,7 +30,13 @@ test("sections are the `## ` rows of the index table, and a table section carrie
   const profile = vocabulary.get("profile")!;
   assert.ok(!profile.sections.some((s) => s.heading.startsWith("#")));
   const skills = profile.sections.find((s) => s.heading === "Skills")!;
-  assert.deepEqual(skills.columns!.map((c) => c.name), ["Skill", "Level", "Evidence"]);
+  assert.deepEqual(skills.columns!.map((c) => c.name), ["Skill", "Level"]);
   assert.deepEqual(skills.columns![0].offer, { kind: "names", target: "skill" });
+  // Core 0.30.0: the facts under a claim are a table of their own, and its last column is a
+  // qualifier, which offers the names of its type as a reference does.
+  const evidence = profile.sections.find((s) => s.heading === "Evidence")!;
+  assert.deepEqual(evidence.columns!.map((c) => c.name), ["Skill", "What it shows", "Experience"]);
+  assert.deepEqual(evidence.columns!.map((c) => c.offer.kind), ["names", "none", "names"]);
+  assert.deepEqual(evidence.columns![2].offer, { kind: "names", target: "experience" });
   assert.equal(vocabulary.get("skill")!.sections.find((s) => s.heading === "In practice")!.columns, null);
 });

@@ -57,8 +57,8 @@ const EXPERIENCE = "example/model/profiles/mira-halvorsen/experiences/2018-north
 test("a body table row that fails lands on the row, not on the section heading it is quoted beside", () => {
   const files = edited(example(), MIRA, (t) =>
     t.replace(
-      "| Domain-Driven Design | Competent | Split the billing domain into two bounded contexts; the seams have held under two years of change. |",
-      "| Domain-Driven Design | Competent | Split the billing domain into two bounded contexts; the seams have held under two years of change. |\n| Cobol Wizardry | Competent | Wrote some COBOL once. |",
+      "| Domain-Driven Design | Competent |",
+      "| Domain-Driven Design | Competent |\n| Cobol Wizardry | Competent |",
     ),
   );
   const failure = buildModel(files, EXAMPLE).failures.find((f) => f.includes("Cobol Wizardry"))!;
@@ -75,8 +75,8 @@ test("the same value read earlier in the file does not fool the section anchor",
       "> Backend engineer who ended up owning the parts nobody else wanted to. Once tried Cobol Wizardry.",
     );
     return withMention.replace(
-      "| Domain-Driven Design | Competent | Split the billing domain into two bounded contexts; the seams have held under two years of change. |",
-      "| Domain-Driven Design | Competent | Split the billing domain into two bounded contexts; the seams have held under two years of change. |\n| Cobol Wizardry | Competent | Wrote some COBOL once. |",
+      "| Domain-Driven Design | Competent |",
+      "| Domain-Driven Design | Competent |\n| Cobol Wizardry | Competent |",
     );
   });
   const failure = buildModel(files, EXAMPLE).failures.find((f) => f.includes("Cobol Wizardry"))!;
@@ -103,14 +103,14 @@ test("a list entry that reads as the prefix of an earlier entry lands on itself"
 test("a table cell whose text also reads inside an earlier row lands on its own row", () => {
   const files = edited(example(), MIRA, (t) =>
     t.replace(
-      "| Domain-Driven Design | Competent | Split the billing domain into two bounded contexts; the seams have held under two years of change. |",
-      "| Domain-Driven Design | Competent | Split the billing domain into two bounded contexts; the seams have held under two years of change. |\n| Ja | Expert | Tried it once. |",
+      "| Domain-Driven Design | Competent |",
+      "| Domain-Driven Design | Competent |\n| Ja | Expert |",
     ),
   );
   const failure = buildModel(files, EXAMPLE).failures.find((f) => f.includes('"Ja"'))!;
   const at = locate(failure, files);
   assert.equal(at.path, MIRA);
-  assert.equal(at.line, lineIs(files, MIRA, "| Ja | Expert | Tried it once. |"));
+  assert.equal(at.line, lineIs(files, MIRA, "| Ja | Expert |"));
 });
 
 test("a one-letter entry lands on itself, not on an earlier frontmatter value holding the letter", () => {
@@ -131,4 +131,19 @@ test("a path with a space in it maps to its file", () => {
   const at = locate(failure, files);
   assert.equal(at.path, copy);
   assert.ok(!at.message.startsWith(copy));
+});
+
+// Core 0.30.0 moved a profile's facts into an Evidence table whose last column is a qualifier
+// naming one of the profile's own experiences. A qualifier that names nothing is reported by two
+// checks, R16 that it resolves nowhere and R5 that it is not the profile's own; both land on the
+// row that holds it and neither on the section, which is what the pane and the tint rely on.
+test("a qualifier cell that fails lands on its row in the Evidence table, for every check that reports it", () => {
+  const files = edited(example(), MIRA, (t) => t.replace("| Splitting the billing domain |", "| A period that never was |"));
+  const failures = buildModel(files, EXAMPLE).failures.filter((f) => f.includes("A period that never was"));
+  assert.ok(failures.length >= 1);
+  for (const failure of failures) {
+    const at = locate(failure, files);
+    assert.equal(at.path, MIRA);
+    assert.equal(at.line, lineOf(files, MIRA, "| A period that never was |"));
+  }
 });

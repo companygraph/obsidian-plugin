@@ -13,10 +13,19 @@ test("the example passes and parses", () => {
   assert.deepEqual(namesByType(m.graph!).get("source"), ["Google Workspace", "Local"]);
 });
 
-test("the reference instance passes and parses, in its own layout", () => {
+test("the reference instance parses in its own layout, and fails only where its older core asked for links", () => {
+  // The fixture is the reference instance at a commit on core 0.28.0, whose process schema asked
+  // for `## Phases` as a list of links to the phases' files. The checks ship with the package and
+  // not with core, so the R3 check of 0.30.0 reads that list as what it is. Nothing else fails.
+  // When the instance's move to core 0.30 is on its main branch, the commit in
+  // scripts/fixtures.mjs moves there and this asserts no failures again.
   const m = buildModel(reference(), REFERENCE);
-  assert.deepEqual(m.failures, []);
   assert.ok(m.graph);
+  assert.ok(m.failures.length > 0);
+  for (const failure of m.failures) {
+    assert.ok(failure.startsWith("model/processes/delivery/delivery.md: links "), failure);
+    assert.ok(failure.includes("(R3)"), failure);
+  }
 });
 
 test("an unresolvable reference is reported once: the checks speak, the parser's throw is dropped", () => {
@@ -44,15 +53,20 @@ test("an empty note in a type folder is never offered as a name", () => {
 });
 
 test("the parser's own throw is the failure when the checks found nothing to say", () => {
-  // Two experiences of two profiles under one name. The checks read duplicate names per type
-  // folder, and an owned entity sits in its owner's folder rather than in one of those, so only
-  // the parser sees this one.
+  // Two processes whose phases carry the same names. Each process lists its own phases, in its
+  // own order, so every check passes; R2 scopes a name to its type across the instance, and an
+  // owned entity sits in its owner's folder where the checks' duplicate-name reading does not
+  // reach, so only the parser sees it. (Two experiences sharing a name served here until core
+  // 0.30.0, whose Evidence table made the checks notice that case by another road.)
   const files = example();
-  const tomas = "example/model/profiles/tomas-reyes/experiences/2022-beacon-systems.md";
-  const text = files.get(tomas)!.replace("# Deciding which billing goes first", "# Splitting the billing domain");
-  files.delete(tomas);
-  files.set("example/model/profiles/tomas-reyes/experiences/2022-splitting-the-billing-domain.md", text);
+  const from = "example/model/processes/delivery/";
+  for (const [path, text] of [...files])
+    if (path.startsWith(from))
+      files.set(
+        path.replace(from, "example/model/processes/review/").replace("/delivery.md", "/review.md"),
+        path.endsWith("/delivery.md") ? text.replace("# Delivery", "# Review") : text,
+      );
   const m = buildModel(files, EXAMPLE);
   assert.equal(m.graph, null);
-  assert.deepEqual(m.failures, ['R2: two experience entities share the name "Splitting the billing domain"']);
+  assert.deepEqual(m.failures, ['R2: two phase entities share the name "Build"']);
 });
