@@ -88,9 +88,10 @@ the places Claude Code installs to, `~/.local/bin/claude`, `/opt/homebrew/bin/cl
 Cancel button, which ends the process. A note run gives up after three minutes, an instance run
 after twenty. One run at a time: a second command while one runs says so and starts nothing.
 
-**When it ends.** The answer is read by a pure module against the shape. A judgment whose path is
-not an entity of the vault, or whose line is past the file's end, is kept with its line set to
-the file's first and said to be placed loosely; an answer that does not match the shape is shown
+**When it ends.** The answer is read by a pure module against the shape. A judgment whose line is
+past its file's end is kept on the file's first line and said to be placed loosely; one whose path
+is no entity of the vault is kept under "The instance", with its path in its words, and opens
+nothing; an answer that does not match the shape is shown
 as "the agent's answer could not be read", with the first lines of what came, and nothing is
 stored. A run that exits non-zero, reports `is_error`, times out or is cancelled stores nothing and
 says which, and the judgments from before stay. The pane closes a run with its duration and cost.
