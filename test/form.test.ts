@@ -103,6 +103,10 @@ test("the paths written are the paths conventions-format reads", () => {
   assert.equal(formed("metadata/a.md", excludes), true);
   assert.equal(formed("node_modules/x/README.md", excludes), false);
   assert.equal(formed("model/roles/writer.json", excludes), false);
+  const own = excludesOf('{ "tag": "v1.20.0", "exclude": ["meta", "docs/superpowers"], "format-exclude": ["meta"] }');
+  assert.deepEqual(own, ["meta"], "format-exclude replaces exclude where it is named");
+  assert.equal(formed("docs/superpowers/specs/a.md", own), true);
+  assert.deepEqual(excludesOf('{ "exclude": ["meta"], "format-exclude": [] }'), []);
   assert.deepEqual(excludesOf(null), []);
   assert.deepEqual(excludesOf("{ broken"), []);
 });
