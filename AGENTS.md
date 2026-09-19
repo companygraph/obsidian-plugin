@@ -1,4 +1,4 @@
-<!-- conventions · v1.18.0 -->
+<!-- conventions · v1.19.0 -->
 Shared conventions of the robertblust, guestgraph and companygraph organizations live in
 `conventions/`, vendored from robertblust/conventions at the release `conventions.json`
 names. Read them before writing or committing anything here.
@@ -11,8 +11,9 @@ names. Read them before writing or committing anything here.
 
 Everything below this block is this repository's own. `sh conventions/conventions-sync check`
 says whether the copy matches the release, `sync` brings it to the release the pin names, and
-`sh conventions/conventions-check` holds this repository's own Markdown to `WRITING.md`. Edit
-a shared file in robertblust/conventions, never here.
+`sh conventions/conventions-check` holds this repository's own Markdown to `WRITING.md`, and
+`sh conventions/conventions-format` to its one form, which `fix` writes. Edit a shared file in
+robertblust/conventions, never here.
 <!-- end conventions -->
 
 # AGENTS.md
@@ -50,12 +51,19 @@ columns are called it takes from `tableOf`. None of
 these decides whether an entity is valid, each is a candidate for an export upstream, and the
 design's section on what goes upstream lists them.
 
+The Markdown form written back into a note is the conventions', not a rule of this repository:
+`src/form.ts` reads the rule set from the vault's vendored
+`conventions/markdown.markdownlint-cli2.jsonc`, takes the one custom rule from this repository's
+own vendored `conventions/markdown-rules.cjs`, and runs markdownlint, pinned exactly in
+`package.json` to the release conventions-format's CLI runs. `test/pin.test.ts` fails when a
+conventions release moves the CLI and the plugin's markdownlint has not moved with it.
+
 ## Layout
 
 Everything that decides anything is a pure module under `src/`, with a test beside it under
 `test/`: `manifest.ts`, `model.ts`, `locate.ts`, `context.ts`, `vocabulary.ts`, `candidates.ts`,
 `properties.ts`, `report.ts`, `tables.ts`, `scope.ts`,
-`references.ts`, `links.ts`.
+`references.ts`, `links.ts`, `form.ts`.
 The modules that touch Obsidian, `vault.ts`, `marks.ts`, `pane.ts`, `suggest.ts`, `addfield.ts`,
 `widget.ts`, `livetable.ts`, `namelinks.ts` and `main.ts`,
 are kept thin because nothing here can run them; they are proven by hand on the reference

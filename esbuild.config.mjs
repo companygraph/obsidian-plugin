@@ -15,5 +15,8 @@ await esbuild.build({
   outfile: "main.js",
   external: ["obsidian", "electron", "@codemirror/state", "@codemirror/view"],
   define: { __CHECKER_VERSION__: JSON.stringify(checker) },
+  // markdownlint reads files through Node unless told it runs in a browser; the plugin hands it
+  // strings and also runs on a phone, so its browser imports are the ones bundled.
+  conditions: ["markdownlint-imports-browser"],
   logLevel: "info",
 });
