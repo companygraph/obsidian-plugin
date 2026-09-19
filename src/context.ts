@@ -2,6 +2,7 @@
 // context or null out. `start` is the column the typed text begins at, which is what a
 // candidate replaces.
 import { tableOf } from "companygraph-meta-model/checks";
+import { sectionAbove } from "./tables.ts";
 
 export type Context =
   | { kind: "key"; typed: string; start: number }
@@ -70,9 +71,8 @@ export function contextAt(lines: string[], line: number, ch: number): Context | 
     if (line - first < 2) return null; // the header row and the separator row are not cells
     let last = line;
     while (last + 1 < lines.length && lines[last + 1].trim().startsWith("|")) last++;
-    let up = first - 1;
-    while (up >= 0 && !lines[up].startsWith("## ")) up--;
-    if (up < 0) return null;
+    const section = sectionAbove((n) => lines[n], first - 1);
+    if (!section) return null;
     // The table is read once, by the package that reads it everywhere else: a table without a
     // valid GFM separator row is not a table, and has no column to be inside.
     const table = tableOf(lines.slice(first, last + 1).join("\n"));
@@ -86,7 +86,7 @@ export function contextAt(lines: string[], line: number, ch: number): Context | 
     const rest = next === -1 ? after : after.slice(0, next);
     if (rest.trim() !== "") return null;
     const typed = before.slice(before.lastIndexOf("|") + 1).trimStart();
-    return { kind: "cell", section: lines[up].slice(3).trim(), column, typed, start: ch - typed.length };
+    return { kind: "cell", section, column, typed, start: ch - typed.length };
   }
   return null;
 }

@@ -221,9 +221,14 @@ letter is typed, hid what the list may hold, which the owner missed at once. The
 not conflict: the popup shows, and while nothing is typed there Enter is let through to the
 editor, the popup's own Enter handler being placed ahead of the one Obsidian's chooser binds.
 That placement reaches into a scope's list outside the public types; where it cannot be done,
-the empty entry stays quiet and a command opens the popup on demand. Whether Enter is the
-editor's at a position is decided in a tested function. Enter accepts elsewhere by Obsidian's
-default and Tab accepts as well.
+the empty entry stays quiet and a command opens the popup on demand. Tables made Tab matter as
+much as Enter, since Tab moves to the next cell and a popup that accepted on it would fill every
+empty cell one tabs through, so the rule is one for both keys: while nothing is typed they are
+the editor's, until an arrow key has moved in the list, which is choosing, and from then on they
+accept. Whether a key is the editor's at a position is decided in a tested function. Obsidian
+asks a suggest when the focus moves into a cell and does not let it open unless something was
+typed, so an empty cell shows its list when it is clicked into, asked for a moment after the
+click, and not when it is reached with Tab or an arrow key, where it would be in the way.
 
 **In Live Preview a field is added through the widget, so that is where the schema has to
 speak.** Obsidian's own Add property lists every property name used anywhere in the vault and
@@ -343,12 +348,21 @@ the clipboard, is the bridge until then: the mechanical failures pasted to an ag
 proposals and completion reach the body of an entity. The body holds four different things and
 each has its own answer, in the order they are worth building.
 
-A table is where most references of an instance live, a profile's Skills above all. Its cells
-complete in Source mode already; in Live Preview a table is Obsidian's table editor, and
-completion there has to learn which column a cell belongs to from inside that editor. Obsidian's
-own link suggestions work in those cells, so a suggest is reachable; how the column is found is
-not verified and is read from the installed application before anything is planned. The same
-work lets a failing row be tinted there.
+A table is where most references of an instance live, a profile's Skills above all, and this
+part is built. In Live Preview a table is Obsidian's own widget, and a cell is edited in a small
+editor of its own whose text is the cell's alone, so the Source mode reading of a row's pipes
+does not apply. Read from the installed application: while a cell is edited the view's editing
+mode holds the cell with its row and column, the table with its offsets in the note, and the
+cell's own editor, which is the very editor Obsidian triggers a suggest with. Obsidian says
+which cell; what its column is called is read from the note by the package's `tableOf`, as
+Source mode reads it, so the two modes name a column alike, which a test holds, and a table the
+package does not read as one, a separator row with alignment colons, completes in neither. A
+cell holding a line break is several lines in its editor and gets no completion. A failing row
+is tinted by a class on the drawn row, under a selector that outranks Obsidian's own colouring
+of rows, the widget placed in the note by CodeMirror's `posAtDOM`, and tinted again when the
+layout settles and when a scroll pauses, since CodeMirror draws only what is in view. All of it
+leans on objects and markup outside the public types, taken optionally: if they change,
+completion and the tint stop inside tables and nothing else does.
 
 A section is offered on `## ` already. Beside it belong a picker that adds a section from Live
 Preview, built as the field picker is, and the scaffold of a whole new entity, its required
@@ -382,7 +396,8 @@ writing and the same brief for an agent started later.
   Properties widget as it does from text: Obsidian saves when a field is committed and the
   failure appears at once. The widget's rows are tinted and focused (§4) and a field is added
   through the schema's picker (§5). Left open: a table is a widget in Live Preview too, so a
-  failing row of a profile's Skills table gets no tint and its cells no completion there; a
+  failing row of a profile's Skills table got no tint and its cells no completion there, which
+  §8 has since closed for body cells; a
   value in the widget is completed by Obsidian's own list of values seen in the vault, which
   knows no schema; whether the widget rewrites a list in a form R11 accepts has not been looked
   at; and a window popped out of the main one has its own document and gets neither the tint nor

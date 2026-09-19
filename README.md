@@ -36,8 +36,9 @@ by column in a table section, and the sections the file lacks. A name is inserte
 conventions write a reference; the plugin resolves it and Obsidian's own graph view does not see
 it. An empty line in the frontmatter lists every field the file may still take, which is how
 they are found at all. An empty entry of a list and an empty cell show everything they may hold
-as well; there Enter stays the editor's while nothing is typed, so it ends the list or the row
-as it always did, and a name is taken with the arrow keys and Tab, or a click. The command
+as well; there Enter and Tab stay the editor's while nothing is typed, so they end the list, add
+a row or move to the next cell as they always did. Moving in the list with an arrow key is
+choosing, and from then on Enter and Tab accept; a click accepts at any time. The command
 `CompanyGraph: Complete here` opens the popup again after it was closed, and takes a hotkey in
 Obsidian's settings. Nothing is offered while text
 follows the cursor on its line, or in its cell, because accepting would leave that text standing
@@ -51,9 +52,16 @@ the required ones first; it adds the chosen one and puts the cursor into its val
 entry hands over to Obsidian's own list, for a property the schema does not declare, which the
 checks will then report. Obsidian's own command Add file property opens the same picker in an
 entity, and so does typing `---` at the top of an empty one, which runs that command; the
-command `CompanyGraph: Add a field` opens it too. Completion works in Source
-mode and with properties shown as source; the spec's open questions say what is known about Live
-Preview.
+command `CompanyGraph: Add a field` opens it too.
+
+Frontmatter completes as text in Source mode, and with properties shown as source. A table
+completes in both modes: in Live Preview, where Obsidian draws a table as its own widget and
+edits one cell at a time, a cell offers what its column declares, named by the same header the
+checks read, and a failing row is tinted with its message as the tooltip. An empty cell that is
+clicked into shows its list at once; one reached with Tab or an arrow key waits for a letter, or
+for `CompanyGraph: Complete here`, so that a list is not in the way of moving through a table. A table whose
+separator row carries alignment colons is not a table to the checks and gets no completion in
+either mode, and a cell holding a line break gets none in Live Preview.
 
 ## Installing it
 

@@ -25,3 +25,19 @@
   user-select: none;
   -webkit-user-select: none;
 }
+
+/* A failing row of a table in Live Preview. Obsidian's own rules colour a row with more weight
+   than one class has: `.markdown-rendered tbody tr:nth-child(odd)` and `thead tr`. These two
+   selectors outrank both. On the row and not its cells, whose own striping would cut it up. */
+.cm-table-widget tr.companygraph-mark,
+.cm-table-widget tr.companygraph-mark:nth-child(odd) {
+  background-color: rgba(var(--color-red-rgb), 0.12);
+}
+
+/* And under the pointer, where Obsidian's hover rules weigh more again:
+   `.markdown-rendered tbody tr:nth-child(odd):hover`. Found in use: the row lost its colour the
+   moment it was hovered. A shade deeper, so the row still answers the pointer. */
+.cm-table-widget tr.companygraph-mark:hover,
+.cm-table-widget tr.companygraph-mark:nth-child(odd):hover {
+  background-color: rgba(var(--color-red-rgb), 0.2);
+}

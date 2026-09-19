@@ -15,6 +15,7 @@ import { Pane, VIEW_TYPE } from "./pane.ts";
 import { Suggest } from "./suggest.ts";
 import { marksField, setMarks } from "./marks.ts";
 import { fieldOfLine, propertyRules } from "./properties.ts";
+import { cellEditorOf, tintRows } from "./livetable.ts";
 import { typeOfPath } from "companygraph-meta-model/checks";
 import { absentFields } from "./candidates.ts";
 import { AddField } from "./addfield.ts";
@@ -90,10 +91,29 @@ export default class CompanyGraphPlugin extends Plugin {
     // again and nothing else changes. Capturing, so this runs before the widget's own handler.
     this.registerDomEvent(document, "click", (event) => this.onAddProperty(event), { capture: true });
     this.wrapAddProperty();
+    // A cell that is clicked into shows what its column may hold at once. Obsidian asks a suggest
+    // when the focus moves into a cell but does not let it open unless something was typed, so
+    // the popup is asked for here, a moment after the click, when the cell's editor exists. Only
+    // on a click: a cell reached with Tab or an arrow key is being passed through, and a list in
+    // every such cell would be in the way of the keys that move on.
+    this.registerDomEvent(document, "click", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement) || !target.closest(".cm-table-widget")) return;
+      window.setTimeout(() => {
+        const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+        const cell = view ? cellEditorOf(view) : null;
+        if (view && cell && cell.getValue().trim() === "") suggest.ask(cell, view.file);
+      }, 80);
+    });
     this.addCommand({
       id: "complete-here",
       name: "Complete here",
-      editorCallback: (editor, ctx) => suggest.ask(editor, ctx.file),
+      // Inside a table cell in Live Preview the editor to ask is the cell's own: a command is
+      // handed the note's, and focusing that one makes Obsidian close the cell.
+      editorCallback: (editor, ctx) => {
+        const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+        suggest.ask((view && cellEditorOf(view)) ?? editor, ctx.file);
+      },
     });
     this.addCommand({ id: "open-checks", name: "Open the checks pane", callback: () => void this.openPane() });
     this.addCommand({ id: "check-now", name: "Check the instance now", callback: () => void this.rebuild() });
@@ -103,6 +123,19 @@ export default class CompanyGraphPlugin extends Plugin {
     this.soon = debounce(() => void this.rebuild(), 400, true);
     const changed = (path: string) => { if (this.layout && concerns(path, this.layout)) this.soon?.(); };
     this.registerEvent(this.app.workspace.on("file-open", () => this.paint()));
+    // A table widget is drawn a moment after its note opens, and CodeMirror draws only what is in
+    // view, so a table scrolled into sight is a new one: the rows are tinted again when the
+    // layout settles and, once it pauses, on a scroll. Only the rows: a scroll should not send a
+    // transaction to every open note.
+    const repaint = debounce(() => this.tintTables(), 300, true);
+    this.registerEvent(this.app.workspace.on("layout-change", () => repaint()));
+    this.registerDomEvent(document, "scroll", () => repaint(), { capture: true, passive: true });
+    this.register(() => repaint.cancel());
+    // A tinted row keeps its tooltip after the stylesheet is gone, so the rows are swept on unload.
+    this.register(() => {
+      this.state = { ...this.state, located: [] };
+      this.tintTables();
+    });
     // The vault fires a create event for every file already there when it opens, so these are
     // registered only once the workspace is ready, as the API's own note on `create` asks.
     this.app.workspace.onLayoutReady(() => {
@@ -278,6 +311,20 @@ export default class CompanyGraphPlugin extends Plugin {
       rules.push(propertyRules(id, fields));
     });
     if (this.rowStyle) this.rowStyle.textContent = rules.filter((rule) => rule !== "").join("\n");
+    this.tintTables();
+  }
+
+  // The rows of Live Preview's table widgets, for every open note; see livetable.ts.
+  tintTables() {
+    this.app.workspace.iterateAllLeaves((leaf) => {
+      if (!(leaf.view instanceof MarkdownView) || !leaf.view.file) return;
+      const path = leaf.view.file.path;
+      const marks = this.state.located
+        .filter((found) => found.path === path)
+        .map((found) => ({ line: found.line, message: found.message }));
+      const cm = (leaf.view.editor as unknown as { cm?: EditorView }).cm;
+      tintRows(leaf.view, cm, marks);
+    });
   }
 
   async openPane() {

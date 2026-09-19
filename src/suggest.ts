@@ -7,6 +7,8 @@ import { contextAt, mayHoldContext } from "./context.ts";
 import type { Context } from "./context.ts";
 import { candidatesFor, cursorAfter, entersThrough } from "./candidates.ts";
 import type { Candidate } from "./candidates.ts";
+import { cellContextOf } from "./tables.ts";
+import { editedCell } from "./livetable.ts";
 
 export class Suggest extends EditorSuggest<Candidate> {
   plugin: CompanyGraphPlugin;
@@ -16,42 +18,51 @@ export class Suggest extends EditorSuggest<Candidate> {
   // Set by the command Complete here; read once. It matters only where Enter could not be put
   // first, since there an empty entry stays quiet unless it is asked.
   asked = false;
-  // Whether this suggest's Enter runs before the chooser's own.
+  // Whether this suggest's keys run before the chooser's own.
   enterFirst = false;
+  // Whether an arrow key has moved in the list since it was last asked for: that is choosing.
+  navigated = false;
 
   constructor(app: App, plugin: CompanyGraphPlugin) {
     super(app);
     this.plugin = plugin;
-    // Enter accepts by Obsidian's own default and Tab does not. The chooser that holds the
-    // selection is not in the public types; plugins reach it this way, and if it ever goes the
-    // optional call leaves Tab doing what it did before.
-    // Enter. The chooser bound its own when the popup was built, and a scope runs the first
-    // handler that matches, so this one is moved to the front of the scope's list, which is not
-    // in the public types. Read from the installed application: a handler that returns anything
-    // but false lets the key through to the editor. If the list cannot be reached, `enterFirst`
-    // stays false and an empty entry offers nothing, as before, rather than take an Enter.
-    const entry = this.scope.register([], "Enter", (event) => {
-      if (this.found && entersThrough(this.found.context)) {
+    // The keys. The chooser bound its own when the popup was built, and a scope runs the first
+    // handler that matches, so these are moved to the front of the scope's list, which is not in
+    // the public types. Read from the installed application: a handler that returns anything but
+    // false lets the key through to the editor. If the list cannot be reached, `enterFirst` stays
+    // false and an empty entry or cell offers nothing, rather than take a key that is the editor's.
+    type Chooser = { useSelectedItem?: (e: KeyboardEvent) => void; moveUp?: (e: KeyboardEvent) => unknown; moveDown?: (e: KeyboardEvent) => unknown };
+    const chooser = () => (this as unknown as { suggestions?: Chooser }).suggestions;
+    const accept = (event: KeyboardEvent) => {
+      if (this.found && entersThrough(this.found.context, this.navigated)) {
         this.close();
         return true;
       }
-      const chooser = (this as unknown as { suggestions?: { useSelectedItem?: (e: KeyboardEvent) => void } }).suggestions;
-      chooser?.useSelectedItem?.(event);
+      chooser()?.useSelectedItem?.(event);
       return false;
-    });
+    };
+    const move = (down: boolean) => (event: KeyboardEvent) => {
+      this.navigated = true;
+      if (down) chooser()?.moveDown?.(event);
+      else chooser()?.moveUp?.(event);
+      return false;
+    };
+    const ours = [
+      this.scope.register([], "Enter", accept),
+      this.scope.register([], "Tab", accept),
+      this.scope.register([], "ArrowDown", move(true)),
+      this.scope.register([], "ArrowUp", move(false)),
+    ];
     const keys = (this.scope as unknown as { keys?: unknown[] }).keys;
-    if (Array.isArray(keys) && keys.includes(entry)) {
-      keys.splice(keys.indexOf(entry), 1);
-      keys.unshift(entry);
+    if (Array.isArray(keys) && ours.every((entry) => keys.includes(entry))) {
+      for (const entry of ours) keys.splice(keys.indexOf(entry), 1);
+      keys.unshift(...ours);
       this.enterFirst = true;
     } else {
-      this.scope.unregister(entry);
+      // Tab is not bound by Obsidian, so it may stay where it is; the other three would only
+      // shadow nothing and are taken back.
+      for (const entry of ours) if (entry !== ours[1]) this.scope.unregister(entry);
     }
-    this.scope.register([], "Tab", (event) => {
-      const chooser = (this as unknown as { suggestions?: { useSelectedItem?: (e: KeyboardEvent) => void } }).suggestions;
-      chooser?.useSelectedItem?.(event);
-      return false;
-    });
   }
 
   // Completion on demand. Obsidian opens a suggest only from its own keypress handling; the
@@ -80,6 +91,17 @@ export class Suggest extends EditorSuggest<Candidate> {
     const vocabulary = type ? this.plugin.vocabulary.get(type) : undefined;
     if (!vocabulary) return null;
 
+    // A cell of a table in Live Preview is edited in an editor of its own, whose text is the
+    // cell's alone; which row and column it is comes from Obsidian's table object.
+    const cell = editedCell(this.app, editor);
+    if (cell) {
+      const context = cellContextOf({ ...cell, lines: editor.lineCount(), line: editor.getLine(cursor.line), ch: cursor.ch });
+      if (!context) return null;
+      if (entersThrough(context) && !this.enterFirst && !asked) return null;
+      const candidates = candidatesFor(context, vocabulary, this.plugin.names, []);
+      return candidates.length ? { context, candidates } : null;
+    }
+
     // The API's own note on onTrigger: "Please be mindful of performance when implementing this
     // function, as it will be triggered very often (on each keypress). Keep it simple, and
     // return null as early as possible." The reject reads single lines, so nothing pays for a
@@ -99,6 +121,7 @@ export class Suggest extends EditorSuggest<Candidate> {
   onTrigger(cursor: EditorPosition, editor: Editor, file: TFile | null): EditorSuggestTriggerInfo | null {
     const asked = this.asked;
     this.asked = false;
+    this.navigated = false;
     this.found = this.find(cursor, editor, file, asked);
     if (!this.found) return null;
     return { start: { line: cursor.line, ch: this.found.context.start }, end: cursor, query: this.found.context.typed };

@@ -45,12 +45,13 @@ export function absentFields(vocabulary: TypeVocabulary, lines: string[]): Field
   return requiredFirst(vocabulary.fields.filter((f) => !present.has(f.name)));
 }
 
-// On an entry of a list and in a cell, Enter is the editor's while nothing is typed: it ends
-// the list, the row. The popup still shows there, since it is how what the position may hold is
-// seen at all, so whoever binds the keys asks this and lets that Enter through.
-export function entersThrough(context: Context): boolean {
+// On an entry of a list and in a cell, Enter and Tab are the editor's while nothing is typed:
+// they end the list, add a row, move to the next cell. The popup still shows there, since it is
+// how what the position may hold is seen at all, so whoever binds the keys asks this and lets
+// them through. Moving in the list with an arrow key is choosing, and from then on they accept.
+export function entersThrough(context: Context, navigated = false): boolean {
   const entryOrCell = context.kind === "cell" || (context.kind === "value" && context.item);
-  return entryOrCell && context.typed.trim() === "";
+  return entryOrCell && !navigated && context.typed.trim() === "";
 }
 
 export function candidatesFor(

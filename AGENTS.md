@@ -41,7 +41,9 @@ checks return a structure, and is deleted on that day. `src/vocabulary.ts` reads
 tables by their column names and tests four cell values the package reads only inside closures
 it does not export: `Yes` under Required, a Type that opens `array of `, the Type `enum`, and a
 Section cell that opens `## `. `src/context.ts` knows a frontmatter fence and the shape of a key
-line and of a list item, because where a cursor stands is the plugin's own question. None of
+line and of a list item, because where a cursor stands is the plugin's own question, and
+`src/tables.ts` knows that a line opening `## ` is the section a table sits under; the table
+itself it reads with the package's `tableOf`, in Live Preview as in Source mode. None of
 these decides whether an entity is valid, each is a candidate for an export upstream, and the
 design's section on what goes upstream lists them.
 
@@ -49,9 +51,9 @@ design's section on what goes upstream lists them.
 
 Everything that decides anything is a pure module under `src/`, with a test beside it under
 `test/`: `manifest.ts`, `model.ts`, `locate.ts`, `context.ts`, `vocabulary.ts`, `candidates.ts`,
-`properties.ts`, `report.ts`.
+`properties.ts`, `report.ts`, `tables.ts`.
 The modules that touch Obsidian, `vault.ts`, `marks.ts`, `pane.ts`, `suggest.ts`, `addfield.ts`,
-`widget.ts` and `main.ts`,
+`widget.ts`, `livetable.ts` and `main.ts`,
 are kept thin because nothing here can run them; they are proven by hand on the reference
 instance. No module under `src/` imports from `node:`, because the plugin also runs on a phone.
 
