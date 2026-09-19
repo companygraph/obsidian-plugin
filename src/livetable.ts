@@ -12,6 +12,9 @@ import { sectionAbove, tableRowOf } from "./tables.ts";
 import type { CellFacts } from "./tables.ts";
 import type { Mark } from "./marks.ts";
 
+// What a tinted row carries besides its class, and loses again when the tint goes.
+const TOOLTIP = ["aria-label", "data-tooltip-position", "data-tooltip-delay"];
+
 interface NativeTableCell { editor?: unknown; cell?: { row?: unknown; col?: unknown }; table?: { start?: unknown; end?: unknown } }
 
 const nativeCell = (view: MarkdownView) =>
@@ -62,7 +65,7 @@ export function tintRows(view: MarkdownView, cm: EditorView | undefined, marks: 
   for (const old of Array.from(root.querySelectorAll<HTMLElement>(".cm-table-widget tr[data-companygraph]"))) {
     old.removeAttribute("data-companygraph");
     old.removeClass("companygraph-mark");
-    old.removeAttribute("title");
+    for (const name of TOOLTIP) old.removeAttribute(name);
   }
   if (!cm || marks.length === 0) return;
   for (const widget of Array.from(root.querySelectorAll<HTMLElement>(".cm-table-widget"))) {
@@ -79,11 +82,15 @@ export function tintRows(view: MarkdownView, cm: EditorView | undefined, marks: 
       const tr = row.kind === "header" ? rows[0] : rows[row.index + 1];
       if (!tr) continue;
       // The attribute is what the clearing above looks for, so a tooltip written here is always
-      // one it takes away again, whatever happens to the class.
-      const title = tr.hasAttribute("data-companygraph") ? tr.getAttribute("title") : null;
+      // one it takes away again, whatever happens to the class. The message is Obsidian's own
+      // tooltip, which it shows for any element carrying an aria-label, through one handler on
+      // the page: the browser's `title` does not come up inside the table widget, found in use.
+      const said = tr.hasAttribute("data-companygraph") ? tr.getAttribute("aria-label") : null;
       tr.setAttribute("data-companygraph", "");
       tr.addClass("companygraph-mark");
-      tr.setAttribute("title", [title, mark.message].filter(Boolean).join("\n"));
+      tr.setAttribute("aria-label", [said, mark.message].filter(Boolean).join("\n"));
+      tr.setAttribute("data-tooltip-position", "top");
+      tr.setAttribute("data-tooltip-delay", "300");
     }
   }
 }
