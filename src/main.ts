@@ -53,6 +53,8 @@ export default class CompanyGraphPlugin extends Plugin {
   state: State = CHECKING;
   layout: Layout | null = null;
   vocabulary = new Map<string, TypeVocabulary>();
+  // The release of the checks this build bundles, for the pane to say.
+  checker = __CHECKER_VERSION__;
   // The entities of the last rebuild that parsed; completion asks which of them a file may name.
   named: Named[] = [];
   // The model's edges as links between files, and what of them was added to Obsidian's map.
