@@ -12,7 +12,10 @@ export type Context =
   // inserts there brings one: `source:Local` is one bare word to YAML and no field at all.
   | { kind: "value"; field: string; typed: string; start: number; item: boolean; glued: boolean }
   | { kind: "cell"; section: string; column: string; typed: string; start: number }
-  | { kind: "heading"; typed: string; start: number };
+  | { kind: "heading"; typed: string; start: number }
+  // A `###` heading under a `##` section, which names an entity where the schema declares the
+  // section grouped; whether it does is the vocabulary's to say.
+  | { kind: "grouped"; section: string; typed: string; start: number };
 
 // One definition of a fence, for the two readers below.
 const fence = (line: string) => line === "---";
@@ -31,7 +34,7 @@ export function frontmatterEnd(lines: string[]): number {
 // past the closing fence is in the body whatever it reads like.
 export function mayHoldContext(getLine: (n: number) => string, line: number, ch: number): boolean {
   const before = (getLine(line) ?? "").slice(0, ch);
-  if (before.startsWith("## ") || before.trimStart().startsWith("|")) return true;
+  if (before.startsWith("## ") || before.startsWith("### ") || before.trimStart().startsWith("|")) return true;
   if (!fence(getLine(0) ?? "")) return false;
   for (let i = 1; i < line; i++) if (fence(getLine(i) ?? "")) return false;
   return true;
@@ -64,6 +67,13 @@ export function contextAt(lines: string[], line: number, ch: number): Context | 
 
   const heading = before.match(/^## (.*)$/);
   if (heading) return after.trim() === "" ? { kind: "heading", typed: heading[1], start: 3 } : null;
+
+  const grouped = before.match(/^### (.*)$/);
+  if (grouped) {
+    if (after.trim() !== "") return null;
+    const section = sectionAbove((n) => lines[n], line - 1);
+    return section ? { kind: "grouped", section, typed: grouped[1], start: 4 } : null;
+  }
 
   if (before.trimStart().startsWith("|")) {
     let first = line;

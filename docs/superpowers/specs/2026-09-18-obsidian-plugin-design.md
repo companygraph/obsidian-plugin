@@ -424,8 +424,14 @@ A section is offered on `## ` already. Beside it belong a picker that adds a sec
 Preview, built as the field picker is, and the scaffold of a whole new entity, its required
 fields and sections written at once, which is the entity command above.
 
-A heading that is a reference, an achievement kind under `## Achievements`, waits for the
-export §7 names and is then a fifth context.
+A heading that is a reference, an achievement kind under `## Achievements`, is the fifth
+context, and did not need the export §7 names after all: the package already exports the caption
+a heading table is introduced by, and the vocabulary reads the table with it, as it reads a column
+table by its caption. On a `### ` line in a section the schema declares grouped, the names of
+the declared type are offered, less those the section already carries, since a name heads a
+grouped section once. Such a heading is a reference everywhere else too: it is styled as a link
+and opens its entity on Cmd+click, and Rename entity and Delete entity count it. The graph view
+had its edges already, since the parser draws them.
 
 Running prose divides. Completing a name inside a sentence is easy and means nothing to the
 model: a reference exists only where a schema declares one, so a name in prose is a fact and
@@ -575,11 +581,6 @@ which kind, and by a trial for the rest.
   because it had a method named `open` and Obsidian's View has an internal one of that name,
   which is what calls `onOpen`. The public types do not declare it, so the name typechecked and
   no review could see it. Nothing guards against the next such name but running the build.
-- **A heading in a grouped section.** An experience's `## Achievements` groups its bullets under
-  `###` headings that name an achievement kind, so such a heading is a reference, and §5's four
-  contexts do not offer it. Validation catches a wrong one and the locator lands on it. Offering
-  it needs the package's reader of a heading table, which is not exported (§7), so it waits for
-  that export and is a fifth context when it comes.
 - **The editor and the disk can disagree about line endings.** The package reads a file with
   CRLF endings as having no frontmatter, and so do the plugin's checks, which read the disk.
   CodeMirror hands the editor's lines without the `\r`, so completion sees frontmatter the checks
