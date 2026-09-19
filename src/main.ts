@@ -51,9 +51,6 @@ export default class CompanyGraphPlugin extends Plugin {
   // The model's edges as links between files, and what of them was added to Obsidian's map.
   links: Links = {};
   added: Added = new Map();
-  // True while this plugin asks the metadata cache to say it has resolved, so its own answer to
-  // that event does not ask again.
-  relinking = false;
   statusBar: HTMLElement | null = null;
   // The rules that tint a failing field's row in Live Preview's Properties widget.
   rowStyle: HTMLStyleElement | null = null;
@@ -121,6 +118,11 @@ export default class CompanyGraphPlugin extends Plugin {
       opened = true;
       window.setTimeout(() => (opened = false), 500);
       void this.leafOf(event.target).openFile(file);
+    }, { capture: true });
+    // A prevented pointerdown suppresses the mousedown that follows it, and where one comes all
+    // the same its default, focus and a cursor placed at the press, is kept from happening too.
+    this.registerDomEvent(document, "mousedown", (event) => {
+      if (opened) event.preventDefault();
     }, { capture: true });
     this.registerDomEvent(document, "click", (event) => {
       if (!opened) return;
@@ -218,13 +220,12 @@ export default class CompanyGraphPlugin extends Plugin {
     const cache = this.app.metadataCache as typeof this.app.metadataCache & { isCacheClean?: () => boolean };
     if (!cache.resolvedLinks) return;
     this.added = merge(cache.resolvedLinks, this.links, this.added);
-    if (typeof cache.isCacheClean === "function" && !cache.isCacheClean()) return;
-    this.relinking = true;
     try {
-      cache.trigger("resolved");
-    } finally {
-      this.relinking = false;
+      if (typeof cache.isCacheClean === "function" && !cache.isCacheClean()) return;
+    } catch {
+      return; // the cache is being torn down; nothing is drawn any more
     }
+    cache.trigger("resolved");
   }
 
   relinkPath(path: string) {

@@ -18,12 +18,16 @@ export interface Reference {
 
 const targetOf = (offer: TypeVocabulary["fields"][number]["offer"]) => (offer.kind === "names" ? offer.target : null);
 
-// The span of a value as written, with surrounding quotes and spaces left out of it, and a YAML
-// comment after it, a `#` that follows a space, left out as well.
-function span(line: number, text: string, start: number, target: string): Reference | null {
+// The span of a value as written, with surrounding quotes and spaces left out of it. In
+// frontmatter a YAML comment after it is left out as well: a `#` after a space, outside quotes.
+// A table cell has no comments, so a name there may hold one.
+function span(line: number, text: string, start: number, target: string, yaml = false): Reference | null {
   let from = start, to = text.length;
-  const comment = text.slice(start).search(/\s#/);
-  if (comment >= 0) to = start + comment;
+  const value = text.slice(start).trimStart();
+  if (yaml && !/^["']/.test(value)) {
+    const comment = text.slice(start).search(/\s#/);
+    if (comment >= 0) to = start + comment;
+  }
   while (from < to && /\s/.test(text[from])) from++;
   while (to > from && /\s/.test(text[to - 1])) to--;
   if (to - from >= 2 && /^["']$/.test(text[from]) && text[to - 1] === text[from]) { from++; to--; }
@@ -55,14 +59,14 @@ export function referencesIn(lines: string[], vocabulary: TypeVocabulary): Refer
       const key = lines[up].match(/^([\w-]+):\s*$/)?.[1];
       const f = key ? field(key) : undefined;
       const target = f?.list ? targetOf(f.offer) : null;
-      const ref = target ? span(line, text, item[1].length, target) : null;
+      const ref = target ? span(line, text, item[1].length, target, true) : null;
       if (ref) out.push(ref);
       continue;
     }
     const value = text.match(/^([\w-]+):/);
     const f = value ? field(value[1]) : undefined;
     const target = f && !f.list ? targetOf(f.offer) : null;
-    const ref = target ? span(line, text, value![0].length, target) : null;
+    const ref = target ? span(line, text, value![0].length, target, true) : null;
     if (ref) out.push(ref);
   }
 

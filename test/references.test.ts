@@ -73,3 +73,10 @@ test("a cell is split on every pipe, as the checks split it", () => {
   const found = referencesIn(text, vocabulary.get("profile")!).map((r) => [r.name, r.target]);
   assert.deepEqual(found, [["Java \\", "skill"], ["x", "proficiency-level"]]);
 });
+
+// A `#` is a comment only in YAML, only after a space, and never inside quotes. A table cell has
+// no comments at all, so a name there may hold one.
+test("a # in a table cell or inside quotes is part of the name", () => {
+  const text = ["---", 'source: "Rock # 1"', "---", "", "## Skills", "", "| Skill | Level |", "| --- | --- |", "| C # Programming | Proficient |"];
+  assert.deepEqual(referencesIn(text, vocabulary.get("profile")!).map((r) => r.name), ["Rock # 1", "C # Programming", "Proficient"]);
+});
