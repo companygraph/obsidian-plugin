@@ -359,18 +359,29 @@ row. The last two are markup and not API, like the tint. A pill does not take Ob
 `internal-link` class, though that would style it for free: Obsidian opens such a pill as a link
 to a note of that file name, which a canonical name is not, and would create one.
 
-The graph view and the backlinks pane are drawn from one map of Obsidian's metadata cache, which
-note links to which, and redrawn when the cache says it has resolved; read from the installed
-application. The plugin adds the model's edges to that map, from the parsed graph, one per
-declared reference, and asks for a redraw. Obsidian's own entries are never replaced: what the
-plugin adds is remembered and taken away before it adds again, and Obsidian rebuilding a note's
-entry on a change is seen and the model's edges put back. A qualifier draws no edge in the model
-and none here. The map is outside the public types and taken optionally. Two consequences, said
-here because a user meets them: the backlinks pane lists the entities that name a note, which is
-what backlinks mean in a model; and deleting an entity warns that others link to it, which is
-true. Renaming an entity does not rewrite the names others hold, since nothing in them is a link
-Obsidian could rewrite; that is the model's own rule, a name is changed where it is written, and
-the checks name every place that no longer resolves.
+The graph view, the local graph, the backlink count in the status bar and Bases' backlinks are
+drawn from one public map of Obsidian's metadata cache, which note links to which with a count,
+and the views redraw when the cache says it has resolved; read from the installed application.
+The plugin adds the model's edges to that map, one per declared reference the parser draws; a
+qualifier draws no edge in the model and none here. Obsidian's own entries are never replaced:
+what the plugin adds is remembered and taken away before it adds again, it adds only to entries
+Obsidian has, and when Obsidian rebuilds one note's entry and says so the note's edges go back
+into it at once. A rename moves the entry to the new path, and what was added moves with it. The
+cache is asked to say it has resolved only when it is clean, since that event promises every
+note has been resolved; while Obsidian is still resolving it sends the event itself.
+
+What it does not reach, found by a review that read Obsidian's code. The backlinks pane's list of
+linked mentions re-reads each file's own links and shows none of these, so the count in the
+status bar and the list can disagree. Deleting a note warns from the same real links and does not
+count them. Renaming rewrites text only from a file's real links, so nothing the plugin adds can
+make Obsidian write to a file, and the map is never saved: a restart without the plugin starts
+clean. Renaming an entity does not rewrite the names others hold, since nothing in them is a link;
+that is the model's own rule, a name is changed where it is written, and the checks name every
+place that no longer resolves.
+
+Every edge is drawn, `source` among them, so the graph shows the one source nearly every entity
+names as a hub. Whether a kind of edge should be left out of the graph is the owner's choice and
+not made here.
 
 **The agent pass, from the pane.** Asked by the owner on seeing the pane's closing line, that the
 writing rules are not checked: whether that check comes too. It cannot come as a check, since a

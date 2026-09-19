@@ -11,6 +11,7 @@ import type { DecorationSet, EditorView, ViewUpdate } from "@codemirror/view";
 import { tableOf, typeOfPath } from "companygraph-meta-model/checks";
 import type CompanyGraphPlugin from "./main.ts";
 import { referencesIn, resolveIn } from "./references.ts";
+import { visibleIn } from "./scope.ts";
 import { sectionAbove } from "./tables.ts";
 
 // Sent after a rebuild, since what a name resolves to can change without the text changing.
@@ -26,7 +27,9 @@ function resolverFor(plugin: CompanyGraphPlugin, path: string | undefined) {
   const type = typeOfPath(path, layout.model);
   const vocabulary = type ? plugin.vocabulary.get(type) : undefined;
   if (!vocabulary) return null;
-  return { vocabulary, resolve: (target: string, name: string) => resolveIn(plugin.named, path, layout.model, target, name) };
+  // What the file may name is worked out once per pass, not once per name.
+  const visible = visibleIn(plugin.named, path, layout.model);
+  return { vocabulary, resolve: (target: string, name: string) => resolveIn(visible, path, layout.model, target, name) };
 }
 
 export function nameLinks(plugin: CompanyGraphPlugin) {
@@ -88,7 +91,8 @@ export function markNames(plugin: CompanyGraphPlugin, view: MarkdownView, cm: Ed
   };
 
   for (const row of Array.from(root.querySelectorAll<HTMLElement>(".metadata-property[data-property-key]"))) {
-    const field = resolver.vocabulary.fields.find((f) => f.name === row.dataset.propertyKey);
+    // Obsidian writes the key lower-cased into the markup.
+    const field = resolver.vocabulary.fields.find((f) => f.name.toLowerCase() === row.dataset.propertyKey);
     if (!field || field.offer.kind !== "names") continue;
     const target = field.offer.target;
     // Not Obsidian's own `internal-link` class: a pill carrying it is opened by Obsidian as a link

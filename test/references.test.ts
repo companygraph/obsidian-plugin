@@ -59,3 +59,17 @@ test("a name resolves to the file of the entity it names, within its scope", () 
   assert.equal(resolveIn(named, MIRA, EXAMPLE.model, "skill", "Cobol"), null);
   assert.equal(resolveIn(named, MIRA, EXAMPLE.model, "role", "Java Programming"), null, "a name under another type");
 });
+
+// Review found these. A comment after a value is YAML's and not the name's. A fenced block is
+// code: a heading or a table in it is not the note's. And a cell is split as the package's table
+// reader splits a row, on every pipe, so a column here is the column the checks read.
+test("a comment after a value is not part of the name, and a fenced block is code", () => {
+  const text = ["---", "source: Local # the only source", "---", "", "```", "## Skills", "| Skill | Level |", "| --- | --- |", "| Cobol | Expert |", "```"];
+  assert.deepEqual(referencesIn(text, vocabulary.get("profile")!).map((r) => r.name), ["Local"]);
+});
+
+test("a cell is split on every pipe, as the checks split it", () => {
+  const text = ["---", "---", "", "## Skills", "", "| Skill | Level |", "| --- | --- |", "| Java \\| x | Expert |"];
+  const found = referencesIn(text, vocabulary.get("profile")!).map((r) => [r.name, r.target]);
+  assert.deepEqual(found, [["Java \\", "skill"], ["x", "proficiency-level"]]);
+});

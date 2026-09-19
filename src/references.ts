@@ -18,24 +18,26 @@ export interface Reference {
 
 const targetOf = (offer: TypeVocabulary["fields"][number]["offer"]) => (offer.kind === "names" ? offer.target : null);
 
-// The span of a value as written, with surrounding quotes and spaces left out of it.
+// The span of a value as written, with surrounding quotes and spaces left out of it, and a YAML
+// comment after it, a `#` that follows a space, left out as well.
 function span(line: number, text: string, start: number, target: string): Reference | null {
   let from = start, to = text.length;
+  const comment = text.slice(start).search(/\s#/);
+  if (comment >= 0) to = start + comment;
   while (from < to && /\s/.test(text[from])) from++;
   while (to > from && /\s/.test(text[to - 1])) to--;
   if (to - from >= 2 && /^["']$/.test(text[from]) && text[to - 1] === text[from]) { from++; to--; }
   return to > from ? { line, from, to, name: text.slice(from, to), target } : null;
 }
 
-// The cells of a table row as spans, split on pipes a backslash does not escape.
+// The cells of a table row as spans, split on every pipe. That is how the package's table reader
+// splits a row, `\|` included, and a column here has to be the column the checks read; where to
+// put a mark is the plugin's question, what the cell is called is the package's.
 function cells(text: string): { from: number; to: number }[] {
   const out: { from: number; to: number }[] = [];
   let start = text.indexOf("|");
-  if (start < 0) return out;
-  for (let i = start + 1; i < text.length; i++) {
-    if (text[i] === "\\") { i++; continue; }
+  for (let i = start + 1; start >= 0 && i < text.length; i++)
     if (text[i] === "|") { out.push({ from: start + 1, to: i }); start = i; }
-  }
   return out;
 }
 
@@ -65,8 +67,12 @@ export function referencesIn(lines: string[], vocabulary: TypeVocabulary): Refer
   }
 
   let section: string | null = null;
+  let fenced = false;
   for (let line = Math.max(end + 1, 0); line < lines.length; line++) {
     const text = lines[line];
+    // A fenced block is code: a heading or a table in it is not the note's.
+    if (/^\s*(```|~~~)/.test(text)) { fenced = !fenced; continue; }
+    if (fenced) continue;
     if (text.startsWith("## ")) { section = text.slice(3).trim(); continue; }
     if (!text.trimStart().startsWith("|")) continue;
     let last = line;
