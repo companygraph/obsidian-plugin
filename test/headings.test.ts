@@ -254,7 +254,7 @@ test("a `---` typed at the top of a page is not frontmatter until it closes", ()
 test("the lock holds every edit but a reload, undo, redo, this plugin's own and a composing input method", () => {
   for (const held of [undefined, "input", "input.type", "input.paste", "input.drop", "delete.backward", "delete.cut", "move.line", "select"])
     assert.equal(isHeld(held), true, String(held));
-  for (const passed of ["set", "undo", "redo", "input.section", "delete.section", "input.type.compose"])
+  for (const passed of ["set", "undo", "redo", "input.section", "delete.section", "input.form", "input.type.compose"])
     assert.equal(isHeld(passed), false, passed);
   // A name that merely begins like one that passes is still held.
   assert.equal(isHeld("settle"), true);
