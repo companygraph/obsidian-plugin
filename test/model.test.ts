@@ -18,7 +18,6 @@ test("the reference instance passes and parses, in its own layout", () => {
   assert.deepEqual(m.failures, []);
   assert.ok(m.graph);
 });
-
 test("an unresolvable reference is reported once: the checks speak, the parser's throw is dropped", () => {
   const m = buildModel(edited(example(), ROLE, (t) => t.replace("source: Local", "source: Nowhere")), EXAMPLE);
   assert.equal(m.graph, null);
@@ -44,15 +43,20 @@ test("an empty note in a type folder is never offered as a name", () => {
 });
 
 test("the parser's own throw is the failure when the checks found nothing to say", () => {
-  // Two experiences of two profiles under one name. The checks read duplicate names per type
-  // folder, and an owned entity sits in its owner's folder rather than in one of those, so only
-  // the parser sees this one.
+  // Two processes whose phases carry the same names. Each process lists its own phases, in its
+  // own order, so every check passes; R2 scopes a name to its type across the instance, and an
+  // owned entity sits in its owner's folder where the checks' duplicate-name reading does not
+  // reach, so only the parser sees it. (Two experiences sharing a name served here until core
+  // 0.30.0, whose Evidence table made the checks notice that case by another road.)
   const files = example();
-  const tomas = "example/model/profiles/tomas-reyes/experiences/2022-beacon-systems.md";
-  const text = files.get(tomas)!.replace("# Deciding which billing goes first", "# Splitting the billing domain");
-  files.delete(tomas);
-  files.set("example/model/profiles/tomas-reyes/experiences/2022-splitting-the-billing-domain.md", text);
+  const from = "example/model/processes/delivery/";
+  for (const [path, text] of [...files])
+    if (path.startsWith(from))
+      files.set(
+        path.replace(from, "example/model/processes/review/").replace("/delivery.md", "/review.md"),
+        path.endsWith("/delivery.md") ? text.replace("# Delivery", "# Review") : text,
+      );
   const m = buildModel(files, EXAMPLE);
   assert.equal(m.graph, null);
-  assert.deepEqual(m.failures, ['R2: two experience entities share the name "Splitting the billing domain"']);
+  assert.deepEqual(m.failures, ['R2: two phase entities share the name "Build"']);
 });
