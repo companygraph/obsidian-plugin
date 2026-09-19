@@ -8,7 +8,7 @@ everywhere. The `Title` column is the member's README title in full, the string 
 carries after `# `, and a tripwire in `conventions-check` holds each member to its own row.
 
 | Repository | Title | Purpose | Default branch | Local path |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | robertblust/conventions | Robert Blust — Conventions | how the family writes and works, vendored by every member | main | ~/git/robertblust/conventions |
 | robertblust/design | Robert Blust — Design | the design system shared by the three sites: tokens, chrome, page checks | main | ~/git/robertblust/design |
 | robertblust/robertblust.github.io | blust.ch | blust.ch, the profile page and two talks | main | ~/git/robertblust/robertblust.github.io |
