@@ -70,3 +70,15 @@ test("a required section renamed is reported once, by the heading the schema exp
   // A section of the page's own breaks nothing, so the graph still parses.
   assert.ok(m.graph);
 });
+
+test("a heading only the frontmatter holds is no section, for the checks as for the editor (0.31.2)", () => {
+  // Until 0.31.2 the checks read a YAML comment that looked like a required heading as the section,
+  // while the parser and this plugin's heading marks did not. Now the pane and the marks agree.
+  const LEVEL = "example/model/proficiency-levels/expert.md";
+  const files = edited(example(), LEVEL, (t) =>
+    t.replace(/\n## What it means\n[\s\S]*$/, "\n").replace(/^---\n/, "---\n## What it means\n"),
+  );
+  assert.deepEqual(buildModel(files, EXAMPLE).failures, [
+    `${LEVEL}: no \`## What it means\`, which proficiency-level-schema.md requires`,
+  ]);
+});
