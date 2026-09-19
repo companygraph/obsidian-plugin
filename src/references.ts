@@ -1,4 +1,5 @@
-// Which spans of a file are names a schema declares as references, and what each names. Pure:
+// Which spans of a file are names a schema declares as references, and what each names: a
+// frontmatter value, a table cell of a declared column, a `###` heading of a grouped section. Pure:
 // lines and the file's type's vocabulary in, spans out; where they are on the screen is the
 // Obsidian-facing modules' business. A qualifier counts as much as a reference, since both name
 // an entity; what differs is only whether the model draws an edge, which is links.ts's concern.
@@ -77,10 +78,23 @@ export function referencesIn(lines: string[], vocabulary: TypeVocabulary): Refer
   let fenced = false;
   for (let line = Math.max(end + 1, 0); line < lines.length; line++) {
     const text = lines[line];
-    // A fenced block is code: a heading or a table in it is not the note's.
+    // The parser heads its sections and reads a grouped section's `###` headings line by line,
+    // fenced code or not, so these two are read here the same way: a rename that skipped a
+    // heading the parser reads would leave a reference behind.
+    if (text.startsWith("## ")) { section = text.slice(3).trim(); continue; }
+    // A `###` heading of a section its schema declares grouped names an entity, as the parser
+    // reads it: the line after `### `, trimmed.
+    if (text.startsWith("### ")) {
+      const grouped = vocabulary.sections.find((s) => s.heading === section)?.grouped;
+      const target = grouped ? targetOf(grouped) : null;
+      const ref = target ? span(line, text, 4, target, optionalOf(grouped!)) : null;
+      if (ref) out.push(ref);
+      continue;
+    }
+    // A fenced block is code: a table in it is not the note's, as the package's table reader
+    // never meets it there.
     if (/^\s*(```|~~~)/.test(text)) { fenced = !fenced; continue; }
     if (fenced) continue;
-    if (text.startsWith("## ")) { section = text.slice(3).trim(); continue; }
     if (!text.trimStart().startsWith("|")) continue;
     let last = line;
     while (last + 1 < lines.length && lines[last + 1].trimStart().startsWith("|")) last++;

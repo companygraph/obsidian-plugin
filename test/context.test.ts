@@ -152,3 +152,14 @@ test("a value directly after the colon says it is glued to it", () => {
   assert.deepEqual(contextAt(["---", "source:Lo", "---"], 1, 9), { kind: "value", field: "source", typed: "Lo", start: 7, item: false, glued: true });
   assert.deepEqual(contextAt(["---", "source:  Lo", "---"], 1, 11), { kind: "value", field: "source", typed: "Lo", start: 9, item: false, glued: false });
 });
+
+test("a `###` heading under a section is a grouped context, named by the section above it", () => {
+  const lines = ["# A", "", "## Achievements", "", "### Lea", "", "### "];
+  assert.deepEqual(contextAt(lines, 4, 7), { kind: "grouped", section: "Achievements", typed: "Lea", start: 4 });
+  assert.deepEqual(contextAt(lines, 6, 4), { kind: "grouped", section: "Achievements", typed: "", start: 4 });
+  // In the middle of a written heading nothing is completed.
+  assert.equal(contextAt(lines, 4, 5), null);
+  assert.equal(mayHoldContext((n) => lines[n], 6, 4), true);
+  // With no section above it, a `###` is nobody's.
+  assert.equal(contextAt(["# A", "### X"], 1, 5), null);
+});
