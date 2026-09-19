@@ -1,11 +1,14 @@
 // The wiring: when to rebuild, and the three places a rebuild shows — the pane, the open file's
 // lines and the status bar. Everything that decides anything is in the pure modules.
-import { MarkdownView, Notice, Plugin, debounce } from "obsidian";
+import { MarkdownView, Notice, Plugin, TFile, debounce } from "obsidian";
 import type { Debouncer } from "obsidian";
 import type { EditorView } from "@codemirror/view";
 import { guard } from "./manifest.ts";
 import { buildModel } from "./model.ts";
 import { namedOf } from "./scope.ts";
+import { linksOf, merge } from "./links.ts";
+import type { Added, Links } from "./links.ts";
+import { markNames, nameLinks, namedPath, refreshNames } from "./namelinks.ts";
 import type { Named } from "./scope.ts";
 import type { Layout } from "./model.ts";
 import { locate } from "./locate.ts";
@@ -44,6 +47,12 @@ export default class CompanyGraphPlugin extends Plugin {
   vocabulary = new Map<string, TypeVocabulary>();
   // The entities of the last rebuild that parsed; completion asks which of them a file may name.
   named: Named[] = [];
+  // The model's edges as links between files, and what of them was added to Obsidian's map.
+  links: Links = {};
+  added: Added = new Map();
+  // True while this plugin asks the metadata cache to say it has resolved, so its own answer to
+  // that event does not ask again.
+  relinking = false;
   statusBar: HTMLElement | null = null;
   // The rules that tint a failing field's row in Live Preview's Properties widget.
   rowStyle: HTMLStyleElement | null = null;
@@ -71,6 +80,7 @@ export default class CompanyGraphPlugin extends Plugin {
     this.statusBar.onClickEvent(() => void this.openPane());
     this.registerView(VIEW_TYPE, (leaf) => new Pane(leaf, this));
     this.registerEditorExtension(marksField);
+    this.registerEditorExtension(nameLinks(this));
     const suggest = new Suggest(this.app, this);
     this.registerEditorSuggest(suggest);
     this.addCommand({
@@ -93,6 +103,33 @@ export default class CompanyGraphPlugin extends Plugin {
     // button is found by the markup themes style it by: if that changes, the press is Obsidian's
     // again and nothing else changes. Capturing, so this runs before the widget's own handler.
     this.registerDomEvent(document, "click", (event) => this.onAddProperty(event), { capture: true });
+    // Cmd+click, Ctrl+click elsewhere, on a name that resolves opens what it names. On mousedown,
+    // capturing, because CodeMirror takes a modified mousedown for a second cursor; the click that
+    // follows is then swallowed. A plain click still edits: a name is text, not a link.
+    let opened = false;
+    this.registerDomEvent(document, "mousedown", (event) => {
+      opened = false;
+      if (!(event.metaKey || event.ctrlKey) || event.button !== 0) return;
+      const path = namedPath(event.target);
+      const file = path ? this.app.vault.getAbstractFileByPath(path) : null;
+      if (!(file instanceof TFile)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      opened = true;
+      void this.app.workspace.getLeaf(false).openFile(file);
+    }, { capture: true });
+    this.registerDomEvent(document, "click", (event) => {
+      if (!opened) return;
+      opened = false;
+      event.preventDefault();
+      event.stopPropagation();
+    }, { capture: true });
+    // The graph view and the backlinks pane redraw when the metadata cache says it has resolved,
+    // and Obsidian rebuilds a note's entry in its map when the note changes; the model's edges are
+    // put back each time. See relink().
+    this.registerEvent(this.app.metadataCache.on("resolved", () => {
+      if (!this.relinking) this.relink();
+    }));
     this.wrapAddProperty();
     // A cell that is clicked into shows what its column may hold at once. Obsidian asks a suggest
     // when the focus moves into a cell but does not let it open unless something was typed, so
@@ -157,6 +194,24 @@ export default class CompanyGraphPlugin extends Plugin {
     this.unloaded = true;
     this.generation++;
     this.soon?.cancel();
+    // What the model added to Obsidian's map of links goes with the plugin.
+    this.links = {};
+    this.relink();
+  }
+
+  // The model's edges, added to the map Obsidian draws its graph view and backlinks pane from,
+  // `metadataCache.resolvedLinks`, which is public; see links.ts for what is and is not replaced.
+  // Then the cache is asked to say it has resolved, which is what those views redraw on.
+  relink() {
+    const cache = this.app.metadataCache;
+    if (!cache.resolvedLinks) return;
+    this.added = merge(cache.resolvedLinks, this.links, this.added);
+    this.relinking = true;
+    try {
+      cache.trigger("resolved");
+    } finally {
+      this.relinking = false;
+    }
   }
 
   async rebuild() {
@@ -172,6 +227,8 @@ export default class CompanyGraphPlugin extends Plugin {
     if (generation !== this.generation) return;
     if (!manifest) {
       this.layout = null;
+      this.links = {};
+      this.relink();
       return this.show(IDLE);
     }
     this.layout = { core: `${manifest.units}/core`, model: "model" };
@@ -200,7 +257,11 @@ export default class CompanyGraphPlugin extends Plugin {
       if (generation !== this.generation) return;
       // Names are those of the last rebuild that parsed: a reference is unresolvable exactly
       // while its name is half typed, which is when completion is wanted.
-      if (model.graph) this.named = namedOf(model.graph);
+      if (model.graph) {
+        this.named = namedOf(model.graph);
+        this.links = linksOf(model.graph);
+        this.relink();
+      }
       if (generation !== this.generation) return;
       const report = verdict.kind === "report" ? verdict.message : null;
       this.show({
@@ -300,7 +361,7 @@ export default class CompanyGraphPlugin extends Plugin {
         .map((found) => ({ line: found.line, message: found.message }));
       // @ts-expect-error Obsidian's Editor wraps a CodeMirror 6 view and does not type it.
       const view = leaf.view.editor.cm as EditorView | undefined;
-      view?.dispatch({ effects: setMarks.of(marks) });
+      view?.dispatch({ effects: [setMarks.of(marks), refreshNames.of(null)] });
 
       // Live Preview draws the frontmatter as the Properties widget, where a line mark has no
       // line to sit on, and Live Preview is the view most people never leave. The widget's rows
@@ -327,6 +388,7 @@ export default class CompanyGraphPlugin extends Plugin {
         .map((found) => ({ line: found.line, message: found.message }));
       const cm = (leaf.view.editor as unknown as { cm?: EditorView }).cm;
       tintRows(leaf.view, cm, marks);
+      markNames(this, leaf.view, cm);
     });
   }
 

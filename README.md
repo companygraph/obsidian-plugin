@@ -63,6 +63,13 @@ for `CompanyGraph: Complete here`, so that a list is not in the way of moving th
 separator row carries alignment colons is not a table to the checks and gets no completion in
 either mode, and a cell holding a line break gets none in Live Preview.
 
+A name a schema declares as a reference is styled as a link, in Source mode, in the Properties
+widget and in a table in Live Preview, and one that names nothing as an unresolved link.
+Cmd+click, or Ctrl+click, opens the entity it names; a plain click still edits, since a name is
+text and not a link. It resolves as the checks do, by its declared type, and for an owned type
+within the owner the file is in. The model's edges are also added to what Obsidian draws its
+graph view and backlinks pane from, so an entity's neighbours are the ones the model names.
+
 ## Installing it
 
 Copy `main.js`, `manifest.json` and `styles.css` from a release into

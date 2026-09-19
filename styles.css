@@ -41,3 +41,24 @@
 .cm-table-widget tr.companygraph-mark:nth-child(odd):hover {
   background-color: rgba(var(--color-red-rgb), 0.2);
 }
+
+/* A name a schema declares as a reference, styled as Obsidian styles a link, and one that names
+   nothing as Obsidian styles an unresolved link. Cmd+click opens what it names. */
+.companygraph-ref {
+  color: var(--link-color);
+  text-decoration-line: var(--link-decoration);
+  text-decoration-color: var(--link-color);
+}
+
+.companygraph-ref.is-unresolved {
+  color: var(--link-unresolved-color);
+  opacity: var(--link-unresolved-opacity);
+  text-decoration-style: var(--link-unresolved-decoration-style);
+  text-decoration-color: var(--link-unresolved-decoration-color);
+}
+
+/* In the Properties widget a list value is a pill, coloured by its own variable. */
+.multi-select-pill.companygraph-ref {
+  --pill-color: var(--link-color);
+  --pill-color-hover: var(--link-color-hover);
+}

@@ -340,6 +340,38 @@ which the instance already carries, so the plugin's part is small: a command tha
 terminal in the vault folder, or the vault's own agent files kept current by `upgrade`. Nothing
 here decides for a vendor. What the plugin never does is call a model itself.
 
+**Names that act as links, and the graph view.** Asked by the owner once the phases stopped
+being links: a canonical name should act as one. §1 decided that references are plain names
+and the plugin resolves them, and promised navigation it did not yet give. Now it does, in the
+three places a name is written, and it feeds the graph view.
+
+A name is styled as a link where a schema declares it a reference or a qualifier, and one that
+resolves to nothing is styled as Obsidian styles an unresolved link. Cmd+click, or Ctrl+click,
+opens the entity it resolves to; a plain click still edits, since the name is text and not a
+link. It resolves as the checks do, by the declared type, and for an owned type within the
+owner the file is in, so a click can never open another owner's entity. Which spans of a file
+are references is decided in a tested module from the vocabulary; where a name sits on the
+screen is fetched per view. In Source mode a CodeMirror decoration styles the span and catches
+the click. In Live Preview the Properties widget draws a list value as a pill, and a pill that
+holds a reference is coloured as a link, with Obsidian's own link colours; a text value is
+styled in place. A cell of a table in Live Preview is found as the tint finds its
+row. The last two are markup and not API, like the tint. A pill does not take Obsidian's own
+`internal-link` class, though that would style it for free: Obsidian opens such a pill as a link
+to a note of that file name, which a canonical name is not, and would create one.
+
+The graph view and the backlinks pane are drawn from one map of Obsidian's metadata cache, which
+note links to which, and redrawn when the cache says it has resolved; read from the installed
+application. The plugin adds the model's edges to that map, from the parsed graph, one per
+declared reference, and asks for a redraw. Obsidian's own entries are never replaced: what the
+plugin adds is remembered and taken away before it adds again, and Obsidian rebuilding a note's
+entry on a change is seen and the model's edges put back. A qualifier draws no edge in the model
+and none here. The map is outside the public types and taken optionally. Two consequences, said
+here because a user meets them: the backlinks pane lists the entities that name a note, which is
+what backlinks mean in a model; and deleting an entity warns that others link to it, which is
+true. Renaming an entity does not rewrite the names others hold, since nothing in them is a link
+Obsidian could rewrite; that is the model's own rule, a name is changed where it is written, and
+the checks name every place that no longer resolves.
+
 **The agent pass, from the pane.** Asked by the owner on seeing the pane's closing line, that the
 writing rules are not checked: whether that check comes too. It cannot come as a check, since a
 writing rule is a judgment, that an Evidence cell states a fact, that a skill's prose is
