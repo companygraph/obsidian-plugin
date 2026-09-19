@@ -78,9 +78,9 @@ export function referencesIn(lines: string[], vocabulary: TypeVocabulary): Refer
   let fenced = false;
   for (let line = Math.max(end + 1, 0); line < lines.length; line++) {
     const text = lines[line];
-    // A fenced block is code: a heading or a table in it is not the note's.
-    if (/^\s*(```|~~~)/.test(text)) { fenced = !fenced; continue; }
-    if (fenced) continue;
+    // The parser heads its sections and reads a grouped section's `###` headings line by line,
+    // fenced code or not, so these two are read here the same way: a rename that skipped a
+    // heading the parser reads would leave a reference behind.
     if (text.startsWith("## ")) { section = text.slice(3).trim(); continue; }
     // A `###` heading of a section its schema declares grouped names an entity, as the parser
     // reads it: the line after `### `, trimmed.
@@ -91,6 +91,10 @@ export function referencesIn(lines: string[], vocabulary: TypeVocabulary): Refer
       if (ref) out.push(ref);
       continue;
     }
+    // A fenced block is code: a table in it is not the note's, as the package's table reader
+    // never meets it there.
+    if (/^\s*(```|~~~)/.test(text)) { fenced = !fenced; continue; }
+    if (fenced) continue;
     if (!text.trimStart().startsWith("|")) continue;
     let last = line;
     while (last + 1 < lines.length && lines[last + 1].trimStart().startsWith("|")) last++;

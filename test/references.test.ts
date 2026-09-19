@@ -100,3 +100,9 @@ test("a `###` heading of a grouped section is a reference to what the section na
   const refs = referencesIn(lines, v).filter((r) => r.target === "achievement-kind");
   assert.deepEqual(refs.map((r) => [r.line, r.from, r.to, r.name]), [[8, 4, 14, "Leadership"]]);
 });
+
+test("a grouped heading in fenced code is read as the parser reads it, so a rename reaches it", () => {
+  const v = vocabularyOf(schemasOf(example(), EXAMPLE)).get("experience")!;
+  const lines = ["# A", "", "## Achievements", "", "```", "### Leadership", "```"];
+  assert.deepEqual(referencesIn(lines, v).map((r) => r.name), ["Leadership"]);
+});

@@ -177,3 +177,10 @@ test("a grouped heading offers what the section's schema names, less what the se
   // A section its schema does not declare grouped offers nothing.
   assert.deepEqual(candidatesFor({ kind: "grouped", section: "Summary", typed: "", start: 4 }, experience, names, lines), []);
 });
+
+test("a grouped heading typed in full is complete, and nothing replaces it on Enter", () => {
+  const experience = vocabulary.get("experience")!;
+  const kinds = names.get("achievement-kind")!;
+  const lines = ["# A", "", "## Achievements", "", `### ${kinds[0]}`];
+  assert.deepEqual(candidatesFor({ kind: "grouped", section: "Achievements", typed: kinds[0], start: 4 }, experience, names, lines), []);
+});
