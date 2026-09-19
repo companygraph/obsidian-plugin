@@ -67,28 +67,34 @@ export interface RunInfo { cost: number | null; turns: number | null; denied: st
 export type ReadAnswer = { ok: true; answer: Answer; info: RunInfo } | { ok: false; why: string; head: string };
 
 const isString = (v: unknown): v is string => typeof v === "string";
+// A non-null, non-array object: what JSON calls an object. `null` parses as valid JSON but is
+// not one, and reading a field off it would throw, so every field access below goes through this.
+const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 const head = (text: string) => text.split("\n").slice(0, 5).join("\n").slice(0, 400);
 
 // The answer Claude Code prints with `--output-format json`, read against the shape asked for.
 // `lineCount` says how many lines a path's file has, or null where it is no entity of the vault.
+// Never throws: anything not in the shape, at any depth, is refused rather than read.
 export function readAnswer(stdout: string, lineCount: (path: string) => number | null): ReadAnswer {
-  let envelope: Record<string, unknown>;
+  let parsed: unknown;
   try {
-    envelope = JSON.parse(stdout);
+    parsed = JSON.parse(stdout);
   } catch {
     return { ok: false, why: "the agent's answer is not JSON", head: head(stdout) };
   }
+  if (!isObj(parsed)) return { ok: false, why: "the agent's answer is not in the shape asked for", head: head(stdout) };
+  const envelope = parsed;
   if (envelope.is_error === true)
     return { ok: false, why: `the agent reported an error: ${String(envelope.subtype ?? "")} ${String(envelope.result ?? "")}`.trim(), head: head(stdout) };
-  const out = envelope.structured_output as Record<string, unknown> | null | undefined;
-  const judgments = out?.judgments;
-  const gaps = out?.gaps;
-  const notJudged = out?.notJudged;
+  const out = envelope.structured_output;
+  const judgments = isObj(out) ? out.judgments : undefined;
+  const gaps = isObj(out) ? out.gaps : undefined;
+  const notJudged = isObj(out) ? out.notJudged : undefined;
   if (!Array.isArray(judgments) || !Array.isArray(gaps) || !Array.isArray(notJudged) || !notJudged.every(isString))
     return { ok: false, why: "the agent's answer is not in the shape asked for", head: head(stdout) };
   const read: Judgment[] = [];
-  for (const j of judgments as Record<string, unknown>[]) {
-    if (!isString(j.path) || typeof j.line !== "number" || !isString(j.type) || !isString(j.rule) || !isString(j.judgment))
+  for (const j of judgments) {
+    if (!isObj(j) || !isString(j.path) || typeof j.line !== "number" || !isString(j.type) || !isString(j.rule) || !isString(j.judgment))
       return { ok: false, why: "a judgment in the agent's answer is not in the shape asked for", head: head(stdout) };
     const count = lineCount(j.path);
     const line = Math.floor(j.line) - 1;
@@ -96,19 +102,19 @@ export function readAnswer(stdout: string, lineCount: (path: string) => number |
     read.push({ path: j.path, line: placed === "line" ? line : 0, type: j.type, rule: j.rule, judgment: j.judgment, placed });
   }
   const readGaps: Gap[] = [];
-  for (const g of gaps as Record<string, unknown>[]) {
-    if (!isString(g.profile) || !isString(g.role) || !isString(g.skill))
+  for (const g of gaps) {
+    if (!isObj(g) || !isString(g.profile) || !isString(g.role) || !isString(g.skill))
       return { ok: false, why: "a gap in the agent's answer is not in the shape asked for", head: head(stdout) };
     readGaps.push({ profile: g.profile, role: g.role, skill: g.skill });
   }
-  const denials = Array.isArray(envelope.permission_denials) ? (envelope.permission_denials as Record<string, unknown>[]) : [];
+  const denials = Array.isArray(envelope.permission_denials) ? envelope.permission_denials : [];
   return {
     ok: true,
     answer: { judgments: read, gaps: readGaps, notJudged },
     info: {
       cost: typeof envelope.total_cost_usd === "number" ? envelope.total_cost_usd : null,
       turns: typeof envelope.num_turns === "number" ? envelope.num_turns : null,
-      denied: denials.map((d) => String(d.tool_name ?? "a tool")),
+      denied: denials.map((d) => String(isObj(d) ? (d.tool_name ?? "a tool") : "a tool")),
     },
   };
 }

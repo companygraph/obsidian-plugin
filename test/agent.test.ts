@@ -70,6 +70,15 @@ test("an answer that is not the shape, not JSON, or an error is not read, and sa
   assert.ok(!error.ok && /error_max_turns/.test(error.why));
 });
 
+test("a top-level answer that is not an object, or a judgment or gap that is not one, is refused and never throws", () => {
+  const notAnObject = readAnswer("null", lines({}));
+  assert.ok(!notAnObject.ok && /shape/.test(notAnObject.why));
+  const nullJudgment = readAnswer(envelope({ judgments: [null], gaps: [], notJudged: [] }), lines({}));
+  assert.ok(!nullJudgment.ok && /shape/.test(nullJudgment.why));
+  const nullGap = readAnswer(envelope({ judgments: [], gaps: [null], notJudged: [] }), lines({}));
+  assert.ok(!nullGap.ok && /shape/.test(nullGap.why));
+});
+
 test("a denied tool is said", () => {
   const read = readAnswer(
     envelope({ judgments: [], gaps: [], notJudged: [] }, { permission_denials: [{ tool_name: "Bash" }, { tool_name: "Write" }] }),

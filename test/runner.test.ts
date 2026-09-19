@@ -31,7 +31,26 @@ test("a program that answers gives its output and how long it took", async () =>
 
 test("a program that exits non-zero fails with what it said", async () => {
   const outcome = await run(spawn, "claude", ["fail"], process.cwd(), process.env, 5000, never);
-  assert.deepEqual(outcome, { kind: "failed", why: "the agent exited with 3: not logged in" });
+  assert.deepEqual(outcome, { kind: "failed", why: "the agent exited with 3: not logged in", stdout: "" });
+});
+
+test("a program that exits non-zero with nothing on stderr fails with no colon", async () => {
+  const outcome = await run(spawn, "claude", ["fail-quiet"], process.cwd(), process.env, 5000, never);
+  assert.deepEqual(outcome, { kind: "failed", why: "the agent exited with 2", stdout: "" });
+});
+
+test("a multi-byte character split across two chunks of stdout decodes whole", async () => {
+  const outcome = await run(spawn, "claude", ["split"], process.cwd(), process.env, 5000, never);
+  assert.equal(outcome.kind, "done");
+  const parsed = outcome.kind === "done" ? JSON.parse(outcome.stdout) : null;
+  assert.ok(parsed.structured_output.judgments[0].judgment.includes("—"));
+});
+
+test("a signal already aborted before the run starts ends it at once, without starting the program", async () => {
+  const controller = new AbortController();
+  controller.abort();
+  const outcome = await run(spawn, "claude", ["hang"], process.cwd(), process.env, 5000, controller.signal);
+  assert.deepEqual(outcome, { kind: "cancelled" });
 });
 
 test("a program that runs past its time is ended", async () => {

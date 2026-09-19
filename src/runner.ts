@@ -36,9 +36,16 @@ export interface Child {
 export type Spawn = (command: string, args: string[], options: { cwd: string; env: Record<string, string | undefined> }) => Child;
 export type Outcome =
   | { kind: "done"; stdout: string; seconds: number }
-  | { kind: "failed"; why: string }
+  | { kind: "failed"; why: string; stdout: string }
   | { kind: "timeout" }
   | { kind: "cancelled" };
+
+// A chunk of stdout or stderr is a Buffer in Node, which is a Uint8Array; decoding it with a
+// stateful decoder per stream, and flushing that decoder once the stream ends, keeps a multi-byte
+// UTF-8 character whole even when it falls across two chunks. Anything else is read as a string
+// already, as a test's own stand-in may hand one straight to the callback.
+const chunkText = (chunk: unknown, decoder: TextDecoder): string =>
+  chunk instanceof Uint8Array ? decoder.decode(chunk, { stream: true }) : String(chunk);
 
 export function run(
   spawn: Spawn,
@@ -50,11 +57,18 @@ export function run(
   signal: AbortSignal,
 ): Promise<Outcome> {
   return new Promise((resolve) => {
+    if (signal.aborted) {
+      resolve({ kind: "cancelled" });
+      return;
+    }
     const started = Date.now();
+    const outDecoder = new TextDecoder();
+    const errDecoder = new TextDecoder();
     let out = "";
     let err = "";
     let settled = false;
     let child: Child;
+    let killTimer: ReturnType<typeof setTimeout> | undefined;
     const finish = (outcome: Outcome) => {
       if (settled) return;
       settled = true;
@@ -62,27 +76,37 @@ export function run(
       signal.removeEventListener("abort", onAbort);
       resolve(outcome);
     };
-    const onAbort = () => {
+    // A SIGTERM not heeded within a grace period is followed by a SIGKILL, which is not caught;
+    // the close handler clears this once the child has actually gone, so nothing is left pending.
+    const escalate = () => {
       child?.kill("SIGTERM");
+      killTimer = setTimeout(() => child?.kill("SIGKILL"), 3000);
+    };
+    const onAbort = () => {
+      escalate();
       finish({ kind: "cancelled" });
     };
     const timer = setTimeout(() => {
-      child?.kill("SIGTERM");
+      escalate();
       finish({ kind: "timeout" });
     }, timeoutMs);
     try {
       child = spawn(program, args, { cwd, env });
     } catch (error) {
-      finish({ kind: "failed", why: `the agent could not be started: ${error instanceof Error ? error.message : String(error)}` });
+      finish({ kind: "failed", why: `the agent could not be started: ${error instanceof Error ? error.message : String(error)}`, stdout: "" });
       return;
     }
     signal.addEventListener("abort", onAbort);
-    child.stdout.on("data", (chunk) => (out += String(chunk)));
-    child.stderr.on("data", (chunk) => (err += String(chunk)));
-    child.on("error", (error) => finish({ kind: "failed", why: `the agent could not be started: ${error.message}` }));
+    child.stdout.on("data", (chunk) => (out += chunkText(chunk, outDecoder)));
+    child.stderr.on("data", (chunk) => (err += chunkText(chunk, errDecoder)));
+    child.on("error", (error) => finish({ kind: "failed", why: `the agent could not be started: ${error.message}`, stdout: out }));
     child.on("close", (code) => {
-      if (code === 0) finish({ kind: "done", stdout: out, seconds: Math.round((Date.now() - started) / 1000) });
-      else finish({ kind: "failed", why: `the agent exited with ${code}: ${err.trim().split("\n")[0] ?? ""}`.trim() });
+      clearTimeout(killTimer);
+      out += outDecoder.decode();
+      err += errDecoder.decode();
+      if (code === null) finish({ kind: "failed", why: "the agent was ended by a signal", stdout: out });
+      else if (code === 0) finish({ kind: "done", stdout: out, seconds: Math.round((Date.now() - started) / 1000) });
+      else finish({ kind: "failed", why: `the agent exited with ${code}${err.trim() ? `: ${err.trim().split("\n")[0]}` : ""}`, stdout: out });
     });
   });
 }
