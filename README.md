@@ -95,7 +95,7 @@ each entity against its schema's writing rules, the gaps a role's required skill
 lines only reading can judge. What comes back is listed in the pane under its own heading below
 the failures, marked on its line in amber, and counted beside them in the status bar, never among
 them. A judgment of a note that has changed since is greyed and says it judged an earlier
-version, and loses its mark. A run is started by a command and by nothing else, can be cancelled
+version, and loses its mark. A run is started by a command and by nothing else, can be canceled
 while it goes, gives up after a few minutes, and says what it cost when it ends, because it costs
 what the agent costs. The path to Claude Code and the model are in the plugin's settings; empty,
 the places it installs to are tried and its own default model is used. The pass starts a program,

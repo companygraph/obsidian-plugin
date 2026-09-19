@@ -19,12 +19,12 @@ ends. Nothing is written to the instance: the judgments live in the plugin's own
 5. Are the failures' count and the judged count clearly apart, and is the pane's closing line about
    the writing rules still there?
 
-## Stale, cancelled, refused
+## Stale, canceled, refused
 
 6. Type a word into the judged note. Do its judgments grey with "judged an earlier version", do
    the amber marks go, and does the status bar say `(N stale)`?
 7. Run the command again and press Cancel within a second or two. Does the pane say the judgment
-   was cancelled and nothing stored, and do the earlier judgments stay?
+   was canceled and nothing stored, and do the earlier judgments stay?
 8. Set the Claude Code path in the settings to `/nope/claude` and run it again. Does a notice say
    Claude Code was not found? Put the setting back to empty.
 9. Run it on a note that is no entity, such as a README. Is the command missing from the palette?

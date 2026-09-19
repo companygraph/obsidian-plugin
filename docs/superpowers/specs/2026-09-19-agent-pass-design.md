@@ -94,7 +94,7 @@ past its file's end is kept on the file's first line and said to be placed loose
 is no entity of the vault is kept under "The instance", with its path in its words, and opens
 nothing; an answer that does not match the shape is shown
 as "the agent's answer could not be read", with the first lines of what came, and nothing is
-stored. A run that exits non-zero, reports `is_error`, times out or is cancelled stores nothing and
+stored. A run that exits non-zero, reports `is_error`, times out or is canceled stores nothing and
 says which, and the judgments from before stay. The pane closes a run with its duration and cost.
 
 ## Where judgments go

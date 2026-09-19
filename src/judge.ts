@@ -63,7 +63,7 @@ export class Judging {
       const reported = outcome.kind === "failed" && outcome.stdout ? readAnswer(outcome.stdout, () => null) : null;
       this.failure =
         outcome.kind === "timeout" ? "The judgment ran past its time and was ended; nothing was stored."
-          : outcome.kind === "cancelled" ? "The judgment was cancelled; nothing was stored."
+          : outcome.kind === "cancelled" ? "The judgment was canceled; nothing was stored."
           : reported && !reported.ok && reported.why.includes("reported an error") ? `${reported.why}. Nothing was stored.`
           : `The judgment failed: ${outcome.why}. Nothing was stored.`;
       plugin.show(plugin.state);
