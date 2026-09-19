@@ -26,6 +26,10 @@ import { typeOfPath } from "companygraph-meta-model/checks";
 import { absentFields } from "./candidates.ts";
 import { AddField } from "./addfield.ts";
 import { headingLock, headingMarks, removeSection } from "./headingmarks.ts";
+import { AddSection } from "./addsection.ts";
+import { addableSections } from "./headings.ts";
+import { PickType } from "./newentity.ts";
+import { targetsFor } from "./scaffold.ts";
 import { PIN, RULES, excludesOf, formOf, formed, inForm, spanOf } from "./form.ts";
 
 // The release of companygraph-meta-model this build bundles; esbuild.config.mjs defines it.
@@ -177,6 +181,37 @@ export default class CompanyGraphPlugin extends Plugin {
         const cm = (editor as unknown as { cm?: EditorView }).cm;
         if (!vocabulary || !cm) return false;
         if (!checking) removeSection(cm, vocabulary, editor.getCursor().line);
+        return true;
+      },
+    });
+    this.addCommand({
+      id: "add-section",
+      name: "Add a section",
+      // The declared sections this page lacks; offered only in a note that is an entity.
+      editorCheckCallback: (checking, editor) => {
+        const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+        const entity = view ? this.entityFields(view) : null;
+        const vocabulary = entity ? this.vocabulary.get(entity.type) : undefined;
+        const cm = (editor as unknown as { cm?: EditorView }).cm;
+        if (!vocabulary || !cm) return false;
+        if (checking) return true;
+        if (addableSections(editor.getValue().split("\n"), vocabulary).length === 0)
+          new Notice(`This ${entity!.type} has every section its schema declares.`);
+        else new AddSection(this.app, cm, vocabulary).open();
+        return true;
+      },
+    });
+    this.addCommand({
+      id: "new-entity",
+      name: "New entity",
+      // The types a new entity may be made of from here: an owned type only from inside its owner.
+      checkCallback: (checking) => {
+        const layout = this.layout;
+        if (!layout || this.vocabulary.size === 0) return false;
+        if (checking) return true;
+        const active = this.app.workspace.getActiveFile()?.path ?? null;
+        const targets = targetsFor(layout.model, active, (path) => this.app.vault.getAbstractFileByPath(path) !== null);
+        new PickType(this.app, targets, this.vocabulary).open();
         return true;
       },
     });
