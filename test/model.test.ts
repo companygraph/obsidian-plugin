@@ -42,12 +42,12 @@ test("an empty note in a type folder is never offered as a name", () => {
   assert.deepEqual(namesByType(m.graph!).get("skill"), ["Domain-Driven Design", "Java Programming", "Product Discovery"]);
 });
 
-test("the parser's own throw is the failure when the checks found nothing to say", () => {
-  // Two processes whose phases carry the same names. Each process lists its own phases, in its
-  // own order, so every check passes; R2 scopes a name to its type across the instance, and an
-  // owned entity sits in its owner's folder where the checks' duplicate-name reading does not
-  // reach, so only the parser sees it. (Two experiences sharing a name served here until core
-  // 0.30.0, whose Evidence table made the checks notice that case by another road.)
+test("two processes whose phases share their names are valid, as core 0.31.0 has it", () => {
+  // This case served, until core 0.31.0, as the one where the parser threw and the checks found
+  // nothing: a phase's name was unique across the instance. Since that release a name of an owned
+  // type is unique within its owner, so it parses and passes, and the parser and the checks agree
+  // by design; no real input is known any more on which the parser alone speaks. buildModel still
+  // shows the parser's own message when the checks found nothing, as a defence and not a case.
   const files = example();
   const from = "example/model/processes/delivery/";
   for (const [path, text] of [...files])
@@ -57,6 +57,6 @@ test("the parser's own throw is the failure when the checks found nothing to say
         path.endsWith("/delivery.md") ? text.replace("# Delivery", "# Review") : text,
       );
   const m = buildModel(files, EXAMPLE);
-  assert.equal(m.graph, null);
-  assert.deepEqual(m.failures, ['R2: two phase entities share the name "Build"']);
+  assert.deepEqual(m.failures, []);
+  assert.ok(m.graph);
 });
