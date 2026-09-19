@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { typeOfPath } from "companygraph-meta-model/checks";
 import { schemasOf } from "../src/model.ts";
 import { vocabularyOf } from "../src/vocabulary.ts";
-import { headingsOf, missingOf, nearMissOf, removalAt, sectionAt } from "../src/headings.ts";
+import { headingsOf, insertionAt, isEntityText, missingOf, nearMissOf, removalAt, removalRange, sectionAt } from "../src/headings.ts";
 import { example, EXAMPLE, reference, REFERENCE } from "./helpers.ts";
 
 const vocabulary = vocabularyOf(schemasOf(example(), EXAMPLE));
@@ -124,4 +124,83 @@ test("Remove section removes a declared optional section whole, and refuses the 
   assert.deepEqual(removalAt(lines(PAGE), 11, role), { refused: "required", heading: "What it takes" });
   assert.deepEqual(removalAt(lines(PAGE), 14, role), { refused: "own", heading: "Notes" });
   assert.deepEqual(removalAt(lines(PAGE), 5, role), { refused: "none" });
+});
+
+test("a short heading is a near miss at one edit, and only a longer one at two", () => {
+  const phase = vocabulary.get("phase")!;
+  // The phase schema declares `## Gate`: four letters, so one edit and no more.
+  assert.equal(nearMissOf("Gat", phase, []), "Gate");
+  assert.equal(nearMissOf("Note", phase, []), null);
+  assert.equal(nearMissOf("Date", phase, []), "Gate");
+  assert.equal(nearMissOf("Rates", phase, []), null);
+  // Past six letters two edits still count.
+  assert.equal(nearMissOf("Refernces", role, []), "References");
+});
+
+test("folding keeps letters outside ASCII", () => {
+  const umlaut = { fields: [], sections: [{ heading: "Über uns", required: false, columns: null }] };
+  // Folded to "überuns" and not to "berun": the umlaut is a letter like any other.
+  assert.equal(nearMissOf("über-uns!", umlaut, []), "Über uns");
+  assert.equal(nearMissOf("Ü", umlaut, []), null);
+});
+
+test("a required section a near miss already points at is not drawn missing a second time", () => {
+  const text = "# R\n\n## What it take\n\nA.\n\n## What it produces\n\n## What it never does\n";
+  assert.deepEqual(missingOf(lines(text), role), []);
+  assert.equal(headingsOf(lines(text), role)[0].nearMiss, "What it takes");
+});
+
+test("frontmatter closes on a line that is exactly three dashes, as the parser reads it", () => {
+  const text = "---\nsource: Local\n--- \n## What it takes\n---\n# R\n";
+  // `--- ` with a trailing space does not close it, so the heading is still inside.
+  assert.deepEqual(headingsOf(lines(text), role), []);
+});
+
+test("an entity's text has an H1; a table cell's does not", () => {
+  assert.equal(isEntityText("---\nsource: Local\n---\n\n# Reviewer\n"), true);
+  assert.equal(isEntityText("Java Programming"), false);
+});
+
+test("a heading inserted before another leaves a blank line for text between them", () => {
+  const text = "# R\n\n## What it takes\n\nA.\n\n## What it never does\n";
+  const at = text.indexOf("## What it never");
+  const { insert, cursor } = insertionAt(text, at, "What it produces");
+  assert.equal(insert, "## What it produces\n\n\n\n");
+  const after = text.slice(0, at) + insert + text.slice(at);
+  assert.equal(after.slice(at + cursor - 1, at + cursor + 1), "\n\n");
+  assert.ok(after.includes("A.\n\n## What it produces\n\n\n\n## What it never does"));
+});
+
+test("a heading inserted at the end stands after a blank line, with or without a final newline", () => {
+  for (const text of ["# R\n\n- Merges.\n", "# R\n\n- Merges."]) {
+    const { insert, cursor } = insertionAt(text, text.length, "What it takes");
+    const after = text + insert;
+    assert.ok(after.endsWith("- Merges.\n\n## What it takes\n"), JSON.stringify(after));
+    assert.equal(text.length + cursor, after.length);
+  }
+});
+
+test("a heading inserted where the line above is blank adds no second blank line", () => {
+  const text = "# R\n\n";
+  const { insert } = insertionAt(text, text.length, "What it takes");
+  assert.equal(text + insert, "# R\n\n## What it takes\n");
+});
+
+test("removing a middle section takes it to the next heading", () => {
+  const r = removalRange(PAGE, 19, role);
+  assert.ok(!("refused" in r));
+  const after = PAGE.slice(0, r.from) + r.insert + PAGE.slice(r.to);
+  assert.ok(after.includes("Mine.\n\n## What it never does"));
+  assert.ok(!after.includes("References"));
+});
+
+test("removing the last section leaves the page ending in one newline", () => {
+  const text = "# R\n\n## What it takes\n\nA.\n\n## References\n\n| What | Link |\n";
+  const r = removalRange(text, 8, role);
+  assert.ok(!("refused" in r));
+  assert.equal(text.slice(0, r.from) + r.insert + text.slice(r.to), "# R\n\n## What it takes\n\nA.\n");
+});
+
+test("removal is refused where Remove section refuses", () => {
+  assert.deepEqual(removalRange(PAGE, 11, role), { refused: "required", heading: "What it takes" });
 });

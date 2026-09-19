@@ -6,21 +6,27 @@
 // field, so this is one, rebuilt when the text changes, when a rebuild sends `refreshNames`, and
 // when the editor turns out to hold another file. The tooltip is Obsidian's, shown for any
 // element with an aria-label.
-import { Notice, editorInfoField, setIcon } from "obsidian";
+import { Notice, editorEditorField, editorInfoField, setIcon } from "obsidian";
 import { RangeSetBuilder, StateField } from "@codemirror/state";
 import type { EditorState, Transaction } from "@codemirror/state";
 import { Decoration, EditorView, WidgetType } from "@codemirror/view";
 import type { DecorationSet } from "@codemirror/view";
 import { typeOfPath } from "companygraph-meta-model/checks";
 import type CompanyGraphPlugin from "./main.ts";
-import { headingsOf, missingOf, removalAt } from "./headings.ts";
+import { headingsOf, insertionAt, isEntityText, missingOf, removalRange } from "./headings.ts";
 import type { HeadingKind } from "./headings.ts";
 import type { TypeVocabulary } from "./vocabulary.ts";
 import { refreshNames } from "./namelinks.ts";
 
-// The vocabulary of the entity in the editor, or null where the file is none.
+// The vocabulary of the entity in the editor, or null where the file is none. Obsidian gives a
+// table cell's own small editor the note's extensions and the note's file, read from the
+// installed application; such an editor is not the note's own, and its text is a cell.
 function vocabularyIn(plugin: CompanyGraphPlugin, state: EditorState): { path: string; vocabulary: TypeVocabulary } | null {
-  const path = state.field(editorInfoField, false)?.file?.path;
+  const info = state.field(editorInfoField, false);
+  const own = (info?.editor as unknown as { cm?: EditorView } | undefined)?.cm;
+  const view = state.field(editorEditorField, false);
+  if (own && view && own !== view) return null;
+  const path = info?.file?.path;
   const layout = plugin.layout;
   if (!path || !layout || !path.startsWith(`${layout.model}/`)) return null;
   const type = typeOfPath(path, layout.model);
@@ -47,17 +53,14 @@ const lineOf = (view: EditorView, dom: HTMLElement) => view.state.doc.lineAt(vie
 // Removes the section at a line in one transaction, so one undo brings it back. The line is read
 // from the page when the command runs, never from when the mark was drawn.
 export function removeSection(view: EditorView, vocabulary: TypeVocabulary, line: number) {
-  const doc = view.state.doc;
-  const removal = removalAt(doc.toString().split("\n"), line, vocabulary);
+  const removal = removalRange(view.state.doc.toString(), line, vocabulary);
   if ("refused" in removal) {
     if (removal.refused === "required") new Notice(`"${removal.heading}" is required by the schema and cannot be removed.`);
     else if (removal.refused === "own") new Notice(`"${removal.heading}" is not in the schema; edit it as any text.`);
     else new Notice("The cursor is in no section.");
     return;
   }
-  const from = doc.line(removal.from + 1).from;
-  const to = removal.to < doc.lines ? doc.line(removal.to + 1).from : doc.length;
-  view.dispatch({ changes: { from, to }, userEvent: "delete.section" });
+  view.dispatch({ changes: removal, userEvent: "delete.section" });
 }
 
 class HeadingMark extends WidgetType {
@@ -136,23 +139,9 @@ class MissingLine extends WidgetType {
     setIcon(el.createSpan({ cls: "companygraph-missing-icon" }), "plus");
     el.createSpan({ cls: "companygraph-missing-text", text: `## ${this.heading}` });
     pressable(el, () => {
-      const doc = view.state.doc;
       const at = view.posAtDOM(el);
-      const line = doc.lineAt(at);
-      // The heading stands on a line of its own with a blank line above it, and before a heading
-      // that follows, a blank line below it too. Where the page ends in the middle of a line, it
-      // is the end of that line.
-      const title = `## ${this.heading}\n`;
-      const insert =
-        line.from !== at
-          ? `\n\n${title}`
-          : (line.number > 1 && doc.line(line.number - 1).text.trim() !== "" ? "\n" : "") + title + (at < doc.length ? "\n" : "");
-      const heading = at + insert.indexOf("## ");
-      view.dispatch({
-        changes: { from: at, insert },
-        selection: { anchor: heading + title.length },
-        userEvent: "input.section",
-      });
+      const { insert, cursor } = insertionAt(view.state.doc.toString(), at, this.heading);
+      view.dispatch({ changes: { from: at, insert }, selection: { anchor: at + cursor }, userEvent: "input.section" });
       view.focus();
     });
     return el;
@@ -171,7 +160,9 @@ function draw(plugin: CompanyGraphPlugin, state: EditorState): Drawn {
   const found = vocabularyIn(plugin, state);
   if (!found) return { path: fileIn(state), marks: Decoration.none };
   const doc = state.doc;
-  const lines = doc.toString().split("\n");
+  const text = doc.toString();
+  if (!isEntityText(text)) return { path: fileIn(state), marks: Decoration.none };
+  const lines = text.split("\n");
   const placed: { at: number; decoration: Decoration }[] = [];
   for (const h of headingsOf(lines, found.vocabulary))
     placed.push({
