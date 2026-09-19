@@ -67,6 +67,17 @@ export function candidatesFor(
   return candidates.some((c) => c.insert.trim() === context.typed.trim()) ? [] : candidates;
 }
 
+// The `###` headings a `##` section holds, trimmed, as the parser reads them.
+function headingsUnder(lines: string[], section: string): string[] {
+  const out: string[] = [];
+  let inside = false;
+  for (const line of lines) {
+    if (line.startsWith("## ")) inside = line.slice(3).trim() === section;
+    else if (inside && line.startsWith("### ")) out.push(line.slice(4).trim());
+  }
+  return out;
+}
+
 function offers(
   context: Context,
   vocabulary: TypeVocabulary,
@@ -95,6 +106,17 @@ function offers(
       ?.columns?.find((c) => c.name === context.column);
     if (!column) return [];
     return matching(offered(column.offer, names), context.typed).map((v) => ({ label: v, insert: v }));
+  }
+  if (context.kind === "grouped") {
+    const section = vocabulary.sections.find((s) => s.heading === context.section);
+    if (!section?.grouped) return [];
+    // A name heads a grouped section once; those the section already carries are not offered.
+    // A name typed in full is complete, though the line it stands on now counts it as carried.
+    const all = offered(section.grouped, names);
+    if (all.includes(context.typed.trim())) return [];
+    const carried = new Set(headingsUnder(lines, context.section));
+    const open = all.filter((n) => !carried.has(n));
+    return matching(open, context.typed).map((v) => ({ label: v, insert: v }));
   }
   // What the file already holds is read by the package that reads a section everywhere else,
   // so a heading it counts as present is never offered again.
