@@ -27,6 +27,7 @@ import { absentFields } from "./candidates.ts";
 import { AddField } from "./addfield.ts";
 import { headingLock, headingMarks, removeSection } from "./headingmarks.ts";
 import { AddSection } from "./addsection.ts";
+import { addableSections } from "./headings.ts";
 import { PickType } from "./newentity.ts";
 import { targetsFor } from "./scaffold.ts";
 
@@ -190,7 +191,10 @@ export default class CompanyGraphPlugin extends Plugin {
         const vocabulary = entity ? this.vocabulary.get(entity.type) : undefined;
         const cm = (editor as unknown as { cm?: EditorView }).cm;
         if (!vocabulary || !cm) return false;
-        if (!checking) new AddSection(this.app, cm, vocabulary).open();
+        if (checking) return true;
+        if (addableSections(editor.getValue().split("\n"), vocabulary).length === 0)
+          new Notice(`This ${entity!.type} has every section its schema declares.`);
+        else new AddSection(this.app, cm, vocabulary).open();
         return true;
       },
     });

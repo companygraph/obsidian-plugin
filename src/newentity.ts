@@ -30,6 +30,8 @@ class NameEntity extends Modal {
   vocabulary: TypeVocabulary;
   name = "";
   asked = "";
+  // Set while a file is being written, so a second Enter or a click does not write it twice.
+  busy = false;
 
   constructor(app: App, target: Target, vocabulary: TypeVocabulary) {
     super(app);
@@ -38,29 +40,31 @@ class NameEntity extends Modal {
   }
 
   onOpen() {
-    this.setTitle(`New ${this.target.type}`);
+    // titleEl rather than setTitle, which arrived after the release this plugin supports.
+    this.titleEl.setText(`New ${this.target.type}`);
     const submit = () => void this.create();
     new Setting(this.contentEl).setName("Name").setDesc("The H1, the entity's canonical name").addText((text) => {
       text.onChange((v) => (this.name = v));
-      text.inputEl.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+      text.inputEl.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.isComposing && !e.repeat) submit(); });
       window.setTimeout(() => text.inputEl.focus(), 0);
     });
     if (this.target.asks) {
       const asks = this.target.asks;
-      new Setting(this.contentEl).setName(asks).setDesc("Its year leads the filename").addText((text) => {
+      new Setting(this.contentEl).setName(asks).setDesc("YYYY, YYYY-MM or YYYY-MM-DD; its year leads the filename").addText((text) => {
         text.setPlaceholder("YYYY-MM");
         text.onChange((v) => (this.asked = v));
-        text.inputEl.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+        text.inputEl.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.isComposing && !e.repeat) submit(); });
       });
     }
     new Setting(this.contentEl).addButton((b) => b.setButtonText("Create").setCta().onClick(submit));
   }
 
   async create() {
+    if (this.busy) return;
     const name = this.name.trim();
     const path = this.target.pathFor(name, this.asked.trim());
     if (!name || !path) {
-      new Notice(this.target.asks ? `A name and a ${this.target.asks} that opens with its year are needed.` : "A name is needed.");
+      new Notice(this.target.asks ? `A name, and a ${this.target.asks} written YYYY, YYYY-MM or YYYY-MM-DD, are needed.` : "A name is needed.");
       return;
     }
     const vault = this.app.vault;
@@ -72,14 +76,23 @@ class NameEntity extends Modal {
     if (this.target.asks) values[this.target.asks] = this.asked.trim();
     const { text, tagline } = scaffoldOf(this.vocabulary, name, values);
     const dir = path.slice(0, path.lastIndexOf("/"));
-    if (!vault.getAbstractFileByPath(dir)) await vault.createFolder(dir);
-    const file: TFile = await vault.create(path, text);
+    this.busy = true;
+    let file: TFile;
+    try {
+      if (!vault.getAbstractFileByPath(dir)) await vault.createFolder(dir);
+      file = await vault.create(path, text);
+    } catch (error) {
+      this.busy = false;
+      new Notice(`${path} could not be written: ${error instanceof Error ? error.message : String(error)}`);
+      return;
+    }
     this.close();
     const leaf = this.app.workspace.getLeaf(false);
-    await leaf.openFile(file);
+    await leaf.openFile(file, { active: true });
     const view = leaf.view instanceof MarkdownView ? leaf.view : null;
     view?.editor.setCursor({ line: tagline, ch: 2 });
     view?.editor.focus();
+    if (this.target.owes) new Notice(this.target.owes);
   }
 
   onClose() { this.contentEl.empty(); }

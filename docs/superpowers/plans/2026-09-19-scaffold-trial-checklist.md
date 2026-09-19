@@ -24,10 +24,17 @@ a question. Undo your edits afterwards with `git checkout -- model/` and delete 
    `source:`, `# Critic`, an empty `> ` line with the cursor on it, and the three required
    sections. The pane should list the empty `source` and nothing about a missing section.
 7. From `model/processes/delivery/delivery.md`, run it again. `phase` should now be offered, going
-   into `model/processes/delivery/phases/`.
+   into `model/processes/delivery/phases/`. After creating one, a notice should say to add it to
+   the process's list in its place, and the pane should say the process does not list it yet.
 8. From `model/profiles/robert-blust/robert-blust.md`, choose `experience`. The dialog should ask
    for `start` too. With the name `Test Period` and start `2027-01`, the file should be
    `model/profiles/robert-blust/experiences/2027-test-period.md`.
 9. Try a name that exists already, such as `Writer` as a role. A notice should say the file exists,
    and nothing should be written.
 10. `vision` should not be offered at all, since `model/vision.md` exists.
+11. Create a `process` named `Hiring`. A notice should say it needs its first phase, and the pane
+    should say `phases/` is missing: git keeps no empty folder, so that stays until a phase exists.
+12. For an experience, try the start `2027/01`. A notice should ask for YYYY, YYYY-MM or
+    YYYY-MM-DD, and nothing should be written.
+13. In a page that has every declared section, run Add a section. A notice should say so instead
+    of an empty list.

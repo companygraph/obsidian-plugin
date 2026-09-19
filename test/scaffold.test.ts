@@ -4,7 +4,7 @@ import { checkInstance } from "companygraph-meta-model/checks";
 import { schemasOf } from "../src/model.ts";
 import { vocabularyOf } from "../src/vocabulary.ts";
 import { scaffoldOf, targetsFor } from "../src/scaffold.ts";
-import { example, EXAMPLE } from "./helpers.ts";
+import { example, EXAMPLE, reference, REFERENCE } from "./helpers.ts";
 
 const vocabulary = vocabularyOf(schemasOf(example(), EXAMPLE));
 const MODEL = "model";
@@ -39,6 +39,9 @@ test("an experience asks for its start, whose year leads its filename", () => {
   assert.equal(experience.asks, "start");
   assert.equal(experience.pathFor("UBS Trainee", "1999-08"), "model/profiles/robert-blust/experiences/1999-ubs-trainee.md");
   assert.equal(experience.pathFor("UBS Trainee", "August"), null);
+  // A start the date check would refuse gives no file, though it opens with a year.
+  for (const bad of ["2031-4", "2031/04", "2031abc", "31-04"]) assert.equal(experience.pathFor("UBS Trainee", bad), null, bad);
+  for (const good of ["2031", "2031-04", "2031-04-30"]) assert.ok(experience.pathFor("UBS Trainee", good), good);
 });
 
 test("a singular type is offered only while its file does not exist", () => {
@@ -77,4 +80,33 @@ test("a scaffold written into the example passes the checks as a page", () => {
   // And without the scaffold's sections, the same page fails for each.
   files.set(path, "---\nsource: Local\n---\n\n# Critic\n\n> \n");
   assert.equal(checkInstance(files, EXAMPLE).failures.filter((f) => f.startsWith(path) && f.includes("`## ")).length, 3);
+});
+
+test("what a new entity still owes is said: an owner's first owned entity, an owned one's row", () => {
+  const targets = byType(targetsFor(MODEL, "model/processes/delivery/phases/plan.md", none));
+  assert.match(targets.get("process")!.owes!, /first phase/);
+  assert.match(targets.get("phase")!.owes!, /process lists/);
+  assert.equal(targets.get("skill")!.owes, null);
+});
+
+test("every type scaffolded into the reference instance owes only what its notice says", () => {
+  // From inside an owner of each kind, so every type is offered once. What the checks may then
+  // say of a new entity is what the scaffold leaves to its author: a required list with no item
+  // yet, an owner's folder with nothing owned in it, an owner's table that does not list it.
+  const files = reference();
+  const refVocabulary = vocabularyOf(schemasOf(files, REFERENCE));
+  const expected = [/carries no items/, /is missing (phases|experiences)\//, /does not list/];
+  const seen = new Set<string>();
+  for (const active of ["model/processes/delivery/delivery.md", "model/profiles/robert-blust/robert-blust.md"]) {
+    for (const target of targetsFor(REFERENCE.model, active, (p) => files.has(p))) {
+      if (seen.has(target.type) || !refVocabulary.has(target.type)) continue;
+      seen.add(target.type);
+      const trial = new Map(files);
+      const path = target.pathFor("Zeta Probe Thing", "2031-04")!;
+      trial.set(path, scaffoldOf(refVocabulary.get(target.type)!, "Zeta Probe Thing", target.asks ? { [target.asks]: "2031-04" } : {}).text);
+      const unexpected = checkInstance(trial, REFERENCE).failures.filter((f) => !expected.some((e) => e.test(f)));
+      assert.deepEqual(unexpected, [], target.type);
+    }
+  }
+  assert.ok(seen.has("phase") && seen.has("experience") && seen.has("process"));
 });
