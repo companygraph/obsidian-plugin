@@ -3,27 +3,193 @@
   background-color: rgba(var(--color-red-rgb), 0.12);
 }
 
-/* An entry that opens its file reads as something to press. The instance's own failures and
-   what was not checked open nothing, so they do not. */
-.companygraph-pane li.companygraph-open {
-  cursor: pointer;
+/* The checks pane, laid out with the theme's own variables so it follows light, dark and any
+   theme. Obsidian switches text selection off for the whole application; a report is meant to be
+   copied. */
+.companygraph-pane {
+  user-select: text;
+  -webkit-user-select: text;
+  padding: var(--size-4-3);
 }
 
 .companygraph-notice {
   color: var(--text-warning);
 }
 
-/* Obsidian switches text selection off for the whole application; a report is meant to be copied. */
-.companygraph-pane {
-  user-select: text;
-  -webkit-user-select: text;
+/* What the checks came to, told apart by the icon as well as the colour. */
+.companygraph-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-3);
+  padding: var(--size-4-3);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  background-color: var(--background-secondary);
+}
+
+.companygraph-banner.is-pass {
+  border-color: rgba(var(--color-green-rgb), 0.45);
+  background-color: rgba(var(--color-green-rgb), 0.08);
+}
+
+.companygraph-banner.is-fail {
+  border-color: rgba(var(--color-red-rgb), 0.45);
+  background-color: rgba(var(--color-red-rgb), 0.08);
+}
+
+.companygraph-banner.is-refused {
+  border-color: rgba(var(--color-orange-rgb), 0.45);
+  background-color: rgba(var(--color-orange-rgb), 0.08);
+}
+
+.companygraph-banner-icon {
+  display: flex;
+  color: var(--text-muted);
+}
+
+.companygraph-banner.is-pass .companygraph-banner-icon { color: var(--color-green); }
+.companygraph-banner.is-fail .companygraph-banner-icon { color: var(--color-red); }
+.companygraph-banner.is-refused .companygraph-banner-icon { color: var(--color-orange); }
+
+.companygraph-banner-words {
+  flex: 1;
+  min-width: 0;
+}
+
+.companygraph-banner-title {
+  font-weight: var(--font-semibold);
+  color: var(--text-normal);
+}
+
+.companygraph-banner-sub {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-faint);
 }
 
 .companygraph-copy {
-  float: right;
-  font-size: var(--font-ui-smaller);
   user-select: none;
   -webkit-user-select: none;
+}
+
+.companygraph-pane-note {
+  margin-top: var(--size-4-3);
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+}
+
+.companygraph-pane-note.companygraph-notice {
+  color: var(--text-warning);
+}
+
+/* Failures by file: a header with the file's name, its folder and a count, then its entries. */
+.companygraph-file {
+  margin-top: var(--size-4-4);
+}
+
+.companygraph-file-head {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2);
+  padding-bottom: var(--size-4-1);
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.companygraph-file-icon {
+  display: flex;
+  color: var(--text-faint);
+}
+
+.companygraph-file-icon svg.svg-icon {
+  width: var(--icon-s);
+  height: var(--icon-s);
+}
+
+.companygraph-file-name {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  font-weight: var(--font-semibold);
+  color: var(--text-normal);
+  overflow-wrap: anywhere;
+}
+
+.companygraph-file-folder {
+  font-weight: var(--font-normal);
+  font-size: var(--font-ui-smaller);
+  color: var(--text-faint);
+}
+
+.companygraph-count {
+  min-width: 1.6em;
+  padding: 0 var(--size-4-1);
+  border-radius: var(--radius-l);
+  background-color: rgba(var(--color-red-rgb), 0.15);
+  color: var(--color-red);
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-semibold);
+  text-align: center;
+}
+
+.companygraph-file ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.companygraph-file li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--size-4-2);
+  padding: var(--size-4-2) var(--size-4-1);
+  border-radius: var(--radius-s);
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+}
+
+/* An entry that opens its file reads as something to press. The instance's own failures and
+   what was not checked open nothing, so they do not. */
+.companygraph-file li.companygraph-open {
+  cursor: pointer;
+}
+
+.companygraph-file li.companygraph-open:hover {
+  background-color: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.companygraph-line {
+  flex: none;
+  min-width: 2.5em;
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-smaller);
+  color: var(--text-faint);
+  text-align: end;
+}
+
+.companygraph-message {
+  overflow-wrap: anywhere;
+}
+
+/* What was not checked: on every report, folded so it does not stand in front of the failures. */
+.companygraph-not-checked {
+  margin-top: var(--size-4-4);
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+}
+
+.companygraph-not-checked summary {
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.companygraph-not-checked ul {
+  margin: var(--size-4-2) 0 0;
+  padding-inline-start: var(--size-4-4);
 }
 
 /* A failing row of a table in Live Preview. Obsidian's own rules colour a row with more weight

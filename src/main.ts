@@ -55,6 +55,8 @@ export default class CompanyGraphPlugin extends Plugin {
   state: State = CHECKING;
   layout: Layout | null = null;
   vocabulary = new Map<string, TypeVocabulary>();
+  // The release of the checks this build bundles, for the pane to say.
+  checker = __CHECKER_VERSION__;
   // The vendored schemas' text by file name, for the writing brief.
   schemas = new Map<string, string>();
   // The entities of the last rebuild that parsed; completion asks which of them a file may name.
