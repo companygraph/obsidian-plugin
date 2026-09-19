@@ -82,8 +82,9 @@ Ctrl+S, and when Obsidian quits: the same rules and the same markdownlint that
 it, and an edit that was undone leaves no diff at all. Not on the saves Obsidian makes by itself
 while the note is edited, because the table editor would pad the table again at the next key.
 A note still open in another tab is changed in its editor and saved as any edit is. The folders
-`conventions.json` excludes are left as they are, and `CompanyGraph: Write this note in the
-family's Markdown form` does it at once and says when there is nothing to do.
+`conventions.json` leaves out of the form, its `format-exclude` or else its `exclude`, are left
+as they are, and `CompanyGraph: Write this note in the family's Markdown form` does it at once
+and says when there is nothing to do.
 
 ## Installing it
 

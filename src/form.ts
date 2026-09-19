@@ -28,12 +28,14 @@ export function formOf(text: string): Configuration | null {
   }
 }
 
-// The folders conventions.json excludes, which conventions-format does not read and so this does
-// not write. An unreadable pin excludes nothing extra.
+// The folders conventions-format does not read and so this does not write: conventions.json's
+// "format-exclude", or its "exclude" where the member names no "format-exclude", as the script
+// reads them. An unreadable pin excludes nothing extra.
 export function excludesOf(text: string | null): string[] {
   if (text === null) return [];
   try {
-    const exclude = JSON.parse(text)?.exclude;
+    const pin = JSON.parse(text);
+    const exclude = pin && "format-exclude" in pin ? pin["format-exclude"] : pin?.exclude;
     return Array.isArray(exclude) ? exclude.filter((e): e is string => typeof e === "string").map((e) => e.replace(/\/+$/, "")) : [];
   } catch {
     return [];
