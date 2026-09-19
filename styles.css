@@ -122,3 +122,12 @@
   width: var(--icon-xs);
   height: var(--icon-xs);
 }
+
+/* What a rename or a deletion would change, listed before it is confirmed. */
+.companygraph-plan {
+  max-height: 16em;
+  overflow-y: auto;
+  font-size: var(--font-ui-small);
+  user-select: text;
+  -webkit-user-select: text;
+}
