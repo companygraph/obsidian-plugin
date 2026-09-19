@@ -5,7 +5,8 @@
 > judges in the pane and on the line, apart from the mechanical failures and never counted with
 > them.
 
-Status: designed with the owner on September 19, 2026, nothing built. It details the paragraph of
+Status: designed with the owner on September 19, 2026, and built as planned in
+`docs/superpowers/plans/2026-09-19-agent-pass.md`; not yet tried in Obsidian. It details the paragraph of
 the plugin's design, `2026-09-18-obsidian-plugin-design.md` §8, headed "The agent pass, from the
 pane"; where the two differ, this one is the later decision. The plugin still calls no model
 itself: it starts the agent program the instance is already worked with, and reads its answer.

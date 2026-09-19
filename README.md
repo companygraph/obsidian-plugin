@@ -9,8 +9,9 @@ error, and so is a field the schema does not declare. The plugin says so while t
 It implements no rule of its own. The parser and the checks are those of
 `companygraph/meta-model`, bundled at the release `package.json` pins, and the schemas are read
 from the core the vault vendored, so an instance is held to the release it adopted and to no
-other. The writing rules in each schema are not checked here or by anything mechanical, and
-every report ends by saying so.
+other. The writing rules in each schema are checked by nothing mechanical, here or anywhere, and
+every report ends by saying so; they are judged by the agent instead, on a command, and what it
+judged is shown apart from the failures and never counted with them.
 
 ## What it does
 
@@ -85,6 +86,20 @@ A note still open in another tab is changed in its editor and saved as any edit 
 `conventions.json` leaves out of the form, its `format-exclude` or else its `exclude`, are left
 as they are, and `CompanyGraph: Write this note in the family's Markdown form` does it at once
 and says when there is nothing to do.
+
+The writing rules are a judgment, so the plugin hands them to the agent the instance is already
+worked with. `CompanyGraph: Judge this note against its writing rules` and `CompanyGraph: Judge
+the instance against its writing rules` start Claude Code in the vault in the background, allowed
+to read and nothing else, and ask it for step 8 of the instance's `companygraph-validate` skill:
+each entity against its schema's writing rules, the gaps a role's required skills leave, and the
+lines only reading can judge. What comes back is listed in the pane under its own heading below
+the failures, marked on its line in amber, and counted beside them in the status bar, never among
+them. A judgment of a note that has changed since is greyed and says it judged an earlier
+version, and loses its mark. A run is started by a command and by nothing else, can be cancelled
+while it goes, gives up after a few minutes, and says what it cost when it ends, because it costs
+what the agent costs. The path to Claude Code and the model are in the plugin's settings; empty,
+the places it installs to are tried and its own default model is used. The pass starts a program,
+so it is desktop only.
 
 ## Installing it
 
