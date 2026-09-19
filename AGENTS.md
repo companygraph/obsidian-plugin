@@ -51,12 +51,19 @@ columns are called it takes from `tableOf`. None of
 these decides whether an entity is valid, each is a candidate for an export upstream, and the
 design's section on what goes upstream lists them.
 
+The Markdown form written back into a note is the conventions', not a rule of this repository:
+`src/form.ts` reads the rule set from the vault's vendored
+`conventions/markdown.markdownlint-cli2.jsonc`, takes the one custom rule from this repository's
+own vendored `conventions/markdown-rules.cjs`, and runs markdownlint, pinned exactly in
+`package.json` to the release conventions-format's CLI runs. `test/pin.test.ts` fails when a
+conventions release moves the CLI and the plugin's markdownlint has not moved with it.
+
 ## Layout
 
 Everything that decides anything is a pure module under `src/`, with a test beside it under
 `test/`: `manifest.ts`, `model.ts`, `locate.ts`, `context.ts`, `vocabulary.ts`, `candidates.ts`,
 `properties.ts`, `report.ts`, `tables.ts`, `scope.ts`,
-`references.ts`, `links.ts`.
+`references.ts`, `links.ts`, `form.ts`.
 The modules that touch Obsidian, `vault.ts`, `marks.ts`, `pane.ts`, `suggest.ts`, `addfield.ts`,
 `widget.ts`, `livetable.ts`, `namelinks.ts` and `main.ts`,
 are kept thin because nothing here can run them; they are proven by hand on the reference

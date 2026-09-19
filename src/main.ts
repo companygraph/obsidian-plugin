@@ -26,6 +26,7 @@ import { typeOfPath } from "companygraph-meta-model/checks";
 import { absentFields } from "./candidates.ts";
 import { AddField } from "./addfield.ts";
 import { headingLock, headingMarks, removeSection } from "./headingmarks.ts";
+import { PIN, RULES, excludesOf, formOf, formed, inForm, spanOf } from "./form.ts";
 
 // The release of companygraph-meta-model this build bundles; esbuild.config.mjs defines it.
 declare const __CHECKER_VERSION__: string;
@@ -65,6 +66,8 @@ export default class CompanyGraphPlugin extends Plugin {
   // Set in onunload, read by the layout-ready callback: a plugin disabled between the two would
   // otherwise register four vault listeners and run a rebuild after it had been unloaded.
   unloaded = false;
+  // The note open last, written back into the family's Markdown form when another is opened.
+  left: TFile | null = null;
 
   async onload() {
     this.statusBar = this.addStatusBarItem();
@@ -177,6 +180,24 @@ export default class CompanyGraphPlugin extends Plugin {
         return true;
       },
     });
+    this.addCommand({
+      id: "write-form",
+      name: "Write this note in the family's Markdown form",
+      editorCallback: (_editor, ctx) => { if (ctx.file) void this.writeForm(ctx.file, true); },
+    });
+    // A note is written back into the family's Markdown form when it is left, not while it is
+    // edited: Obsidian's table editor rewrites the whole table on every edit in a cell, and a form
+    // written under it would be fought over at every keystroke. Leaving is when the diff would
+    // otherwise be kept, and quitting is the last way to leave.
+    this.registerEvent(this.app.workspace.on("file-open", (file) => {
+      const left = this.left;
+      this.left = file;
+      if (left && left !== file) void this.writeForm(left);
+    }));
+    this.registerEvent(this.app.workspace.on("quit", (tasks) => {
+      const left = this.left;
+      if (left) tasks.add(() => this.writeForm(left));
+    }));
     this.addCommand({ id: "open-checks", name: "Open the checks pane", callback: () => void this.openPane() });
     this.addCommand({ id: "check-now", name: "Check the instance now", callback: () => void this.rebuild() });
 
@@ -249,6 +270,44 @@ export default class CompanyGraphPlugin extends Plugin {
   relinkPath(path: string) {
     const resolved = this.app.metadataCache.resolvedLinks;
     if (resolved) mergePath(resolved, this.links, this.added, path);
+  }
+
+  // The note in the form the vault's vendored conventions give it; see form.ts. Only in a vault that
+  // carries the rule set, and only a note conventions-format reads there. A note still open in a
+  // tab is changed through its editor, which saves it as it saves any edit: a write to disk under
+  // an open editor would race that editor's own pending save. `loud` is the command's: it says
+  // why nothing was written, where leaving a note says nothing.
+  async writeForm(file: TFile, loud = false) {
+    try {
+      const adapter = this.app.vault.adapter;
+      const config = (await adapter.exists(RULES)) ? formOf(await adapter.read(RULES)) : null;
+      if (!config) {
+        if (loud) new Notice(`This vault has no Markdown form: ${RULES} is missing or does not parse.`);
+        return;
+      }
+      const excludes = excludesOf((await adapter.exists(PIN)) ? await adapter.read(PIN) : null);
+      if (!formed(file.path, excludes)) {
+        if (loud) new Notice(`${file.path} is not held to the form here: conventions.json excludes it.`);
+        return;
+      }
+      let editor: MarkdownView["editor"] | null = null;
+      this.app.workspace.iterateAllLeaves((leaf) => {
+        if (!editor && leaf.view instanceof MarkdownView && leaf.view.file === file) editor = leaf.view.editor;
+      });
+      const open = editor as MarkdownView["editor"] | null;
+      if (open) {
+        const before = open.getValue();
+        const span = spanOf(before, inForm(before, config));
+        if (span) open.replaceRange(span.text, open.offsetToPos(span.from), open.offsetToPos(span.to));
+        else if (loud) new Notice("This note is already in the family's Markdown form.");
+        return;
+      }
+      const text = await this.app.vault.read(file);
+      if (inForm(text, config) !== text) await this.app.vault.process(file, (current) => inForm(current, config));
+    } catch (error) {
+      const why = error instanceof Error ? error.message : String(error);
+      new Notice(`${file.path} was not written in the family's Markdown form: ${why}`);
+    }
   }
 
   // The pane the pointer was in, so a name opens where it was clicked; a click outside every pane
