@@ -68,7 +68,7 @@ widget and in a table in Live Preview, and one that names nothing as an unresolv
 Cmd+click, or Ctrl+click, opens the entity it names; a plain click still edits, since a name is
 text and not a link. It resolves as the checks do, by its declared type, and for an owned type
 within the owner the file is in. The model's edges are also added to what Obsidian draws its
-graph view and backlinks pane from, so an entity's neighbours are the ones the model names.
+graph view and backlinks pane from, so an entity's neighbors are the ones the model names.
 
 ## Installing it
 
