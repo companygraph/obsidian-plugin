@@ -103,7 +103,7 @@ export function tintRows(view: MarkdownView, cm: EditorView | undefined, marks: 
 // `receiveCellFocus(row, col)`, rows counted from the header. None of it is in the public
 // types: where any of it is missing, the row is scrolled to the middle of the view instead.
 // True when a table was found at `first`.
-export function openCell(view: MarkdownView, cm: EditorView, first: number, row: number, col: number): boolean {
+export function openCell(view: MarkdownView, cm: EditorView, first: number, row: number, col: number, ch?: number): boolean {
   for (const el of Array.from(view.containerEl.querySelectorAll<HTMLElement>(".cm-table-widget"))) {
     let at: number;
     try {
@@ -114,10 +114,15 @@ export function openCell(view: MarkdownView, cm: EditorView, first: number, row:
     if (at !== first) continue;
     const tile = (el as unknown as { cmTile?: { widget?: unknown }; cmView?: { widget?: unknown } }).cmTile
       ?? (el as unknown as { cmView?: { widget?: unknown } }).cmView;
-    const widget = tile?.widget as { receiveCellFocus?: (row: number, col: number) => unknown } | undefined;
+    // The third argument, read from the installed application, gives the cell's own editor a
+    // selection once it is open; `ch` puts the cursor that far into the cell's text.
+    const widget = tile?.widget as
+      | { receiveCellFocus?: (row: number, col: number, select?: (cell: EditorView) => { anchor: number }) => unknown }
+      | undefined;
     if (typeof widget?.receiveCellFocus === "function") {
       try {
-        widget.receiveCellFocus(row, col);
+        if (ch === undefined) widget.receiveCellFocus(row, col);
+        else widget.receiveCellFocus(row, col, (cell) => ({ anchor: Math.min(ch, cell.state.doc.length) }));
         return true;
       } catch {
         // fall through to the scroll
@@ -127,4 +132,17 @@ export function openCell(view: MarkdownView, cm: EditorView, first: number, row:
     return true;
   }
   return false;
+}
+
+// The cell being edited in this view, where its cursor stands in it and where the table starts in
+// the note, for whoever rewrites the note to open it again after: Obsidian draws a table anew when
+// its text changes, and the cell's own editor goes with the old drawing.
+export function editingCell(view: MarkdownView): { row: number; col: number; ch: number; start: number } | null {
+  const native = nativeCell(view);
+  const row = native?.cell?.row;
+  const col = native?.cell?.col;
+  const start = native?.table?.start;
+  const editor = native?.editor as { cm?: EditorView } | undefined;
+  if (typeof row !== "number" || typeof col !== "number" || typeof start !== "number" || !editor?.cm) return null;
+  return { row, col, start, ch: editor.cm.state.selection.main.head };
 }

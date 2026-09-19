@@ -22,7 +22,7 @@ import { Pane, VIEW_TYPE } from "./pane.ts";
 import { Suggest } from "./suggest.ts";
 import { marksField, setMarks } from "./marks.ts";
 import { fieldOfLine, propertyRules } from "./properties.ts";
-import { cellEditorOf, tintRows } from "./livetable.ts";
+import { cellEditorOf, editingCell, openCell, tintRows } from "./livetable.ts";
 import { typeOfPath } from "companygraph-meta-model/checks";
 import { absentFields } from "./candidates.ts";
 import { AddField } from "./addfield.ts";
@@ -33,7 +33,7 @@ import { addableSections } from "./headings.ts";
 import { PickType } from "./newentity.ts";
 import { targetsFor } from "./scaffold.ts";
 import { DeleteEntity, RenameEntity } from "./entitycommands.ts";
-import { PIN, RULES, excludesOf, formOf, formed, inForm, spanOf } from "./form.ts";
+import { PIN, RULES, changesOf, columnAfter, excludesOf, formOf, formed, inForm } from "./form.ts";
 
 // The release of companygraph-meta-model this build bundles; esbuild.config.mjs defines it.
 declare const __CHECKER_VERSION__: string;
@@ -373,16 +373,43 @@ export default class CompanyGraphPlugin extends Plugin {
         if (loud) new Notice(`${file.path} is not held to the form here: conventions.json excludes it.`);
         return;
       }
-      let editor: MarkdownView["editor"] | null = null;
+      let holder: MarkdownView | null = null;
       this.app.workspace.iterateAllLeaves((leaf) => {
-        if (!editor && leaf.view instanceof MarkdownView && leaf.view.file === file) editor = leaf.view.editor;
+        if (!holder && leaf.view instanceof MarkdownView && leaf.view.file === file) holder = leaf.view;
       });
-      const open = editor as MarkdownView["editor"] | null;
+      const view = holder as MarkdownView | null;
+      const open = view ? view.editor : null;
       if (open) {
         const before = open.getValue();
-        const span = spanOf(before, inForm(before, config));
-        if (span) open.replaceRange(span.text, open.offsetToPos(span.from), open.offsetToPos(span.to));
-        else if (loud) new Notice("This note is already in the family's Markdown form.");
+        const changes = changesOf(before, inForm(before, config));
+        if (!changes.length) {
+          if (loud) new Notice("This note is already in the family's Markdown form.");
+          return;
+        }
+        // One run of changed lines at a time, so a line the form leaves alone is never replaced,
+        // and the cursor put back on its line and column after, the column held to the line's new
+        // length: a line the form did change is replaced whole, which would carry a cursor on it
+        // to the line's edge. The plugin's own event, so the lock on declared headings lets the
+        // form's own spacing through.
+        const cm = (open as unknown as { cm?: EditorView }).cm;
+        // In Live Preview a cursor in a table stands in the cell's own editor, which goes when
+        // the table is drawn anew after its text changes; that cell is opened again after, with
+        // the cursor as far into it as it was, since the form changes no cell's words.
+        const cell = view ? editingCell(view) : null;
+        const cursor = open.getCursor();
+        const was = open.getLine(cursor.line);
+        if (cm) {
+          const tr = cm.state.update({ changes, userEvent: "input.form" });
+          cm.dispatch(tr);
+          if (cell && view) {
+            const first = cm.state.doc.lineAt(tr.changes.mapPos(cell.start)).number - 1;
+            const reopen = () => openCell(view, cm, first, cell.row, cell.col, cell.ch);
+            window.setTimeout(() => { if (!reopen()) window.setTimeout(reopen, 200); }, 50);
+            return;
+          }
+        } else for (const c of [...changes].reverse()) open.replaceRange(c.insert, open.offsetToPos(c.from), open.offsetToPos(c.to));
+        const line = Math.min(cursor.line, open.lineCount() - 1);
+        open.setCursor({ line, ch: columnAfter(was, open.getLine(line), cursor.ch) });
         return;
       }
       const text = await this.app.vault.read(file);
