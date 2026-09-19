@@ -13,21 +13,11 @@ test("the example passes and parses", () => {
   assert.deepEqual(namesByType(m.graph!).get("source"), ["Google Workspace", "Local"]);
 });
 
-test("the reference instance parses in its own layout, and fails only where its older core asked for links", () => {
-  // The fixture is the reference instance at a commit on core 0.28.0, whose process schema asked
-  // for `## Phases` as a list of links to the phases' files. The checks ship with the package and
-  // not with core, so the R3 check of 0.30.0 reads that list as what it is. Nothing else fails.
-  // When the instance's move to core 0.30 is on its main branch, the commit in
-  // scripts/fixtures.mjs moves there and this asserts no failures again.
+test("the reference instance passes and parses, in its own layout", () => {
   const m = buildModel(reference(), REFERENCE);
+  assert.deepEqual(m.failures, []);
   assert.ok(m.graph);
-  assert.ok(m.failures.length > 0);
-  for (const failure of m.failures) {
-    assert.ok(failure.startsWith("model/processes/delivery/delivery.md: links "), failure);
-    assert.ok(failure.includes("(R3)"), failure);
-  }
 });
-
 test("an unresolvable reference is reported once: the checks speak, the parser's throw is dropped", () => {
   const m = buildModel(edited(example(), ROLE, (t) => t.replace("source: Local", "source: Nowhere")), EXAMPLE);
   assert.equal(m.graph, null);
