@@ -34,6 +34,11 @@ import { PickType } from "./newentity.ts";
 import { targetsFor } from "./scaffold.ts";
 import { DeleteEntity, RenameEntity } from "./entitycommands.ts";
 import { PIN, RULES, changesOf, columnAfter, excludesOf, formOf, formed, inForm } from "./form.ts";
+import { CompanyGraphSettings, DEFAULTS } from "./settings.ts";
+import type { Settings } from "./settings.ts";
+import { Judging } from "./judge.ts";
+import { EMPTY, removedFrom, renamedIn, storeFrom } from "./judgments.ts";
+import type { Store } from "./judgments.ts";
 
 // The release of companygraph-meta-model this build bundles; esbuild.config.mjs defines it.
 declare const __CHECKER_VERSION__: string;
@@ -79,8 +84,22 @@ export default class CompanyGraphPlugin extends Plugin {
   unloaded = false;
   // The note open last, written back into the family's Markdown form when another is opened.
   left: TFile | null = null;
+  // The agent pass: its settings, what it judged, the run under way, and the files the last
+  // rebuild read, which say whether a judgment is of the note as it now is.
+  settings: Settings = { ...DEFAULTS };
+  judged: Store = EMPTY;
+  judging = new Judging(this);
+  files = new Map<string, string>();
+
+  async saveAll() {
+    await this.saveData({ settings: this.settings, judged: this.judged });
+  }
 
   async onload() {
+    const saved = (await this.loadData()) as { settings?: Partial<Settings>; judged?: unknown } | null;
+    this.settings = { ...DEFAULTS, ...(saved?.settings ?? {}) };
+    this.judged = storeFrom(saved?.judged);
+    this.addSettingTab(new CompanyGraphSettings(this));
     this.statusBar = this.addStatusBarItem();
     this.rowStyle = document.head.createEl("style");
     this.register(() => this.rowStyle?.remove());
@@ -282,6 +301,33 @@ export default class CompanyGraphPlugin extends Plugin {
     this.addCommand({ id: "open-brief", name: "Open the writing brief", callback: () => void this.openBrief() });
     this.addCommand({ id: "open-checks", name: "Open the checks pane", callback: () => void this.openPane() });
     this.addCommand({ id: "check-now", name: "Check the instance now", callback: () => void this.rebuild() });
+    this.addCommand({
+      id: "judge-note",
+      name: "Judge this note against its writing rules",
+      checkCallback: (checking) => {
+        const file = this.app.workspace.getActiveFile();
+        const ok = !!file && !!this.layout && file.path.startsWith(`${this.layout.model}/`);
+        if (ok && !checking) void this.judging.start({ kind: "note", path: file!.path });
+        return ok;
+      },
+    });
+    this.addCommand({
+      id: "judge-instance",
+      name: "Judge the instance against its writing rules",
+      checkCallback: (checking) => {
+        const layout = this.layout;
+        if (layout && !checking) void this.judging.start({ kind: "instance", model: layout.model });
+        return !!layout;
+      },
+    });
+    this.addCommand({
+      id: "cancel-judgment",
+      name: "Cancel the judgment under way",
+      checkCallback: (checking) => {
+        if (this.judging.running && !checking) this.judging.cancel();
+        return !!this.judging.running;
+      },
+    });
 
     // Once typing pauses. The path is tested before the debounce, not inside it: a debounced
     // call keeps only its last arguments, and the last file touched may not be the one that mattered.
@@ -308,12 +354,18 @@ export default class CompanyGraphPlugin extends Plugin {
       if (this.unloaded) return;
       this.registerEvent(this.app.vault.on("modify", (file) => changed(file.path)));
       this.registerEvent(this.app.vault.on("create", (file) => changed(file.path)));
-      this.registerEvent(this.app.vault.on("delete", (file) => changed(file.path)));
+      this.registerEvent(this.app.vault.on("delete", (file) => {
+        this.judged = removedFrom(this.judged, file.path);
+        void this.saveAll();
+        changed(file.path);
+      }));
       this.registerEvent(this.app.vault.on("rename", (file, old) => {
         // Obsidian moves the renamed note's entry in its map of links to the new path; what the
         // model added to it, and the model's links from and to it, move with it before anything
         // else happens, or they would stay behind under a path that no longer exists.
         rename(this.links, this.added, old, file.path);
+        this.judged = renamedIn(this.judged, old, file.path);
+        void this.saveAll();
         changed(file.path);
         changed(old);
       }));
@@ -464,6 +516,7 @@ export default class CompanyGraphPlugin extends Plugin {
     try {
       const files = await readInstance(this.app, this.layout);
       if (generation !== this.generation) return;
+      this.files = files;
       const model = buildModel(files, this.layout);
       if (generation !== this.generation) return;
       let schemas: string | null = null;
