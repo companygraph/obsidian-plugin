@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { typeOfPath } from "companygraph-meta-model/checks";
 import { schemasOf } from "../src/model.ts";
 import { vocabularyOf } from "../src/vocabulary.ts";
-import { headingsOf, insertionAt, isEntityText, h1Of, lockedLines, lostLine, missingOf, nearMissOf, removalAt, removalRange, sectionAt } from "../src/headings.ts";
+import { headingsOf, insertionAt, isEntityText, h1Of, isHeld, lockedLines, lostLine, missingOf, rereadsH1, nearMissOf, removalAt, removalRange, sectionAt } from "../src/headings.ts";
 import { example, EXAMPLE, reference, REFERENCE } from "./helpers.ts";
 
 const vocabulary = vocabularyOf(schemasOf(example(), EXAMPLE));
@@ -242,7 +242,43 @@ test("a new line before or after a heading, and a declared heading added, keep t
     assert.equal(lostLine(before, lockedLines(lines(after), role, "# Reviewer")), null);
 });
 
-test("a heading written twice is held twice: removing one copy loses it", () => {
+test("a declared heading written twice is held once, so the copy can be deleted", () => {
   const twice = PAGE + "\n\n## References\n";
-  assert.equal(lostLine(lockedLines(lines(twice), role, null), lockedLines(lines(PAGE), role, null)), "## References");
+  assert.equal(lostLine(lockedLines(lines(twice), role, null), lockedLines(lines(PAGE), role, null)), null);
+  // Both copies gone is the heading lost.
+  const none = PAGE.replace("## References", "");
+  assert.equal(lostLine(lockedLines(lines(twice), role, null), lockedLines(lines(none), role, null)), "## References");
 });
+
+test("trailing spaces are no part of a held line, so they can be trimmed", () => {
+  const spaced = PAGE.replace("## What it takes", "## What it takes  ").replace("# Reviewer", "# Reviewer ");
+  const held = (text: string) => lockedLines(lines(text), role, "# Reviewer ");
+  assert.equal(lostLine(held(spaced), held(PAGE)), null);
+});
+
+test("a `---` typed at the top of a page is not frontmatter until it closes", () => {
+  const text = "---\n# Reviewer\n\n## What it takes\n";
+  assert.equal(h1Of(lines(text)), "# Reviewer");
+  assert.deepEqual(lockedLines(lines(text), role, "# Reviewer"), ["# Reviewer", "## What it takes"]);
+  assert.equal(
+    lostLine(lockedLines(lines(text.slice(4)), role, "# Reviewer"), lockedLines(lines(text), role, "# Reviewer")),
+    null,
+  );
+});
+
+test("the lock holds every edit but a reload, undo, redo, this plugin's own and a composing input method", () => {
+  for (const held of [undefined, "input", "input.type", "input.paste", "input.drop", "delete.backward", "delete.cut", "move.line", "select"])
+    assert.equal(isHeld(held), true, String(held));
+  for (const passed of ["set", "undo", "redo", "input.section", "delete.section", "input.type.compose"])
+    assert.equal(isHeld(passed), false, passed);
+  // A name that merely begins like one that passes is still held.
+  assert.equal(isHeld("settle"), true);
+});
+
+test("the H1 is read again when the file changes or Obsidian sets the text, never on an edit", () => {
+  assert.equal(rereadsH1(true, "input.type"), true);
+  assert.equal(rereadsH1(false, "set"), true);
+  for (const event of [undefined, "input.type", "input.section", "undo", "redo", "delete.backward"])
+    assert.equal(rereadsH1(false, event), false, String(event));
+});
+

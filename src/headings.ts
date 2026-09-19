@@ -20,11 +20,12 @@ export interface Heading {
 export interface Missing { heading: string; before: number }
 
 // The first line of the body: past the frontmatter, if the page opens with one.
-// A fence is a line that is exactly three dashes, as the parser reads it.
+// A fence is a line that is exactly three dashes, as the parser reads it, and frontmatter is only
+// frontmatter once it closes: a `---` typed at the top of a page is not yet a fence.
 function bodyStart(lines: string[]): number {
   if (lines[0] !== "---") return 0;
   const end = lines.findIndex((l, i) => i > 0 && l === "---");
-  return end === -1 ? lines.length : end + 1;
+  return end === -1 ? 0 : end + 1;
 }
 
 function headingLines(lines: string[]): { line: number; heading: string }[] {
@@ -169,15 +170,39 @@ export function h1Of(lines: string[]): string | null {
 // The lines the lock holds (spec §8): every heading the schema declares, whose text is the
 // schema's, and the H1, the page's canonical name, which changes only through Rename entity. The
 // H1 is held only as `opened`, the line it was when the file was loaded: a name being written in
-// a new note is not a name yet, and holding its first letters would leave it unfinishable. Each
-// is the line exactly as written.
+// a new note is not a name yet, and holding its first letters would leave it unfinishable. A
+// declared heading written twice is held once, so a pasted copy can be deleted again. Trailing
+// spaces are no part of a line held, since the parser trims them too.
 export function lockedLines(lines: string[], vocabulary: TypeVocabulary, opened: string | null): string[] {
   const out: string[] = [];
   const h1 = h1Of(lines);
-  if (opened !== null && h1 === opened) out.push(h1);
-  for (const h of headingsOf(lines, vocabulary)) if (h.kind !== "own") out.push(lines[h.line]);
+  if (opened !== null && h1 !== null && h1.trimEnd() === opened.trimEnd()) out.push(h1.trimEnd());
+  const declared = new Set(vocabulary.sections.map((s) => s.heading));
+  const seen = new Set<string>();
+  for (const { line, heading } of headingLines(lines)) {
+    if (!declared.has(heading) || seen.has(heading)) continue;
+    seen.add(heading);
+    out.push(lines[line].trimEnd());
+  }
   return out;
 }
+
+// Which edits the lock holds, by the event CodeMirror carries with them. Held is everything but
+// what must pass: `set`, which is how Obsidian applies a file reloaded after a change on disk, and
+// refusing it would leave the editor out of step with the file; undo and redo, which only take
+// back what was done; this plugin's own commands, `input.section` and `delete.section`; and a
+// character still being composed by an input method, which is refused only at a cost to the
+// screen. Obsidian's own heading commands, Shift+Enter and the Editor API carry no event at all,
+// and are held, which is the point of holding by default.
+const PASS = ["set", "undo", "redo", "input.section", "delete.section", "input.type.compose"];
+const matches = (event: string, name: string) => event === name || event.startsWith(`${name}.`);
+export const isHeld = (event: string | undefined) => !event || !PASS.some((name) => matches(event, name));
+
+// When the H1 held is read again: when the editor holds another file, and when Obsidian sets the
+// text from the file. Never on an edit, so a name typed or broken and restored is not taken for
+// the file's own.
+export const rereadsH1 = (pathChanged: boolean, event: string | undefined) =>
+  pathChanged || (event !== undefined && matches(event, "set"));
 
 // The first locked line an edit lost: one that the page held before more often than after. Held
 // by count and not by place, so a line moved whole is kept, and a heading written twice is held

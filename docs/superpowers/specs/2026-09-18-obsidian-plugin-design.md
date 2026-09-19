@@ -465,10 +465,15 @@ after the heading still works, and so does everything in the section below it. T
 held as it was when the file was loaded, and not as it is being typed: in a new note the name is
 written letter by letter, and holding the first letters would leave it unfinishable, so a name is
 free until the note is opened again. What is compared is the locked lines before and after an
-edit, counted, so a heading moved whole passes and one written twice is held twice. Only what a
-person does in the editor is held, typing, deleting, pasting and dropping: Obsidian's own
-changes, a file reloaded after a change on disk among them, pass, since refusing one would leave
-the editor out of step with the file, and so do undo and redo. The filter
+edit, counted, so a heading moved whole passes; a declared heading written twice is held once, so
+a pasted copy can be deleted, and trailing spaces are no part of a line held. Every edit is held
+but what must pass. A review read Obsidian's code: its own heading commands, Shift+Enter and the
+Editor API that other plugins write through carry no event at all, so a lock on typing alone
+would have let them through. What passes is a file reloaded after a change on disk, which
+Obsidian applies as `set` and whose refusal would leave the editor out of step with the file;
+undo and redo; this plugin's own commands; and a character an input method is still composing,
+which is refused only at a cost to the screen. The H1 held is read again only when the editor
+holds another file or Obsidian sets the text, never on an edit. The filter
 guards the editor only: a rename in the file explorer, a sync or another plugin passes it, and
 the checks remain what catches them. The plugin's own commands pass it on purpose.
 

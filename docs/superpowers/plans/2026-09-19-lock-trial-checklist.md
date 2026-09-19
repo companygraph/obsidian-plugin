@@ -16,29 +16,39 @@ with `git checkout -- model/`.
    and press Delete. Nothing should change, since the heading is inside the selection.
 5. Select all and press Delete. Nothing should change.
 6. Hold a key down on a heading. There should be one notice, not a stream of them.
+7. Put the cursor in the middle of `## What it means` and press Shift+Enter. Nothing should
+   change. Then run "Toggle heading 3" from the command palette on it: nothing should change.
 
 ## What passes
 
-7. Put the cursor at the end of a heading and press Enter. A new line opens below it.
-8. Put the cursor at the start of a heading and press Enter. A new line opens above it, and the
+8. Put the cursor at the end of a heading and press Enter. A new line opens below it.
+9. Put the cursor at the start of a heading and press Enter. A new line opens above it, and the
    heading moves down unchanged.
-9. Type, delete and paste freely inside a section's text, and in a heading of your own such as a
+10. Type, delete and paste freely inside a section's text, and in a heading of your own such as a
    `## Notes` you add.
-10. A blank line directly below a heading: put the cursor on it and press Backspace. The blank
+11. A blank line directly below a heading: put the cursor on it and press Backspace. The blank
     line should go, and the heading should stay as it is.
-11. The × on an optional heading still removes its section, and one Cmd+Z brings it back.
-12. Delete a required section's heading by undo only: make an edit to its text, then undo it.
-    Undo and redo pass as always.
-13. Click a dashed line for a missing section: the heading is written as before.
+12. The × on an optional heading still removes its section, and one Cmd+Z brings it back.
+13. Type a few words in a section's text, then press Cmd+Z and Cmd+Shift+Z. Undo and redo work as
+    always.
+14. Click a dashed line for a missing section: the heading is written as before.
+
+## What the review found
+
+- Type `---` as a new first line of a page without frontmatter. It should be accepted.
+- Paste a second copy of `## What it means` below the first, then delete the copy. The deletion
+  should be accepted.
+- Type two spaces at the end of a heading, then delete them. Both should be accepted, since
+  trailing spaces are no part of the heading.
 
 ## A new entity
 
-14. Create a new note in `model/skills/` and type `# ` and a name, letter by letter, with a few
+15. Create a new note in `model/skills/` and type `# ` and a name, letter by letter, with a few
     corrections. Every letter should be accepted.
-15. Close the note and open it again. The H1 should now be locked.
+16. Close the note and open it again. The H1 should now be locked.
 
 ## Obsidian's own changes
 
-16. With `expert.md` open, change its heading in another editor or with `git checkout` on a
+17. With `expert.md` open, change its heading in another editor or with `git checkout` on a
     modified copy. Obsidian reloads the file, and the editor should show the file as it is on
     disk, not refuse it.
