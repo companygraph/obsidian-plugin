@@ -25,6 +25,7 @@ import { cellEditorOf, tintRows } from "./livetable.ts";
 import { typeOfPath } from "companygraph-meta-model/checks";
 import { absentFields } from "./candidates.ts";
 import { AddField } from "./addfield.ts";
+import { headingMarks, removeSection } from "./headingmarks.ts";
 
 // The release of companygraph-meta-model this build bundles; esbuild.config.mjs defines it.
 declare const __CHECKER_VERSION__: string;
@@ -79,6 +80,7 @@ export default class CompanyGraphPlugin extends Plugin {
     this.registerView(VIEW_TYPE, (leaf) => new Pane(leaf, this));
     this.registerEditorExtension(marksField);
     this.registerEditorExtension(nameLinks(this));
+    this.registerEditorExtension(headingMarks(this));
     const suggest = new Suggest(this.app, this);
     this.registerEditorSuggest(suggest);
     this.addCommand({
@@ -157,6 +159,21 @@ export default class CompanyGraphPlugin extends Plugin {
       editorCallback: (editor, ctx) => {
         const view = this.app.workspace.getActiveViewOfType(MarkdownView);
         suggest.ask((view && cellEditorOf(view)) ?? editor, ctx.file);
+      },
+    });
+    this.addCommand({
+      id: "remove-section",
+      name: "Remove section",
+      // The section the cursor is in, whole, where the schema declares it optional; the remove
+      // button on the heading runs the same. Offered only in a note that is an entity.
+      editorCheckCallback: (checking, editor) => {
+        const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+        const entity = view ? this.entityFields(view) : null;
+        const vocabulary = entity ? this.vocabulary.get(entity.type) : undefined;
+        const cm = (editor as unknown as { cm?: EditorView }).cm;
+        if (!vocabulary || !cm) return false;
+        if (!checking) removeSection(cm, vocabulary, editor.getCursor().line);
+        return true;
       },
     });
     this.addCommand({ id: "open-checks", name: "Open the checks pane", callback: () => void this.openPane() });
