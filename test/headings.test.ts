@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { typeOfPath } from "companygraph-meta-model/checks";
 import { schemasOf } from "../src/model.ts";
 import { vocabularyOf } from "../src/vocabulary.ts";
-import { headingsOf, insertionAt, isEntityText, isHeld, lockedLines, lostLine, missingOf, nearMissOf, removalAt, removalRange, sectionAt } from "../src/headings.ts";
+import { addableSections, headingsOf, insertionAt, placementOf, tableStart, isEntityText, isHeld, lockedLines, lostLine, missingOf, nearMissOf, removalAt, removalRange, sectionAt } from "../src/headings.ts";
 import { example, EXAMPLE, reference, REFERENCE } from "./helpers.ts";
 
 const vocabulary = vocabularyOf(schemasOf(example(), EXAMPLE));
@@ -260,3 +260,45 @@ test("the lock holds every edit but a reload, undo, redo, this plugin's own and 
   assert.equal(isHeld("settle"), true);
 });
 
+
+// Add a section (spec §8): what it offers and where it writes.
+test("Add a section offers the declared sections the page lacks, in the schema's order", () => {
+  assert.deepEqual(addableSections(lines(PAGE), role).map((s) => [s.heading, s.required]), [["What it produces", true]]);
+  const bare = "# Reviewer\n\n> Reads the work.\n";
+  assert.deepEqual(
+    addableSections(lines(bare), role).map((s) => s.heading),
+    ["What it takes", "What it produces", "What it never does", "References"],
+  );
+});
+
+test("an optional section is placed by the schema's order as a required one is", () => {
+  const text = "# R\n\n## What it takes\n\nA.\n\n## What it never does\n\n- B.\n\n## Notes\n\nMine.\n";
+  // References comes last in the schema: after What it never does, so before the next heading.
+  assert.equal(placementOf(lines(text), role, "References"), 10);
+  assert.equal(placementOf(lines(text), role, "What it produces"), 6);
+});
+
+test("a table section starts with its header and a separator of plain dashes", () => {
+  const references = role.sections.find((s) => s.heading === "References")!;
+  const header = tableStart(references);
+  assert.equal(header.length, 2);
+  assert.match(header[1], /^\| --- (\| --- )*\|$/);
+  assert.deepEqual(tableStart(role.sections.find((s) => s.heading === "What it takes")!), []);
+});
+
+test("a table section written before a heading leaves the cursor on the row after the header", () => {
+  const text = "# R\n\n## What it never does\n";
+  const at = text.indexOf("## What");
+  const { insert, cursor } = insertionAt(text, at, "References", ["| What | Link |", "| --- | --- |"]);
+  assert.equal(insert, "## References\n\n| What | Link |\n| --- | --- |\n\n\n");
+  const after = text.slice(0, at) + insert + text.slice(at);
+  const line = after.slice(0, at + cursor).split("\n").length - 1;
+  assert.equal(after.split("\n")[line - 1], "| --- | --- |");
+});
+
+test("a table section written at the end ends with its header, the cursor after it", () => {
+  const text = "# R\n\n- B.\n";
+  const { insert, cursor } = insertionAt(text, text.length, "References", ["| What | Link |", "| --- | --- |"]);
+  assert.equal(text + insert, "# R\n\n- B.\n\n## References\n\n| What | Link |\n| --- | --- |\n");
+  assert.equal(cursor, insert.length);
+});

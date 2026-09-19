@@ -496,6 +496,19 @@ the page does not carry, ignoring case, spacing and punctuation, or within two e
 hover names the declared heading and offers to replace it, which is the one change the plugin
 makes to such a heading, and only on a click.
 
+Add a section is a picker of the declared sections the page lacks, in the schema's order with the
+required ones marked, and writes the chosen heading where the schema puts it: after the last
+declared section the page carries that comes before it, as a missing section's line is drawn. A
+section whose content is a table is written with its header and a separator of plain dashes, from
+the picker and from the missing-section line alike, and the cursor is left on the line where the
+first row goes. New entity is the scaffold §8 names above: a picker of the types a new entity may
+be made of from the open note, then its name. A type in a folder of its own takes the slug of the
+name, an owner a folder of that name with its file inside, and an owned type goes into the owner
+the open note is in and is not offered from outside every owner. An experience asks for its
+start too, since the year of it leads the filename. A singular type is offered only while its
+file does not exist. The file holds the required fields, the H1, an empty tagline and every
+required section, and opens with the cursor on the tagline.
+
 Rename entity is the refactor for a renamed H1. The command asks for the new name and, in one step,
 rewrites the H1, renames the file or the entity's folder as R12 or the type's own derivation
 says, and rewrites every reference by name that resolves to the entity, resolved as the checks

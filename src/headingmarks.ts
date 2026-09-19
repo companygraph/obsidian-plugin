@@ -13,7 +13,7 @@ import { Decoration, EditorView, WidgetType } from "@codemirror/view";
 import type { DecorationSet } from "@codemirror/view";
 import { typeOfPath } from "companygraph-meta-model/checks";
 import type CompanyGraphPlugin from "./main.ts";
-import { headingsOf, insertionAt, isEntityText, isHeld, lockedLines, lostLine, missingOf, removalRange } from "./headings.ts";
+import { headingsOf, insertionAt, isEntityText, isHeld, lockedLines, lostLine, missingOf, removalRange, tableStart } from "./headings.ts";
 import type { HeadingKind } from "./headings.ts";
 import type { TypeVocabulary } from "./vocabulary.ts";
 import { refreshNames } from "./namelinks.ts";
@@ -124,12 +124,15 @@ class HeadingMark extends WidgetType {
 
 class MissingLine extends WidgetType {
   readonly heading: string;
-  constructor(heading: string) {
+  // A table section's header, written with the heading, as Add a section writes it.
+  readonly body: string[];
+  constructor(heading: string, body: string[]) {
     super();
     this.heading = heading;
+    this.body = body;
   }
   eq(other: MissingLine) {
-    return other.heading === this.heading;
+    return other.heading === this.heading && other.body.join("\n") === this.body.join("\n");
   }
   toDOM(view: EditorView) {
     const el = document.createElement("div");
@@ -140,7 +143,7 @@ class MissingLine extends WidgetType {
     el.createSpan({ cls: "companygraph-missing-text", text: `## ${this.heading}` });
     pressable(el, () => {
       const at = view.posAtDOM(el);
-      const { insert, cursor } = insertionAt(view.state.doc.toString(), at, this.heading);
+      const { insert, cursor } = insertionAt(view.state.doc.toString(), at, this.heading, this.body);
       view.dispatch({ changes: { from: at, insert }, selection: { anchor: at + cursor }, userEvent: "input.section" });
       view.focus();
     });
@@ -173,7 +176,11 @@ function draw(plugin: CompanyGraphPlugin, state: EditorState): Drawn {
     const atEnd = m.before >= doc.lines;
     placed.push({
       at: atEnd ? doc.length : doc.line(m.before + 1).from,
-      decoration: Decoration.widget({ widget: new MissingLine(m.heading), block: true, side: atEnd ? 1 : -1 }),
+      decoration: Decoration.widget({
+        widget: new MissingLine(m.heading, tableStart(found.vocabulary.sections.find((d) => d.heading === m.heading)!)),
+        block: true,
+        side: atEnd ? 1 : -1,
+      }),
     });
   }
   // The builder takes ranges in order; at one position a widget before the line comes first.
