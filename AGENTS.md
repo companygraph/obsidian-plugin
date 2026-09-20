@@ -78,7 +78,9 @@ that holds that release's three files. A test there is handed a driver and never
 transport, never sleeps a fixed time to let something happen, and reads the pinned fixture,
 never a live vault. Inside a function handed to the driver `app` is Obsidian's own global and is
 untyped, so the type check will not catch the driver being called by that name: the driver is
-`ui`. What only a person can judge, whether a mark is strong enough or a list reads well, is
+`ui`. A condition is read for its truth, so one that collects what went wrong answers null and
+not an empty list. `e2e/commands.e2e.ts` fails for a command no test runs, so a new command
+arrives with its test. What only a person can judge, whether a mark is strong enough or a list reads well, is
 still tried by hand.
 
 Those are rules and not a list. `test/layout.test.ts` holds each of them, so a module added on

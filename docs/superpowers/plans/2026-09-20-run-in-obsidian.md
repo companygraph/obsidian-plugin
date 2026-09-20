@@ -135,7 +135,8 @@ export interface Driver {
   // says what it was waiting for (spec §5).
   waitFor<T>(what: string, condition: PageFn<T>, args?: unknown[], timeout?: number): Promise<NonNullable<T>>;
   // The one thing a condition cannot be: that something does not happen. Watches for `window`
-  // milliseconds and fails the moment the condition answers something truthy.
+  // milliseconds and fails the moment the condition answers something truthy. An empty list is
+  // truthy: a condition that collects what went wrong answers null where nothing did.
   never(what: string, condition: PageFn<unknown>, args: unknown[], window: number): Promise<void>;
   screenshot(file: string): Promise<void>;
   // Errors and unhandled rejections the page has seen since the session began.
@@ -171,7 +172,10 @@ const call = (fn: PageFn<unknown>, args: unknown[] = []) => `(${fn.toString()})(
 
 // What ran, as the protocol reports it: the plugin's script as Obsidian evaluated it, and for
 // every function the ranges of it that were and were not executed.
-export interface Coverage { source: string; functions: { functionName: string; ranges: { startOffset: number; endOffset: number; count: number }[] }[] }
+// One list of functions for each time the script was evaluated: a test that loads the window
+// again has the plugin's script evaluated again, and what ran counts from every evaluation.
+type Functions = { functionName: string; ranges: { startOffset: number; endOffset: number; count: number }[] }[];
+export interface Coverage { source: string; evaluations: Functions[] }
 export interface Connection { ui: Driver; coverage(): Promise<Coverage | null> }
 
 export async function connect(port: number, record = false): Promise<Connection> {
@@ -251,9 +255,15 @@ export async function connect(port: number, record = false): Promise<Connection>
       const named = NAMED[key];
       const letter = key.length === 1 ? key.toUpperCase() : "";
       if (named === undefined && !letter) throw new Error(`press: no key called ${key}`);
+      // On macOS the editing chords of a text field are the application menu's, not the page's,
+      // and a bare key event never reaches them: Cmd+A typed into a modal's field selected
+      // nothing and the next typing landed mid-word. The protocol carries the editing command
+      // beside the key for exactly this.
+      const editing = modifiers?.meta && !modifiers.shift ? { a: "selectAll", c: "copy", v: "paste", x: "cut", z: "undo" }[key.toLowerCase()] : undefined;
       const event = {
         key, code: named === undefined ? `Key${letter}` : key,
         windowsVirtualKeyCode: named ?? letter.charCodeAt(0), modifiers: bits(modifiers),
+        commands: editing ? [editing] : [],
       };
       await send("Page.bringToFront");
       await send("Input.dispatchKeyEvent", { ...event, type: "rawKeyDown" });
@@ -298,12 +308,13 @@ export async function connect(port: number, record = false): Promise<Connection>
     ui: driver,
     async coverage() {
       if (!record) return null;
-      const taken = await send<{ result: { scriptId: string; url: string; functions: Coverage["functions"] }[] }>("Profiler.takePreciseCoverage");
-      const script = taken.result.find((entry) => entry.url.includes("plugin:companygraph"));
-      if (!script) return null;
+      const taken = await send<{ result: { scriptId: string; url: string; functions: Functions }[] }>("Profiler.takePreciseCoverage");
+      const scripts = taken.result.filter((entry) => entry.url.includes("plugin:companygraph"));
+      if (!scripts.length) return null;
       await send("Debugger.enable");
-      const { scriptSource } = await send<{ scriptSource: string }>("Debugger.getScriptSource", { scriptId: script.scriptId });
-      return { source: scriptSource, functions: script.functions };
+      // The newest evaluation's source is the one that can still be asked for.
+      const { scriptSource } = await send<{ scriptSource: string }>("Debugger.getScriptSource", { scriptId: scripts[scripts.length - 1].scriptId });
+      return { source: scriptSource, evaluations: scripts.map((script) => script.functions) };
     },
   };
 }
@@ -357,6 +368,8 @@ export interface Session {
   restore(paths: string[]): Promise<void>;
   // A screenshot and the page's errors beside a failing test's name.
   record(name: string): Promise<void>;
+  // The window loaded again, as Reload app without saving does it, and the plugin ready after.
+  reload(): Promise<void>;
   stop(): Promise<void>;
 }
 
@@ -393,11 +406,16 @@ export async function start(): Promise<Session> {
   const port = await freePort();
   const child: ChildProcess = spawn(bin, [`--user-data-dir=${userData}`, `--remote-debugging-port=${port}`], { stdio: "ignore" });
   const ended = new Promise<void>((done) => child.once("exit", () => done()));
+  // What ran before each reload a test asked for: a window loaded again evaluates the plugin's
+  // script anew, and what the evaluation before it ran is not always still there to be asked for
+  // at the end. Seen: the settings tab's own drawing counted as never run.
+  const earlier: NonNullable<Awaited<ReturnType<Connection["coverage"]>>>[] = [];
   const stop = async (ui?: Driver, connection?: Connection) => {
     if (COVERAGE && connection) {
       const ran = await connection.coverage().catch(() => null);
       fs.mkdirSync(COVERAGE, { recursive: true });
-      if (ran) fs.writeFileSync(path.join(COVERAGE, `${path.basename(process.argv[1] ?? "run")}.json`), JSON.stringify(ran));
+      if (ran) fs.writeFileSync(path.join(COVERAGE, `${path.basename(process.argv[1] ?? "run")}.json`),
+        JSON.stringify({ source: ran.source, evaluations: [...earlier.flatMap((e) => e.evaluations), ...ran.evaluations] }));
     }
     await ui?.close().catch(() => {});
     child.kill();
@@ -431,13 +449,22 @@ export async function start(): Promise<Session> {
         const text = fs.readFileSync(path.join(FIXTURE, note), "utf8");
         // Through Obsidian and not under it: a note open in an editor is the editor's to write,
         // and a file changed behind it may be written over a moment later.
-        await ui.evaluate(async (at: string, as: string) => {
-          const file = app.vault.getAbstractFileByPath(at);
-          if (file && (await app.vault.read(file)) !== as) await app.vault.modify(file, as);
-        }, [note, text]);
+        // And asked again until it holds: an editor with an edit of its own in hand merges what
+        // is written under it and saves the merge a moment later, a Properties row being typed
+        // into writes the frontmatter back, and either leaves a note that is not the fixture's.
+        await ui.evaluate(() => { (document.activeElement as HTMLElement | null)?.blur?.(); });
         await ui.waitFor(`${note} to be as the fixture has it`, async (at: string, as: string) => {
-          const plugin = app.plugins.plugins.companygraph;
-          return (await app.vault.adapter.read(at)) === as && plugin.files.get(at) === as;
+          const file = app.vault.getAbstractFileByPath(at);
+          if (!file) return false;
+          if ((await app.vault.read(file)) !== as) {
+            await app.vault.modify(file, as);
+            return false;
+          }
+          let held = true;
+          app.workspace.iterateAllLeaves((leaf: { view: { file?: { path: string }; editor?: { getValue(): string } } }) => {
+            if (leaf.view.file?.path === at && leaf.view.editor && leaf.view.editor.getValue() !== as) held = false;
+          });
+          return held && app.plugins.plugins.companygraph.files.get(at) === as;
         }, [note, text]);
       }
     },
@@ -446,6 +473,27 @@ export async function start(): Promise<Session> {
       const base = path.join(SHOTS, name.replace(/[^a-z0-9]+/gi, "-").toLowerCase());
       await ui.screenshot(`${base}.png`).catch(() => {});
       fs.writeFileSync(`${base}.txt`, (await ui.errors().catch(() => [])).join("\n"));
+    },
+    async reload() {
+      if (COVERAGE) {
+        const ran = await connection.coverage().catch(() => null);
+        if (ran) earlier.push(ran);
+      }
+      await ui.evaluate(() => { (window as unknown as { __e2eLeaving?: boolean }).__e2eLeaving = true; window.setTimeout(() => location.reload(), 0); });
+      // While the page goes and comes back there is no page to ask, and asking throws; that is
+      // not the plugin failing to come back, so it is asked again until the deadline.
+      const deadline = Date.now() + 30000;
+      for (;;) {
+        try {
+          await ui.waitFor("the plugin to have read the vault after a reload", () => {
+            const plugin = (window as unknown as { app?: typeof app }).app?.plugins?.plugins?.companygraph;
+            return Boolean(plugin?.layout && plugin.files?.size > 0 && !(window as unknown as { __e2eLeaving?: boolean }).__e2eLeaving);
+          }, [], 2000);
+          return;
+        } catch (failure) {
+          if (Date.now() > deadline) throw failure;
+        }
+      }
     },
     stop: () => stop(ui, connection),
   };
@@ -833,6 +881,7 @@ import assert from "node:assert/strict";
 import { available, start } from "./obsidian.ts";
 import type { Session } from "./obsidian.ts";
 import { PROFILE, focusedCell, openNote, paddedLines, tablesOf } from "./notes.ts";
+import { clearNotices, command, entityOf, waitForNotice } from "./ui.ts";
 
 const skip = available() ? false : "Obsidian is not installed here; set OBSIDIAN_BIN to run this suite";
 
@@ -903,6 +952,48 @@ describe("the Markdown form, saved from a cell", { skip }, () => {
     assert.equal(now.length, was.length);
     assert.deepEqual(now.map((l, i) => (l === was[i] ? null : i)).filter((i) => i !== null), [line]);
     assert.ok(now[line].includes("x"));
+  });
+
+  test("Write this note in the form says so of a note already in it, and writes one that is not", async () => {
+    const { ui } = session;
+    await session.restore([PROFILE]);
+    await openNote(ui, PROFILE);
+    await ui.evaluate(() => app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor.focus());
+    await clearNotices(ui);
+    await command(ui, "write-form");
+    await waitForNotice(ui, "already in the family's Markdown form");
+
+    // A table padded the way an editor pads one, put there under the editor.
+    const before = await ui.evaluate(async (at: string) => app.vault.adapter.read(at) as string, [PROFILE]);
+    const skills = tablesOf(before).find((t) => t.header.join("|") === "Skill|Level")!;
+    const lines = before.split("\n");
+    lines[skills.first + 2] = lines[skills.first + 2].replace(/ \|$/, "      |");
+    await ui.evaluate(async (at: string, text: string) => app.vault.modify(app.vault.getAbstractFileByPath(at), text), [PROFILE, lines.join("\n")]);
+    await ui.waitFor("the editor to hold the padded row", () =>
+      (app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor.getValue() as string).split("\n").some((l) => l.startsWith("|") && / {2,}\|/.test(l)));
+    await command(ui, "write-form");
+    await ui.waitFor("the editor to be in the form again", (text: string) => app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor.getValue() === text, [before]);
+  });
+
+  test("a note left with a table Obsidian padded is written back into the form", async () => {
+    const { ui } = session;
+    await session.restore([PROFILE]);
+    await openNote(ui, PROFILE);
+    const before = await ui.evaluate(async (at: string) => app.vault.adapter.read(at) as string, [PROFILE]);
+    await ui.click(() => document.querySelector(".cm-table-widget table")?.querySelectorAll("tr")[2]?.children[1]);
+    await ui.waitFor("the cell to be open", focusedCell);
+    await ui.press("End");
+    await ui.type("x");
+    await ui.waitFor("Obsidian to have padded the table under the edit", () =>
+      (app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor.getValue() as string).split("\n").some((l) => l.startsWith("|") && / {2,}\|/.test(l)));
+    const other = await entityOf(ui, "skill");
+    await openNote(ui, other);
+    const left = await ui.waitFor("the note that was left to hold the edit, in the form", async (at: string, was: string) => {
+      const now = (await app.vault.adapter.read(at)) as string;
+      return now !== was && !now.split("\n").some((l) => l.startsWith("|") && / {2,}\|/.test(l)) ? now : null;
+    }, [PROFILE, before]);
+    assert.equal(paddedLines(left), 0);
+    assert.equal(left.split("\n").filter((l, i) => l !== before.split("\n")[i]).length, 1, "the typed line and no other");
   });
 });
 ```

@@ -20,7 +20,10 @@ const call = (fn: PageFn<unknown>, args: unknown[] = []) => `(${fn.toString()})(
 
 // What ran, as the protocol reports it: the plugin's script as Obsidian evaluated it, and for
 // every function the ranges of it that were and were not executed.
-export interface Coverage { source: string; functions: { functionName: string; ranges: { startOffset: number; endOffset: number; count: number }[] }[] }
+// One list of functions for each time the script was evaluated: a test that loads the window
+// again has the plugin's script evaluated again, and what ran counts from every evaluation.
+type Functions = { functionName: string; ranges: { startOffset: number; endOffset: number; count: number }[] }[];
+export interface Coverage { source: string; evaluations: Functions[] }
 export interface Connection { ui: Driver; coverage(): Promise<Coverage | null> }
 
 export async function connect(port: number, record = false): Promise<Connection> {
@@ -100,9 +103,15 @@ export async function connect(port: number, record = false): Promise<Connection>
       const named = NAMED[key];
       const letter = key.length === 1 ? key.toUpperCase() : "";
       if (named === undefined && !letter) throw new Error(`press: no key called ${key}`);
+      // On macOS the editing chords of a text field are the application menu's, not the page's,
+      // and a bare key event never reaches them: Cmd+A typed into a modal's field selected
+      // nothing and the next typing landed mid-word. The protocol carries the editing command
+      // beside the key for exactly this.
+      const editing = modifiers?.meta && !modifiers.shift ? { a: "selectAll", c: "copy", v: "paste", x: "cut", z: "undo" }[key.toLowerCase()] : undefined;
       const event = {
         key, code: named === undefined ? `Key${letter}` : key,
         windowsVirtualKeyCode: named ?? letter.charCodeAt(0), modifiers: bits(modifiers),
+        commands: editing ? [editing] : [],
       };
       await send("Page.bringToFront");
       await send("Input.dispatchKeyEvent", { ...event, type: "rawKeyDown" });
@@ -147,12 +156,13 @@ export async function connect(port: number, record = false): Promise<Connection>
     ui: driver,
     async coverage() {
       if (!record) return null;
-      const taken = await send<{ result: { scriptId: string; url: string; functions: Coverage["functions"] }[] }>("Profiler.takePreciseCoverage");
-      const script = taken.result.find((entry) => entry.url.includes("plugin:companygraph"));
-      if (!script) return null;
+      const taken = await send<{ result: { scriptId: string; url: string; functions: Functions }[] }>("Profiler.takePreciseCoverage");
+      const scripts = taken.result.filter((entry) => entry.url.includes("plugin:companygraph"));
+      if (!scripts.length) return null;
       await send("Debugger.enable");
-      const { scriptSource } = await send<{ scriptSource: string }>("Debugger.getScriptSource", { scriptId: script.scriptId });
-      return { source: scriptSource, functions: script.functions };
+      // The newest evaluation's source is the one that can still be asked for.
+      const { scriptSource } = await send<{ scriptSource: string }>("Debugger.getScriptSource", { scriptId: scripts[scripts.length - 1].scriptId });
+      return { source: scriptSource, evaluations: scripts.map((script) => script.functions) };
     },
   };
 }

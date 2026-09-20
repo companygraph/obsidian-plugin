@@ -31,6 +31,8 @@ export interface Session {
   restore(paths: string[]): Promise<void>;
   // A screenshot and the page's errors beside a failing test's name.
   record(name: string): Promise<void>;
+  // The window loaded again, as Reload app without saving does it, and the plugin ready after.
+  reload(): Promise<void>;
   stop(): Promise<void>;
 }
 
@@ -67,11 +69,16 @@ export async function start(): Promise<Session> {
   const port = await freePort();
   const child: ChildProcess = spawn(bin, [`--user-data-dir=${userData}`, `--remote-debugging-port=${port}`], { stdio: "ignore" });
   const ended = new Promise<void>((done) => child.once("exit", () => done()));
+  // What ran before each reload a test asked for: a window loaded again evaluates the plugin's
+  // script anew, and what the evaluation before it ran is not always still there to be asked for
+  // at the end. Seen: the settings tab's own drawing counted as never run.
+  const earlier: NonNullable<Awaited<ReturnType<Connection["coverage"]>>>[] = [];
   const stop = async (ui?: Driver, connection?: Connection) => {
     if (COVERAGE && connection) {
       const ran = await connection.coverage().catch(() => null);
       fs.mkdirSync(COVERAGE, { recursive: true });
-      if (ran) fs.writeFileSync(path.join(COVERAGE, `${path.basename(process.argv[1] ?? "run")}.json`), JSON.stringify(ran));
+      if (ran) fs.writeFileSync(path.join(COVERAGE, `${path.basename(process.argv[1] ?? "run")}.json`),
+        JSON.stringify({ source: ran.source, evaluations: [...earlier.flatMap((e) => e.evaluations), ...ran.evaluations] }));
     }
     await ui?.close().catch(() => {});
     child.kill();
@@ -105,13 +112,22 @@ export async function start(): Promise<Session> {
         const text = fs.readFileSync(path.join(FIXTURE, note), "utf8");
         // Through Obsidian and not under it: a note open in an editor is the editor's to write,
         // and a file changed behind it may be written over a moment later.
-        await ui.evaluate(async (at: string, as: string) => {
-          const file = app.vault.getAbstractFileByPath(at);
-          if (file && (await app.vault.read(file)) !== as) await app.vault.modify(file, as);
-        }, [note, text]);
+        // And asked again until it holds: an editor with an edit of its own in hand merges what
+        // is written under it and saves the merge a moment later, a Properties row being typed
+        // into writes the frontmatter back, and either leaves a note that is not the fixture's.
+        await ui.evaluate(() => { (document.activeElement as HTMLElement | null)?.blur?.(); });
         await ui.waitFor(`${note} to be as the fixture has it`, async (at: string, as: string) => {
-          const plugin = app.plugins.plugins.companygraph;
-          return (await app.vault.adapter.read(at)) === as && plugin.files.get(at) === as;
+          const file = app.vault.getAbstractFileByPath(at);
+          if (!file) return false;
+          if ((await app.vault.read(file)) !== as) {
+            await app.vault.modify(file, as);
+            return false;
+          }
+          let held = true;
+          app.workspace.iterateAllLeaves((leaf: { view: { file?: { path: string }; editor?: { getValue(): string } } }) => {
+            if (leaf.view.file?.path === at && leaf.view.editor && leaf.view.editor.getValue() !== as) held = false;
+          });
+          return held && app.plugins.plugins.companygraph.files.get(at) === as;
         }, [note, text]);
       }
     },
@@ -120,6 +136,27 @@ export async function start(): Promise<Session> {
       const base = path.join(SHOTS, name.replace(/[^a-z0-9]+/gi, "-").toLowerCase());
       await ui.screenshot(`${base}.png`).catch(() => {});
       fs.writeFileSync(`${base}.txt`, (await ui.errors().catch(() => [])).join("\n"));
+    },
+    async reload() {
+      if (COVERAGE) {
+        const ran = await connection.coverage().catch(() => null);
+        if (ran) earlier.push(ran);
+      }
+      await ui.evaluate(() => { (window as unknown as { __e2eLeaving?: boolean }).__e2eLeaving = true; window.setTimeout(() => location.reload(), 0); });
+      // While the page goes and comes back there is no page to ask, and asking throws; that is
+      // not the plugin failing to come back, so it is asked again until the deadline.
+      const deadline = Date.now() + 30000;
+      for (;;) {
+        try {
+          await ui.waitFor("the plugin to have read the vault after a reload", () => {
+            const plugin = (window as unknown as { app?: typeof app }).app?.plugins?.plugins?.companygraph;
+            return Boolean(plugin?.layout && plugin.files?.size > 0 && !(window as unknown as { __e2eLeaving?: boolean }).__e2eLeaving);
+          }, [], 2000);
+          return;
+        } catch (failure) {
+          if (Date.now() > deadline) throw failure;
+        }
+      }
     },
     stop: () => stop(ui, connection),
   };
