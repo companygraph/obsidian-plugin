@@ -2,12 +2,27 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { changesOf, columnAfter, excludesOf, formOf, formed, inForm, spanOf } from "../src/form.ts";
+import { RULE_PATHS, changesOf, columnAfter, excludesOf, formOf, formed, inForm, spanOf } from "../src/form.ts";
 import { reference } from "./helpers.ts";
 
 // The rule set this repository vendored, the file a vault that took the form carries.
-const RULE_SET = fs.readFileSync(path.join(import.meta.dirname, "..", "conventions", "markdown.markdownlint-cli2.jsonc"), "utf8");
+const RULE_SET = fs.readFileSync(path.join(import.meta.dirname, "..", ".markdownlint-cli2.jsonc"), "utf8");
 const config = formOf(RULE_SET);
+
+// Conventions v1.21.0 moved the rule set to the root and retired the copy under conventions/. A
+// vault takes a release when its owner says so, so both paths are read and the new one first: a
+// plugin that knew only the new path would write nothing into a vault still on v1.20.0 and tell
+// its owner the vault has no form. Ordered, because a vault mid-upgrade carries both.
+test("the rule set is looked for at the root first and under conventions/ after", () => {
+  assert.deepEqual(RULE_PATHS, [".markdownlint-cli2.jsonc", "conventions/markdown.markdownlint-cli2.jsonc"]);
+});
+
+// Whichever path it came from, the file parses to the same rules — the retired copy was the same
+// options file under another name, so nothing about reading it needs to differ.
+test("a rule set read from either path gives the same form", () => {
+  assert.deepEqual(formOf(RULE_SET), config);
+  assert.notEqual(config, null);
+});
 
 // A table the way Obsidian's table editor writes it after one cell was edited: every column as
 // wide as its widest cell plus two, the delimiter row as long, alignment colons kept. Read from

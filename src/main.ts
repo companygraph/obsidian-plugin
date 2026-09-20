@@ -39,7 +39,7 @@ import { addableSections } from "./headings.ts";
 import { PickType } from "./newentity.ts";
 import { targetsFor } from "./scaffold.ts";
 import { DeleteEntity, RenameEntity } from "./entitycommands.ts";
-import { PIN, RULES, changesOf, columnAfter, excludesOf, formOf, formed, inForm } from "./form.ts";
+import { PIN, RULES, RULE_PATHS, changesOf, columnAfter, excludesOf, formOf, formed, inForm } from "./form.ts";
 
 // The release of companygraph-meta-model this build bundles; esbuild.config.mjs defines it.
 declare const __CHECKER_VERSION__: string;
@@ -436,7 +436,12 @@ export default class CompanyGraphPlugin extends Plugin {
   async writeForm(file: TFile, loud = false) {
     try {
       const adapter = this.app.vault.adapter;
-      const config = (await adapter.exists(RULES)) ? formOf(await adapter.read(RULES)) : null;
+      let config = null;
+      for (const at of RULE_PATHS) {
+        if (!(await adapter.exists(at))) continue;
+        config = formOf(await adapter.read(at));
+        if (config) break;
+      }
       if (!config) {
         if (loud) new Notice(`This vault has no Markdown form: ${RULES} is missing or does not parse.`);
         return;
