@@ -60,12 +60,23 @@ test("a name resolves to the file of the entity it names, within its scope", () 
   assert.equal(resolveIn(named, MIRA, EXAMPLE.model, "role", "Java Programming"), null, "a name under another type");
 });
 
-// Review found these. A comment after a value is YAML's and not the name's. A fenced block is
-// code: a heading or a table in it is not the note's. And a cell is split as the package's table
-// reader splits a row, on every pipe, so a column here is the column the checks read.
-test("a comment after a value is not part of the name, and a fenced block is code", () => {
-  const text = ["---", "source: Local # the only source", "---", "", "```", "## Skills", "| Skill | Level |", "| --- | --- |", "| Cobol | Expert |", "```"];
-  assert.deepEqual(referencesIn(text, vocabulary.get("profile")!).map((r) => r.name), ["Local"]);
+// Review found these. A comment after a value is YAML's and not the name's. And a cell is split
+// as the package's table reader splits a row, on every pipe, so a column here is the column the
+// checks read.
+test("a comment after a value is not part of the name", () => {
+  const text = ["---", "source: Local # the only source", "---", "", "## Skills", "", "| Skill | Level |", "| --- | --- |", "| Cobol | Expert |"];
+  assert.deepEqual(referencesIn(text, vocabulary.get("profile")!).map((r) => r.name), ["Local", "Cobol", "Expert"]);
+});
+
+// A fence is nothing to the package: `sectionsOf` splits on `## ` line by line and `blocksOf`
+// reads every run of lines opening with a pipe, so the checks hold a row inside a fence like any
+// other. This read it as code, which left a row no rename could reach, and the toggle never reset
+// at a section, so one unclosed fence hid the rest of the note.
+test("a table in fenced code is read as the checks read it, and a fence hides nothing after it", () => {
+  const fenced = ["---", "---", "", "## Skills", "", "```", "| Skill | Level |", "| --- | --- |", "| Cobol | Expert |", "```"];
+  assert.deepEqual(referencesIn(fenced, vocabulary.get("profile")!).map((r) => r.name), ["Cobol", "Expert"]);
+  const unclosed = ["---", "---", "", "## Skills", "", "```", "an example", "", "| Skill | Level |", "| --- | --- |", "| Cobol | Expert |"];
+  assert.deepEqual(referencesIn(unclosed, vocabulary.get("profile")!).map((r) => r.name), ["Cobol", "Expert"]);
 });
 
 test("a cell is split on every pipe, as the checks split it", () => {

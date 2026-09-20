@@ -78,7 +78,6 @@ export function referencesIn(lines: string[], vocabulary: TypeVocabulary): Refer
   }
 
   let section: string | null = null;
-  let fenced = false;
   for (let line = Math.max(end + 1, 0); line < lines.length; line++) {
     const text = lines[line];
     // The parser heads its sections and reads a grouped section's `###` headings line by line,
@@ -94,10 +93,11 @@ export function referencesIn(lines: string[], vocabulary: TypeVocabulary): Refer
       if (ref) out.push(ref);
       continue;
     }
-    // A fenced block is code: a table in it is not the note's, as the package's table reader
-    // never meets it there.
-    if (/^\s*(```|~~~)/.test(text)) { fenced = !fenced; continue; }
-    if (fenced) continue;
+    // A fence is nothing here. The package's `sectionsOf` splits on `## ` line by line and its
+    // `blocksOf` reads every run of lines that opens with a pipe, neither of them knowing what a
+    // fence is, so the checks hold a table inside one exactly as they hold any other. This read
+    // it as code and skipped it, which left a row no rename could reach and no mark could show;
+    // the toggle also never reset at a section, so one unclosed fence hid the rest of the note.
     if (!text.trimStart().startsWith("|")) continue;
     let last = line;
     while (last + 1 < lines.length && lines[last + 1].trimStart().startsWith("|")) last++;
