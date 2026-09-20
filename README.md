@@ -9,8 +9,9 @@ error, and so is a field the schema does not declare. The plugin says so while t
 It implements no rule of its own. The parser and the checks are those of
 `companygraph/meta-model`, bundled at the release `package.json` pins, and the schemas are read
 from the core the vault vendored, so an instance is held to the release it adopted and to no
-other. The writing rules in each schema are checked by nothing mechanical, here or anywhere: they are a
-judgment, and this plugin reports compliance with the meta-model and claims nothing about them.
+other. The writing rules in each schema are checked by nothing mechanical, here or anywhere:
+they are a judgment, and this plugin reports compliance with the meta-model and claims nothing
+about them.
 
 ## What it does
 
