@@ -13,7 +13,8 @@
     "pretest": "node scripts/fixtures.mjs",
     "test": "node --test 'test/*.test.ts'",
     "typecheck": "tsc --noEmit",
-    "build": "node esbuild.config.mjs"
+    "build": "node esbuild.config.mjs",
+    "notices": "node scripts/notices.mjs"
   },
   "dependencies": {
     "companygraph-meta-model": "github:companygraph/meta-model#v0.31.2",
