@@ -52,6 +52,13 @@ function cells(text: string): { from: number; to: number }[] {
   return out;
 }
 
+// Which cell of its row the character at `ch` stands in, the first being 0, or null where it
+// stands in none. For whoever has a reference and needs the cell on the screen it belongs to.
+export function cellAt(text: string, ch: number): number | null {
+  const at = cells(text).findIndex((cell) => ch >= cell.from && ch < cell.to);
+  return at < 0 ? null : at;
+}
+
 export function referencesIn(lines: string[], vocabulary: TypeVocabulary): Reference[] {
   const out: Reference[] = [];
   const end = frontmatterEnd(lines);
