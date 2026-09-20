@@ -76,7 +76,12 @@ test("a scaffold written into the example passes the checks as a page", () => {
   const path = byType(targetsFor(EXAMPLE.model, null, (p) => files.has(p))).get("role")!.pathFor("Critic")!;
   assert.equal(path, "example/model/roles/critic.md");
   files.set(path, scaffoldOf(role, "Critic", { source: "Local" }).text);
-  assert.deepEqual(checkInstance(files, EXAMPLE).failures.filter((f) => f.startsWith(path)), []);
+  // One thing is left to its author, as a required list field with no item yet is: a required
+  // section declared `Bulleted.` carries at least one item, and what a seat refuses is nothing
+  // a scaffold can write.
+  const owed = checkInstance(files, EXAMPLE).failures.filter((f) => f.startsWith(path));
+  assert.deepEqual(owed.filter((f) => !/has no item/.test(f)), []);
+  assert.deepEqual(owed.map((f) => f.match(/"## ([^"]+)" has no item/)?.[1]), ["What it never does"]);
   // And without the scaffold's sections, the same page fails for each.
   files.set(path, "---\nsource: Local\n---\n\n# Critic\n\n> \n");
   assert.equal(checkInstance(files, EXAMPLE).failures.filter((f) => f.startsWith(path) && f.includes("`## ")).length, 3);
@@ -95,10 +100,11 @@ test("what a new entity still owes is said: an owner's first owned entity, an ow
 test("every type scaffolded into the reference instance owes only what its notice says", () => {
   // From inside an owner of each kind, so every type is offered once. What the checks may then
   // say of a new entity is what the scaffold leaves to its author: a required list with no item
-  // yet, an owner's folder with nothing owned in it, an owner's table that does not list it.
+  // yet, as a field or as a section, an owner's folder with nothing owned in it, an owner's
+  // table that does not list it.
   const files = reference();
   const refVocabulary = vocabularyOf(schemasOf(files, REFERENCE));
-  const expected = [/carries no items/, /is missing (phases|tracks|experiences)\//, /does not list/];
+  const expected = [/carries no items/, /has no item, and its schema requires the section/, /is missing (phases|tracks|experiences)\//, /does not list/];
   const seen = new Set<string>();
   for (const active of ["model/processes/delivery/delivery.md", "model/profiles/robert-blust/robert-blust.md"]) {
     for (const target of targetsFor(REFERENCE.model, active, (p) => files.has(p))) {
