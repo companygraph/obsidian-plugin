@@ -1,4 +1,5 @@
-// What a report says, once: the pane draws it and Copy report writes it as text, and both read
+// What a report of the instance's compliance with the meta-model says, once: the pane draws it
+// and Copy report writes it as text, and both read
 // it from here so that what is pasted elsewhere is what was on the screen. Pure.
 import type { Located } from "./locate.ts";
 
@@ -13,7 +14,7 @@ export interface Group { title: string; path: string | null; entries: Located[] 
 
 export const IDLE_TEXT =
   "This vault has no .companygraph/manifest.json, so it is not an instance and nothing is checked." +
-  ' Run "CompanyGraph: Check the instance now" after adding one.';
+  ' Run "CompanyGraph: Check compliance now" after adding one.';
 
 // Failures by file, in the order files first appear; a failure about no one file belongs to
 // the instance.
@@ -26,12 +27,12 @@ export function groupsOf(located: Located[]): Group[] {
   return [...groups.values()];
 }
 
-// Every report ends with this, because a green list alone reads as a validated instance.
-export function notChecked(skipped: string[]): string[] {
-  return [
-    ...skipped.map((type) => `${type}: the vendored core carries no schema for it`),
-    "every ## Writing rules in every schema: that is the agent pass, R0",
-  ];
+// A type whose schema the vendored core does not carry is a type nothing was held to, which is a
+// broken or partial copy of core and worth saying. The writing rules were named here too, while
+// the agent pass was meant to answer for them; it was built, tried and dropped, and the plugin
+// reports compliance with the meta-model and claims nothing about them.
+export function noSchemaFor(skipped: string[]): string | null {
+  return skipped.length ? `The vendored core carries no schema for ${skipped.join(", ")}, so nothing holds ${skipped.length === 1 ? "that type" : "those types"}.` : null;
 }
 
 export function headline(report: Report): string {
@@ -39,13 +40,13 @@ export function headline(report: Report): string {
   if (report.status === "idle") return "not an instance";
   if (report.status === "refused") return "not checked";
   const count = report.located.length;
-  return count === 0 ? "the mechanical checks pass" : `${count} failure${count > 1 ? "s" : ""}`;
+  return count === 0 ? "the instance complies with the meta-model" : `${count} failure${count > 1 ? "s" : ""}`;
 }
 
 // The report as plain text, for pasting to an agent or into an issue. Lines are counted from
 // one here, as a person counts them; inside the plugin they are zero-based.
 export function reportText(report: Report): string {
-  const out = [`CompanyGraph checks: ${headline(report)}`];
+  const out = [`CompanyGraph, meta-model compliance: ${headline(report)}`];
   if (report.status === "idle") out.push(IDLE_TEXT);
   if (report.notice) out.push(report.notice);
   if (report.status === "checked") {
@@ -53,7 +54,8 @@ export function reportText(report: Report): string {
       out.push("", group.title);
       for (const found of group.entries) out.push(group.path ? `- line ${found.line + 1}: ${found.message}` : `- ${found.message}`);
     }
-    out.push("", "Not checked", ...notChecked(report.skipped).map((line) => `- ${line}`));
+    const missing = noSchemaFor(report.skipped);
+    if (missing) out.push("", missing);
   }
   return out.join("\n") + "\n";
 }

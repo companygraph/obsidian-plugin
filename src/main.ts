@@ -88,7 +88,7 @@ export default class CompanyGraphPlugin extends Plugin {
     this.statusBar.addClass("mod-clickable");
     // Nothing on a status bar item says it can be pressed; the first person to use this read the
     // count and never found the pane. Obsidian shows an aria-label as the tooltip.
-    this.statusBar.setAttr("aria-label", "Click to open the checks");
+    this.statusBar.setAttr("aria-label", "Click to open the compliance pane");
     this.statusBar.setAttr("aria-label-position", "top");
     this.statusBar.onClickEvent(() => void this.openPane());
     this.registerView(VIEW_TYPE, (leaf) => new Pane(leaf, this));
@@ -280,8 +280,8 @@ export default class CompanyGraphPlugin extends Plugin {
       if (left) tasks.add(() => this.writeForm(left));
     }));
     this.addCommand({ id: "open-brief", name: "Open the writing brief", callback: () => void this.openBrief() });
-    this.addCommand({ id: "open-checks", name: "Open the checks pane", callback: () => void this.openPane() });
-    this.addCommand({ id: "check-now", name: "Check the instance now", callback: () => void this.rebuild() });
+    this.addCommand({ id: "open-checks", name: "Open the compliance pane", callback: () => void this.openPane() });
+    this.addCommand({ id: "check-now", name: "Check compliance now", callback: () => void this.rebuild() });
 
     // Once typing pauses. The path is tested before the debounce, not inside it: a debounced
     // call keeps only its last arguments, and the last file touched may not be the one that mattered.
@@ -504,12 +504,11 @@ export default class CompanyGraphPlugin extends Plugin {
   show(state: State) {
     this.state = state;
     const failures = state.located.length;
-    const unchecked = state.skipped.length + 1; // the writing rules, always
     this.statusBar?.setText(
       state.status === "checking" ? "CompanyGraph: checking"
         : state.status === "idle" ? ""
         : state.status === "refused" ? "CompanyGraph: not checked"
-        : `CompanyGraph: ${failures} failure${failures === 1 ? "" : "s"}, ${unchecked} not checked${state.pinDiffers ? ", pin differs" : ""}`,
+        : `CompanyGraph: ${failures === 0 ? "complies" : `${failures} failure${failures === 1 ? "" : "s"}`}${state.pinDiffers ? ", pin differs" : ""}`,
     );
     for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE))
       if (leaf.view instanceof Pane) leaf.view.render();

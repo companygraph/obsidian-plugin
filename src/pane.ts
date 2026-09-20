@@ -1,9 +1,10 @@
-// The report beside the editor: failures grouped by file, then what was not checked. It ends
-// that way on every render, because a green list alone reads as a validated instance.
+// The instance's compliance with the meta-model, beside the editor: what the checks came to, then
+// the failures grouped by file. A type whose schema the vendored core does not carry is said
+// under them, since nothing held it.
 import { ItemView, MarkdownView, Notice, TFile, editorLivePreviewField, setIcon } from "obsidian";
 import type { WorkspaceLeaf } from "obsidian";
 import type CompanyGraphPlugin from "./main.ts";
-import { IDLE_TEXT, groupsOf, headline, notChecked, reportText } from "./report.ts";
+import { IDLE_TEXT, groupsOf, headline, noSchemaFor, reportText } from "./report.ts";
 import { fieldOfLine } from "./properties.ts";
 import { focusProperty } from "./widget.ts";
 import { cellOfFailure } from "./tables.ts";
@@ -21,7 +22,7 @@ export class Pane extends ItemView {
   }
 
   getViewType() { return VIEW_TYPE; }
-  getDisplayText() { return "CompanyGraph checks"; }
+  getDisplayText() { return "Meta-model compliance"; }
   getIcon() { return "list-checks"; }
 
   async onOpen() { this.render(); }
@@ -87,13 +88,8 @@ export class Pane extends ItemView {
       }
     }
 
-    // Every report ends with what it did not check, because a green list alone reads as a
-    // validated instance; folded, so it is there without standing in front of the failures.
-    const lines = notChecked(state.skipped);
-    const not = el.createEl("details", { cls: "companygraph-not-checked" });
-    not.createEl("summary", { text: `Not checked · ${lines.length}` });
-    const ul = not.createEl("ul");
-    for (const line of lines) ul.createEl("li", { text: line });
+    const missing = noSchemaFor(state.skipped);
+    if (missing) el.createDiv({ cls: "companygraph-pane-note", text: missing });
   }
 
   // Not `open`: Obsidian's View has an internal method of that name, which the leaf calls to set

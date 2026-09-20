@@ -400,6 +400,16 @@ because a run takes minutes and costs tokens; it is desktop only, because it sta
 and its result is a judgment and is shown as one. Copy report, which puts the pane's text on
 the clipboard, is the bridge until then: the mechanical failures pasted to an agent by hand.
 
+It was designed on September 19, 2026, built the same night and dropped by the owner the next
+morning, and the design note and its plan went with the branch that carried them,
+companygraph/obsidian-plugin#27. What the trial measured: a whole-instance run was stopped after
+nine minutes, about a minute an entity, with nothing on the screen while it ran but a clock, and
+what it judged was not worth its cost. Two things would have to change before it is worth
+building again, and neither is the plugin's to change: an agent that says what it is doing while
+it works, and judgments worth the minute each one takes. The owner takes the Claudian plugin for
+the agent in Obsidian instead, which integrates one properly, and the plugin keeps to what no
+model is needed for. The pane is named for that half now, Meta-model compliance.
+
 **Content, beyond the frontmatter.** Asked by the owner at the end of the first trial: whether
 proposals and completion reach the body of an entity. The body holds four different things and
 each has its own answer, in the order they are worth building.
