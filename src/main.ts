@@ -98,8 +98,6 @@ export default class CompanyGraphPlugin extends Plugin {
   suppressedPanes: string[] = [];
 
   async onload() {
-    this.settings = { ...DEFAULT_SETTINGS, ...(await this.loadData()) };
-    this.addSettingTab(new CompanyGraphSettingTab(this.app, this));
     this.statusBar = this.addStatusBarItem();
     this.rowStyle = document.head.createEl("style");
     this.register(() => this.rowStyle?.remove());
@@ -127,6 +125,15 @@ export default class CompanyGraphPlugin extends Plugin {
     this.registerEditorExtension(nameLinks(this));
     this.registerEditorExtension(headingMarks(this));
     this.registerEditorExtension(headingLock(this));
+    // Every editor extension is registered before the first await of this method. Obsidian reads
+    // them when it builds an editor, and the editors of the notes already open are built before a
+    // plugin's own `loadData` comes back: registered after it, the marks, the lock and the names
+    // reached no note until its editor was built again, which the owner's trial found as the
+    // locks being gone. `updateOptions` asks Obsidian to build every open editor again, which is
+    // what a plugin loaded into a running window needs.
+    this.app.workspace.updateOptions();
+    this.settings = { ...DEFAULT_SETTINGS, ...(await this.loadData()) };
+    this.addSettingTab(new CompanyGraphSettingTab(this.app, this));
     const suggest = new Suggest(this.app, this);
     this.registerEditorSuggest(suggest);
     this.addCommand({
@@ -761,6 +768,10 @@ export default class CompanyGraphPlugin extends Plugin {
   // The references pane, for the note in front, refreshed exactly when the brief is: the pane
   // opened, the model rebuilt, another note came forward.
   refreshReferences() {
+    // Not while the references pane itself is what became active: a press inside it would redraw
+    // the entry under the pointer between the press and its release, and the click would land on
+    // an element that no longer exists, which the owner's trial found as needing two clicks.
+    if (this.app.workspace.getActiveViewOfType(RefsPane)) return;
     // The file in front, not the view with the focus: a click inside the references pane makes
     // the pane itself the active view, and asking for the active Markdown view would answer
     // nothing and leave the pane on its idle line the moment it is used.
