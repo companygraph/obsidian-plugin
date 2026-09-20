@@ -115,7 +115,9 @@ where this plugin is not listed. Completion is written for Source mode, which th
 Node 24 or newer, because the tests run TypeScript through Node's own type stripping. `npm
 install`, then `npm test`, which first fetches its fixtures over the network, the meta-model at
 the pinned tag and the reference instance at one commit, then `npm run typecheck` and `npm run
-build`. The design, with every decision and its reason, is in `docs/superpowers/specs/`.
+build`. `npm run e2e` starts Obsidian on a copy of the pinned reference instance and works the
+plugin with real clicks and keys; it needs Obsidian installed and is run by hand. The design,
+with every decision and its reason, is in `docs/superpowers/specs/`.
 
 ## License
 

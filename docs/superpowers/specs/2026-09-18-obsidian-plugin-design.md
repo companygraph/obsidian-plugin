@@ -272,7 +272,9 @@ The vault-facing layer is proven by hand on the reference instance, which is wha
 order for a tool requires: `robertblust/mental-model` gains a `.obsidian/` line in its
 `.gitignore` and nothing else, and the plugin is run there against edits made to fail. The
 findings from that go into §9 of this spec before version two is designed, as the reference
-instance's findings went into the tooling spec.
+instance's findings went into the tooling spec. Since `2026-09-20-run-in-obsidian-design.md` that
+layer is also run, by `npm run e2e`, and the by-hand trial is kept for what only a person can
+judge.
 
 CI runs the suite, the build and the conventions check on every pull request and on `main`; the
 pin test of §2 is part of the suite.

@@ -12,6 +12,8 @@
     "fixtures": "node scripts/fixtures.mjs",
     "pretest": "node scripts/fixtures.mjs",
     "test": "node --test 'test/*.test.ts'",
+    "e2e": "node scripts/fixtures.mjs && node esbuild.config.mjs && node --test --test-concurrency=1 'e2e/*.e2e.ts'",
+    "e2e:coverage": "rm -rf e2e/coverage && E2E_COVERAGE=1 npm run e2e && node scripts/e2e-coverage.mjs",
     "typecheck": "tsc --noEmit",
     "build": "node esbuild.config.mjs",
     "notices": "node scripts/notices.mjs"
