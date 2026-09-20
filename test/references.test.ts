@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { buildModel, schemasOf } from "../src/model.ts";
 import { vocabularyOf } from "../src/vocabulary.ts";
 import { namedOf } from "../src/scope.ts";
-import { referencesIn, resolveIn } from "../src/references.ts";
+import { referencesIn, resolveIn, cellAt } from "../src/references.ts";
 import { example, EXAMPLE } from "./helpers.ts";
 
 const files = example();
@@ -116,4 +116,17 @@ test("a grouped heading in fenced code is read as the parser reads it, so a rena
   const v = vocabularyOf(schemasOf(example(), EXAMPLE)).get("experience")!;
   const lines = ["# A", "", "## Achievements", "", "```", "### Leadership", "```"];
   assert.deepEqual(referencesIn(lines, v).map((r) => r.name), ["Leadership"]);
+});
+
+// Found in the owner's use: a name in a cell being edited was drawn as one that names nothing. A
+// cell being edited holds its drawn text and its own editor, and the mark read both, the name
+// twice over. The mark is put on the screen's cell but read from the note, so which cell of its
+// row a reference stands in has to be known from the line.
+test("a reference in a row says which cell it stands in, counted as the row is split", () => {
+  const text = ["## Skills", "", "| Skill | Level |", "| --- | --- |", "| Cobol | Expert |", "|  | Expert |"];
+  const found = referencesIn(text, vocabulary.get("profile")!);
+  assert.deepEqual(found.map((r) => [r.name, cellAt(text[r.line], r.from)]), [["Cobol", 0], ["Expert", 1], ["Expert", 1]]);
+  // Outside every cell: before the first pipe, and on a line that has none.
+  assert.equal(cellAt("x | Cobol | Expert |", 0), null);
+  assert.equal(cellAt("source: Local", 8), null);
 });
