@@ -45,7 +45,7 @@ test("a top-level file carries no folder", () => {
 test("a mention's line is counted from one, and it keeps its name, what declares it and its own file", () => {
   const view = viewOf(refs);
   const role = view.in.groups.find((g) => g.path === "model/roles/backend-engineer.md")!;
-  assert.deepEqual(role.mentions, [{ line: 5, name: "Java Programming", declared: "requires", path: "model/roles/backend-engineer.md", at: 4 }]);
+  assert.deepEqual(role.mentions, [{ line: 5, name: "Java Programming", declared: "requires", count: 1, path: "model/roles/backend-engineer.md", at: 4 }]);
 });
 
 test("a group's mentions are drawn in the order refs.ts already put them in, not re-sorted here", () => {
@@ -72,7 +72,7 @@ test("a row that refers out opens the entity it names, from its first line, and 
     }],
   });
   assert.deepEqual(view.out.groups[0].mentions, [
-    { line: null, name: "Java Programming", declared: "requires", path: "model/skills/java-programming.md", at: 0 },
+    { line: null, name: "Java Programming", declared: "requires", count: 1, path: "model/skills/java-programming.md", at: 0 },
   ]);
   assert.equal(view.out.title, "Refers to · 1");
 });
@@ -81,4 +81,37 @@ test("what declares a name reads without the hashes a schema writes it with", ()
   assert.equal(readable("## Evidence · Skill"), "Evidence · Skill");
   assert.equal(readable("### Achievements"), "Achievements");
   assert.equal(readable("requires"), "requires");
+});
+
+// The owner's trial: a profile naming one level in thirteen rows of its Skills table listed it
+// thirteen times over, where the group already names the level.
+test("one name written over and over in one place is one row, counted", () => {
+  const view = viewOf({
+    in: [],
+    out: [{
+      path: "model/proficiency-levels/competent.md",
+      mentions: [0, 1, 2].map((line) => ({
+        path: "model/profiles/a/a.md",
+        line,
+        name: "Competent",
+        declared: "## Skills · Level",
+        target: "model/proficiency-levels/competent.md",
+      })),
+    }],
+  });
+  assert.deepEqual(view.out.groups[0].mentions, [
+    { line: null, name: "Competent", declared: "Skills · Level", count: 3, path: "model/proficiency-levels/competent.md", at: 0 },
+  ]);
+  // Named from two places, the two stand apart.
+  const two = viewOf({
+    in: [],
+    out: [{
+      path: "model/skills/java.md",
+      mentions: [
+        { path: "model/profiles/a/a.md", line: 1, name: "Java", declared: "## Skills · Skill", target: "model/skills/java.md" },
+        { path: "model/profiles/a/a.md", line: 9, name: "Java", declared: "## Evidence · Skill", target: "model/skills/java.md" },
+      ],
+    }],
+  });
+  assert.deepEqual(two.out.groups[0].mentions.map((m) => [m.declared, m.count]), [["Skills · Skill", 1], ["Evidence · Skill", 1]]);
 });

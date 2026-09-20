@@ -48,6 +48,7 @@ export function renderReferences(el: HTMLElement, refs: References, open: (path:
         const words = item.createDiv({ cls: "companygraph-message" });
         words.createSpan({ cls: "companygraph-ref-name", text: mention.name });
         words.createSpan({ cls: "companygraph-declared", text: mention.declared });
+        if (mention.count > 1) words.createSpan({ cls: "companygraph-times", text: `×${mention.count}` });
         item.onClickEvent(() => {
           // A press that ends a drag over this entry's own text was a selection, not a wish to leave.
           if (draggedOver(item, activeWindow.getSelection())) return;

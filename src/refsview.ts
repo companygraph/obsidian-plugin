@@ -15,6 +15,9 @@ export interface MentionRow {
   line: number | null;
   name: string;
   declared: string;
+  // How many times this name stands in this place: one everywhere a row is a place of its own,
+  // and the number of rows where a name is written over and over in one table's column.
+  count: number;
   path: string;   // the file a click opens
   at: number;     // the line a click lands on, counted from zero
 }
@@ -45,18 +48,33 @@ function fileOf(path: string): { name: string; folder: string } {
 // Where a row leads. A name written elsewhere leads to the line it is written on; a name written
 // here leads to the entity it names, whose own file the group is, since the line it stands on is
 // the one the reader is already looking at.
+// A name written elsewhere is a place to go, so every mention is its own row, at its own line. A
+// name written here is one the reader is looking at: the group already names the entity, and
+// thirteen rows of a table naming one level are one row saying so thirteen times over.
 const groupsOf = (groups: Group[], outgoing: boolean): FileGroup[] =>
-  groups.map((g) => ({
-    path: g.path,
-    ...fileOf(g.path),
-    mentions: g.mentions.map((m) => ({
-      line: outgoing ? null : m.line + 1,
-      name: m.name,
-      declared: readable(m.declared),
-      path: outgoing ? m.target : m.path,
-      at: outgoing ? 0 : m.line,
-    })),
-  }));
+  groups.map((g) => {
+    if (!outgoing)
+      return {
+        path: g.path,
+        ...fileOf(g.path),
+        mentions: g.mentions.map((m) => ({
+          line: m.line + 1,
+          name: m.name,
+          declared: readable(m.declared),
+          count: 1,
+          path: m.path,
+          at: m.line,
+        })),
+      };
+    const byPlace = new Map<string, MentionRow>();
+    for (const m of g.mentions) {
+      const key = `${m.name}\u0000${m.declared}`;
+      const row = byPlace.get(key);
+      if (row) row.count++;
+      else byPlace.set(key, { line: null, name: m.name, declared: readable(m.declared), count: 1, path: m.target, at: 0 });
+    }
+    return { path: g.path, ...fileOf(g.path), mentions: [...byPlace.values()] };
+  });
 
 const directionOf = (title: string, groups: Group[], outgoing: boolean): Direction => ({
   title: `${title} · ${countOf(groups)}`,
