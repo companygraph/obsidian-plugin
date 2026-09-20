@@ -56,9 +56,12 @@ export interface State {
 const CHECKING: State = { status: "checking", notice: null, pinDiffers: false, located: [], skipped: [] };
 const IDLE: State = { ...CHECKING, status: "idle" };
 
-// Obsidian's own panes this plugin stands in for, while the references pane runs. Read and
+// Obsidian's own panes this plugin stands in for. Its backlinks and outgoing links list the
+// Markdown links a file holds, and an instance writes none; its properties plugin lists every
+// property name in the vault, which no entity is held to, and a note's own fields are the ones
+// its schema declares, shown in the note's own widget and offered by the field picker. Read and
 // switched through `internalPlugins`, which is not public API.
-const CORE_PANES = ["backlink", "outgoing-link"] as const;
+const CORE_PANES = ["backlink", "outgoing-link", "properties"] as const;
 type InternalPane = { enabled?: boolean; enable(): unknown; disable(): unknown };
 
 export default class CompanyGraphPlugin extends Plugin {

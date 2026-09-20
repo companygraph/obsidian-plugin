@@ -73,6 +73,17 @@ graph view, local graph and backlink count from, so an entity's neighbors there 
 model names. The backlinks pane's list of linked mentions is drawn from real links only and does
 not show them.
 
+So the plugin brings its own. `CompanyGraph: Open the references pane` opens a pane that follows
+the note in front and says what names this entity, grouped by the file each name is written in
+and opening that line on a click, and what it names, grouped by the entity each name points at
+and opening that entity. Each entry says where the name stands, a field, a section and its
+column, or the section a grouped heading heads. `CompanyGraph: Toggle references in document`,
+and the item of the same name in the editor's more-options menu, hangs the same two lists under
+the note itself. While the vault is an instance, Obsidian's own backlink, outgoing-link and
+properties panes are switched off, since the first two say nothing of a name a schema declares
+and the third lists every property name in the vault, which no entity is held to; the note's own
+Properties widget stays, and a setting keeps all three where they were.
+
 Obsidian's table editor rewrites a whole table the moment one cell is edited, every column padded
 to its widest cell, and undo gives back the cell but not the padding, so a note that was only
 opened carries a diff. In a vault that vendors the family's conventions at a release with
