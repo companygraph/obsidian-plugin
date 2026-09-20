@@ -79,10 +79,12 @@ and opening that line on a click, and what it names, grouped by the entity each 
 and opening that entity. Each entry says where the name stands, a field, a section and its
 column, or the section a grouped heading heads. `CompanyGraph: Toggle references in document`,
 and the item of the same name in the editor's more-options menu, hangs the same two lists under
-the note itself. While the vault is an instance, Obsidian's own backlink, outgoing-link and
-properties panes are switched off, since the first two say nothing of a name a schema declares
-and the third lists every property name in the vault, which no entity is held to; the note's own
-Properties widget stays, and a setting keeps all three where they were.
+the note itself. While the vault is an instance, Obsidian's own backlink, outgoing-link,
+properties and tag panes are switched off, since the first two say nothing of a name a schema
+declares, the third lists every property name in the vault, which no entity is held to, and the
+last lists a vocabulary an instance has none of: what classifies an entity here is another
+entity, with a file, a schema and a source, and a frontmatter field a schema does not declare is
+a failure. The note's own Properties widget stays, and a setting keeps all four where they were.
 
 Obsidian's table editor rewrites a whole table the moment one cell is edited, every column padded
 to its widest cell, and undo gives back the cell but not the padding, so a note that was only

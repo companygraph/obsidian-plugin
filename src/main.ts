@@ -60,9 +60,11 @@ const IDLE: State = { ...CHECKING, status: "idle" };
 // Obsidian's own panes this plugin stands in for. Its backlinks and outgoing links list the
 // Markdown links a file holds, and an instance writes none; its properties plugin lists every
 // property name in the vault, which no entity is held to, and a note's own fields are the ones
-// its schema declares, shown in the note's own widget and offered by the field picker. Read and
-// switched through `internalPlugins`, which is not public API.
-const CORE_PANES = ["backlink", "outgoing-link", "properties"] as const;
+// its schema declares, shown in the note's own widget and offered by the field picker; its tag
+// pane lists a vocabulary an instance has none of, since what classifies an entity here is
+// another entity, with a file, a schema and a source, and a frontmatter field a schema does not
+// declare is a failure (R15). Read and switched through `internalPlugins`, not public API.
+const CORE_PANES = ["backlink", "outgoing-link", "properties", "tag-pane"] as const;
 type InternalPane = { enabled?: boolean; enable(): unknown; disable(): unknown };
 
 export default class CompanyGraphPlugin extends Plugin {
