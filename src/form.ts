@@ -129,8 +129,15 @@ export function changesOf(before: string, after: string): { from: number; to: nu
     return head < a.length ? [{ from: at, to: at, insert }] : [{ from: offsets[a.length] - 1, to: offsets[a.length] - 1, insert: "\n" + midB.join("\n") }];
   }
   if (midB.length === 0) {
-    // Lines removed only: each with the newline after it.
-    return [{ from: offsets[head], to: Math.min(offsets[head + midA.length], before.length), insert: "" }];
+    // Lines removed only, each with the newline after it — except at the end of the text, where
+    // the last line has none of its own and the newline before the run goes instead. Taking the
+    // one after each there left a newline behind, so what was written was never what was asked
+    // for: MD047 and MD012 strip the blank lines off a note's end, the note was read back still
+    // out of form, written again, and a note ending in blank lines never settled.
+    const toEnd = head + midA.length >= a.length;
+    const from = toEnd ? Math.max(0, offsets[head] - 1) : offsets[head];
+    const to = toEnd ? before.length : Math.min(offsets[head + midA.length], before.length);
+    return [{ from, to: Math.max(from, to), insert: "" }];
   }
   span(head, head + midA.length, midB);
   return out;
