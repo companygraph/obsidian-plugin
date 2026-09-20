@@ -70,7 +70,10 @@ const IDLE: State = { ...CHECKING, status: "idle" };
 // another entity, with a file, a schema and a source, and a frontmatter field a schema does not
 // declare is a failure (R15). Read and switched through `internalPlugins`, not public API.
 const CORE_PANES = ["backlink", "outgoing-link", "properties", "tag-pane"] as const;
-type InternalPane = { enabled?: boolean; enable(): unknown; disable(): unknown };
+// The view each of those panes draws its tab with, read from the installed application: a core
+// plugin's id and its view's type are two names, and two of the four differ.
+const PANE_TABS: Record<string, string> = { backlink: "backlink", "outgoing-link": "outgoing-link", properties: "all-properties", "tag-pane": "tag" };
+type InternalPane = { enabled?: boolean; enable(): unknown; disable(): unknown; instance?: { onUserEnable?(): unknown } };
 
 export default class CompanyGraphPlugin extends Plugin {
   state: State = CHECKING;
@@ -656,7 +659,7 @@ export default class CompanyGraphPlugin extends Plugin {
       this.repairPanes = false;
       this.applyPanes(onRepair(CORE_PANES, (id) => this.paneIsOn(id), this.settings.suppressedPanes));
     }
-    this.applyPanes(onRebuild(CORE_PANES, standIn, (id) => this.paneIsOn(id), this.settings.suppressedPanes));
+    this.applyPanes(onRebuild(CORE_PANES, standIn, (id) => this.paneIsOn(id), this.settings.suppressedPanes, (id) => this.paneHasTab(id)));
     this.paint();
   }
 
@@ -1015,6 +1018,11 @@ export default class CompanyGraphPlugin extends Plugin {
     }
   }
 
+  // Whether one of those panes has a tab open anywhere in the workspace.
+  paneHasTab(id: string): boolean {
+    return PANE_TABS[id] !== undefined && this.app.workspace.getLeavesOfType(PANE_TABS[id]).length > 0;
+  }
+
   // A decision from panes.ts carried out, and the list it leaves behind remembered. `save` is
   // false only on the way out, where writing would recreate a folder Obsidian is removing.
   applyPanes(decision: Decision, save = true) {
@@ -1023,11 +1031,19 @@ export default class CompanyGraphPlugin extends Plugin {
     for (const [ids, act] of [[decision.disable, "disable"], [decision.enable, "enable"]] as const)
       for (const id of ids) {
         try {
-          internal.getPluginById(id)?.[act]();
+          const pane = internal.getPluginById(id);
+          pane?.[act]();
+          // A pane given back gets its tab back at once. Read from the installed application:
+          // Obsidian's own switch calls the pane's `onUserEnable`, which puts its tab in the
+          // sidebar, and a bare `enable()` does not, so the pane was back and had no tab, or a
+          // ghost of one, until the window was loaded again.
+          if (act === "enable") pane?.instance?.onUserEnable?.();
         } catch {
           // Not public API: a change upstream leaves Obsidian's own panes exactly as they were.
         }
       }
+    // After the panes are off, so that what is closed is what they left behind.
+    for (const id of decision.close) if (PANE_TABS[id]) this.app.workspace.detachLeavesOfType(PANE_TABS[id]);
     const was = this.settings.suppressedPanes.join(" ");
     this.settings.suppressedPanes = decision.remembered;
     // Only when it moved: a rebuild runs on every keystroke and a write per keystroke is not a
@@ -1038,7 +1054,7 @@ export default class CompanyGraphPlugin extends Plugin {
   // Obsidian's own panes given back on purpose: the setting switched off. The settings tab calls
   // this, and nothing else does — a rebuild never gives a pane back.
   syncPanes(off: boolean) {
-    if (off) this.applyPanes(onRebuild(CORE_PANES, true, (id) => this.paneIsOn(id), this.settings.suppressedPanes));
+    if (off) this.applyPanes(onRebuild(CORE_PANES, true, (id) => this.paneIsOn(id), this.settings.suppressedPanes, (id) => this.paneHasTab(id)));
     else this.applyPanes(onRestore(this.settings.suppressedPanes));
   }
 }
