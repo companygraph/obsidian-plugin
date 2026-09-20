@@ -792,7 +792,8 @@ export default class CompanyGraphPlugin extends Plugin {
     this.app.workspace.iterateAllLeaves((leaf) => {
       if (!(leaf.view instanceof MarkdownView) || !leaf.view.file) return;
       const view = leaf.view;
-      const path = view.file.path;
+      const path = view.file?.path;
+      if (!path) return;
       // Where a section under the note belongs, read from the installed application: Obsidian
       // hangs its own in-document backlinks inside what scrolls with the note, the editor's sizer
       // while it is edited and the preview's while it is read. Put in the view's outer element,
