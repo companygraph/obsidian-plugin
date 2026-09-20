@@ -23,8 +23,9 @@ import { Pane, VIEW_TYPE } from "./pane.ts";
 import { REFERENCES_VIEW, RefsPane, openMention, renderReferences } from "./refspane.ts";
 import { referencesFor } from "./refs.ts";
 import type { References } from "./refs.ts";
-import { CompanyGraphSettingTab, DEFAULT_SETTINGS } from "./settings.ts";
-import type { Settings } from "./settings.ts";
+import { CompanyGraphSettingTab } from "./settings.ts";
+import { forgotPanes, settingsOf } from "./stored.ts";
+import type { Settings } from "./stored.ts";
 import { Suggest } from "./suggest.ts";
 import { marksField, setMarks } from "./marks.ts";
 import { fieldOfLine, propertyRules } from "./properties.ts";
@@ -98,10 +99,12 @@ export default class CompanyGraphPlugin extends Plugin {
   // The last rebuild's files, for references.ts's world; an open editor's own text is read fresh
   // through `textOf`, since it may hold an edit the last rebuild has not seen yet.
   files: Map<string, string> = new Map();
-  settings: Settings = DEFAULT_SETTINGS;
-  // The core panes this plugin itself switched off, so unloading or the setting going off puts
-  // back only those, never one the owner had off already.
-  suppressedPanes: string[] = [];
+  // Built rather than taken from DEFAULT_SETTINGS, whose list of panes is one array: assigned, it
+  // would be the array this plugin pushes pane names into, shared by every instance of the class.
+  settings: Settings = settingsOf(null);
+  // Set at load in a vault whose stored settings are from a release that switched Obsidian's own
+  // panes off without remembering which; cleared by the first sync that acts on it.
+  repairPanes = false;
 
   async onload() {
     this.statusBar = this.addStatusBarItem();
@@ -144,7 +147,9 @@ export default class CompanyGraphPlugin extends Plugin {
     // locks being gone. `updateOptions` asks Obsidian to build every open editor again, which is
     // what a plugin loaded into a running window needs.
     this.app.workspace.updateOptions();
-    this.settings = { ...DEFAULT_SETTINGS, ...(await this.loadData()) };
+    const stored: unknown = await this.loadData();
+    this.settings = settingsOf(stored);
+    this.repairPanes = forgotPanes(stored);
     this.addSettingTab(new CompanyGraphSettingTab(this.app, this));
     const suggest = new Suggest(this.app, this);
     this.registerEditorSuggest(suggest);
@@ -594,7 +599,15 @@ export default class CompanyGraphPlugin extends Plugin {
       if (leaf.view instanceof Pane) leaf.view.render();
     // `this.layout` is set exactly when this vault is a CompanyGraph instance, refused checks
     // included: guard.ts's refusal is about the checker's own version, not about what the vault is.
-    this.syncPanes(this.settings.replaceObsidianPanes && this.layout !== null);
+    const off = this.settings.replaceObsidianPanes && this.layout !== null;
+    // The repair waits for this moment rather than running at load, because only here is it known
+    // whether this plugin would have been the one to switch those panes off: a vault it never
+    // stood in for keeps whatever the owner set, and nothing of theirs is adopted.
+    if (this.repairPanes && off) {
+      this.repairPanes = false;
+      this.adoptSuppressedPanes();
+    }
+    this.syncPanes(off);
     this.paint();
   }
 
@@ -931,27 +944,61 @@ export default class CompanyGraphPlugin extends Plugin {
     this.register(() => observer.disconnect());
   }
 
-  syncPanes(off: boolean) {
-    const internal = (this.app as unknown as {
+  // Obsidian's internal plugins, or null where this build of Obsidian does not offer them. Not
+  // public API, so every caller does without rather than failing.
+  internalPanes(): { getPluginById(id: string): InternalPane | null } | null {
+    return (this.app as unknown as {
       internalPlugins?: { getPluginById(id: string): InternalPane | null };
-    }).internalPlugins;
+    }).internalPlugins ?? null;
+  }
+
+  // The one-time repair for a vault upgraded from a release that switched these panes off without
+  // remembering it. Such a vault holds them off in Obsidian's own settings and nothing here says
+  // who did it, so what is off now while this plugin means to stand in for it is taken as this
+  // plugin's own and can be given back. The cost of being wrong is a pane the owner had off
+  // coming back once, which they can turn off again; the cost of doing nothing is four panes that
+  // no setting, no unload and no uninstall ever restores.
+  adoptSuppressedPanes() {
+    const internal = this.internalPanes();
     if (!internal) return;
+    for (const id of CORE_PANES) {
+      try {
+        const plugin = internal.getPluginById(id);
+        if (plugin && plugin.enabled !== true && !this.settings.suppressedPanes.includes(id))
+          this.settings.suppressedPanes.push(id);
+      } catch {
+        // Not public API: a change upstream leaves Obsidian's own panes exactly as they were.
+      }
+    }
+    void this.saveSettings();
+  }
+
+  syncPanes(off: boolean) {
+    const internal = this.internalPanes();
+    if (!internal) return;
+    const remembered = this.settings.suppressedPanes;
+    const was = remembered.join(" ");
     for (const id of CORE_PANES) {
       try {
         const plugin = internal.getPluginById(id);
         if (!plugin) continue;
         if (off) {
-          if (plugin.enabled === true && !this.suppressedPanes.includes(id)) {
+          // A pane that is on is switched off and written down. The list is not consulted first:
+          // a save that did not finish on the last unload would leave a stale entry, and a pane
+          // named there but on again must still be switched off.
+          if (plugin.enabled === true) {
             plugin.disable();
-            this.suppressedPanes.push(id);
+            if (!remembered.includes(id)) remembered.push(id);
           }
-        } else if (this.suppressedPanes.includes(id)) {
+        } else if (remembered.includes(id)) {
           plugin.enable();
         }
       } catch {
         // Not public API: a change upstream leaves Obsidian's own panes exactly as they were.
       }
     }
-    if (!off) this.suppressedPanes = [];
+    if (!off) this.settings.suppressedPanes = [];
+    // Only when it moved: this runs on every rebuild, and a write per keystroke is not a setting.
+    if (this.settings.suppressedPanes.join(" ") !== was) void this.saveSettings();
   }
 }
