@@ -761,7 +761,10 @@ export default class CompanyGraphPlugin extends Plugin {
   // The references pane, for the note in front, refreshed exactly when the brief is: the pane
   // opened, the model rebuilt, another note came forward.
   refreshReferences() {
-    const path = this.app.workspace.getActiveViewOfType(MarkdownView)?.file?.path ?? null;
+    // The file in front, not the view with the focus: a click inside the references pane makes
+    // the pane itself the active view, and asking for the active Markdown view would answer
+    // nothing and leave the pane on its idle line the moment it is used.
+    const path = this.app.workspace.getActiveFile()?.path ?? null;
     const refs = this.referencesAt(path);
     for (const leaf of this.app.workspace.getLeavesOfType(REFERENCES_VIEW))
       if (leaf.view instanceof RefsPane) leaf.view.render(path, refs);

@@ -6,10 +6,13 @@ import type { Group, References } from "./refs.ts";
 import { countOf } from "./refs.ts";
 
 export interface MentionRow {
-  line: number;   // counted from one
+  // The line the name is written on, counted from one; null where the row opens another note and
+  // its own line would name a place in that one.
+  line: number | null;
   name: string;
   declared: string;
-  path: string;   // the file the name is written in, to open
+  path: string;   // the file a click opens
+  at: number;     // the line a click lands on, counted from zero
 }
 
 export interface FileGroup {
@@ -35,18 +38,27 @@ function fileOf(path: string): { name: string; folder: string } {
   return { name: path.slice(slash + 1).replace(/\.md$/, ""), folder: slash > 0 ? path.slice(0, slash) : "" };
 }
 
-const groupsOf = (groups: Group[]): FileGroup[] =>
+// Where a row leads. A name written elsewhere leads to the line it is written on; a name written
+// here leads to the entity it names, whose own file the group is, since the line it stands on is
+// the one the reader is already looking at.
+const groupsOf = (groups: Group[], outgoing: boolean): FileGroup[] =>
   groups.map((g) => ({
     path: g.path,
     ...fileOf(g.path),
-    mentions: g.mentions.map((m) => ({ line: m.line + 1, name: m.name, declared: m.declared, path: m.path })),
+    mentions: g.mentions.map((m) => ({
+      line: outgoing ? null : m.line + 1,
+      name: m.name,
+      declared: m.declared,
+      path: outgoing ? m.target : m.path,
+      at: outgoing ? 0 : m.line,
+    })),
   }));
 
-const directionOf = (title: string, groups: Group[]): Direction => ({
+const directionOf = (title: string, groups: Group[], outgoing: boolean): Direction => ({
   title: `${title} · ${countOf(groups)}`,
-  groups: groupsOf(groups),
+  groups: groupsOf(groups, outgoing),
 });
 
 export function viewOf(refs: References): ReferencesView {
-  return { in: directionOf("Referred to by", refs.in), out: directionOf("Refers to", refs.out) };
+  return { in: directionOf("Referred to by", refs.in, false), out: directionOf("Refers to", refs.out, true) };
 }

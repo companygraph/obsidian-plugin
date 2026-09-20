@@ -45,7 +45,7 @@ test("a top-level file carries no folder", () => {
 test("a mention's line is counted from one, and it keeps its name, what declares it and its own file", () => {
   const view = viewOf(refs);
   const role = view.in.groups.find((g) => g.path === "model/roles/backend-engineer.md")!;
-  assert.deepEqual(role.mentions, [{ line: 5, name: "Java Programming", declared: "requires", path: "model/roles/backend-engineer.md" }]);
+  assert.deepEqual(role.mentions, [{ line: 5, name: "Java Programming", declared: "requires", path: "model/roles/backend-engineer.md", at: 4 }]);
 });
 
 test("a group's mentions are drawn in the order refs.ts already put them in, not re-sorted here", () => {
@@ -57,4 +57,21 @@ test("a group's mentions are drawn in the order refs.ts already put them in, not
 test("no group and no mention gives an empty direction, its count zero", () => {
   const view = viewOf({ in: [], out: [] });
   assert.deepEqual(view, { in: { title: "Referred to by · 0", groups: [] }, out: { title: "Refers to · 0", groups: [] } });
+});
+
+// The owner's trial: a row under "Refers to" opened the note it was already in. A name written
+// here leads to the entity it names, whose file the group is, and carries no line of its own,
+// since its line is in the note the reader is looking at.
+test("a row that refers out opens the entity it names, from its first line, and shows no line", () => {
+  const view = viewOf({
+    in: [],
+    out: [{
+      path: "model/skills/java-programming.md",
+      mentions: [{ path: "model/roles/backend-engineer.md", line: 4, name: "Java Programming", declared: "requires", target: "model/skills/java-programming.md" }],
+    }],
+  });
+  assert.deepEqual(view.out.groups[0].mentions, [
+    { line: null, name: "Java Programming", declared: "requires", path: "model/skills/java-programming.md", at: 0 },
+  ]);
+  assert.equal(view.out.title, "Refers to · 1");
 });

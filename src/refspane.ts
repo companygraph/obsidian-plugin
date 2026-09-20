@@ -11,7 +11,8 @@ import { viewOf } from "./refsview.ts";
 export const REFERENCES_VIEW = "companygraph-references";
 
 const NO_NOTE = "Put the cursor in an entity's note.";
-const NOTHING = "Nothing names it yet.";
+const NAMED_BY_NOTHING = "Nothing names it yet.";
+const NAMES_NOTHING = "It names nothing.";
 
 // A mention's file, opened with the cursor on its line, as pane.ts's openAt opens a failure's.
 // No frontmatter or table-cell focus here: a reference is a place to read, not one to correct.
@@ -28,11 +29,11 @@ export async function openMention(app: App, path: string, line: number) {
 export function renderReferences(el: HTMLElement, refs: References, open: (path: string, line: number) => void) {
   el.empty();
   const view = viewOf(refs);
-  for (const direction of [view.in, view.out]) {
+  for (const [direction, empty] of [[view.in, NAMED_BY_NOTHING] as const, [view.out, NAMES_NOTHING] as const]) {
     const block = el.createDiv();
     block.createDiv({ cls: "companygraph-refs-title", text: direction.title });
     if (direction.groups.length === 0) {
-      block.createDiv({ cls: "companygraph-message", text: NOTHING });
+      block.createDiv({ cls: "companygraph-message", text: empty });
       continue;
     }
     for (const group of direction.groups) {
@@ -45,12 +46,12 @@ export function renderReferences(el: HTMLElement, refs: References, open: (path:
       const list = file.createEl("ul");
       for (const mention of group.mentions) {
         const item = list.createEl("li", { cls: "companygraph-open" });
-        item.createSpan({ cls: "companygraph-line", text: String(mention.line) });
+        item.createSpan({ cls: "companygraph-line", text: mention.line === null ? "·" : String(mention.line) });
         item.createSpan({ cls: "companygraph-message", text: `${mention.name} — ${mention.declared}` });
         item.onClickEvent(() => {
           // A press that ends a drag over the text was a selection, not a wish to leave.
           if (activeWindow.getSelection()?.toString()) return;
-          void open(mention.path, mention.line - 1);
+          void open(mention.path, mention.at);
         });
       }
     }
