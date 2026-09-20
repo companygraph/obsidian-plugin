@@ -25,11 +25,12 @@ export class CompanyGraphSettingTab extends PluginSettingTab {
     el.empty();
 
     new Setting(el)
-      .setName("Replace Obsidian's backlinks, outgoing links and properties panes")
+      .setName("Replace Obsidian's backlinks, outgoing links, properties and tags panes")
       .setDesc(
-        "While this vault is a CompanyGraph instance, switch those three of Obsidian's own panes " +
+        "While this vault is a CompanyGraph instance, switch those four of Obsidian's own panes " +
           "off: the references pane says what the first two would, for the names a schema " +
-          "declares, and a vault-wide list of property names is not what an entity is held to. " +
+          "declares, a vault-wide list of property names is not what an entity is held to, and " +
+          "an instance has no tags, since what classifies an entity here is another entity. " +
           "The note's own Properties widget stays.",
       )
       .addToggle((toggle) =>
