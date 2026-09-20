@@ -42,7 +42,7 @@ import { addableSections } from "./headings.ts";
 import { PickType } from "./newentity.ts";
 import { targetsFor } from "./scaffold.ts";
 import { DeleteEntity, RenameEntity } from "./entitycommands.ts";
-import { PIN, RULES, RULE_PATHS, changesOf, columnAfter, excludesOf, formOf, formed, inForm } from "./form.ts";
+import { PIN, RULES, RULE_PATHS, changesOf, channelFor, columnAfter, excludesOf, formOf, formed, inForm } from "./form.ts";
 
 // The release of companygraph-meta-model this build bundles; esbuild.config.mjs defines it.
 declare const __CHECKER_VERSION__: string;
@@ -323,7 +323,8 @@ export default class CompanyGraphPlugin extends Plugin {
     }));
     this.registerEvent(this.app.workspace.on("quit", (tasks) => {
       const left = this.left;
-      if (left) tasks.add(() => this.writeForm(left));
+      // `leaving`: the editor's own save never comes after this, so the file is written.
+      if (left) tasks.add(() => this.writeForm(left, false, true));
     }));
     this.addCommand({ id: "open-brief", name: "Open the writing brief", callback: () => void this.openBrief() });
     this.addCommand({ id: "open-checks", name: "Open the compliance pane", callback: () => void this.openPane() });
@@ -447,7 +448,7 @@ export default class CompanyGraphPlugin extends Plugin {
   // tab is changed through its editor, which saves it as it saves any edit: a write to disk under
   // an open editor would race that editor's own pending save. `loud` is the command's: it says
   // why nothing was written, where leaving a note says nothing.
-  async writeForm(file: TFile, loud = false) {
+  async writeForm(file: TFile, loud = false, leaving = false) {
     try {
       const adapter = this.app.vault.adapter;
       let config = null;
@@ -471,7 +472,21 @@ export default class CompanyGraphPlugin extends Plugin {
       });
       const view = holder as MarkdownView | null;
       const open = view ? view.editor : null;
-      if (open) {
+      // `getMode()` is "source" for Live Preview as well as Source mode, and "preview" for
+      // Reading view, where the editor exists behind the page with nothing of it on screen.
+      const channel = channelFor({ hasEditor: open !== null, showing: view?.getMode() === "source", leaving });
+      if (channel === "leaving") {
+        // Obsidian saves nothing after a quit task, so the file itself is written and not the
+        // editor, whose own save never comes. What an editor holds is newer than the file, so
+        // that is the text formed — unless it holds nothing, which is an editor never built, and
+        // writing that would empty the note.
+        const held = open?.getValue() ?? "";
+        const before = held.length ? held : await this.app.vault.read(file);
+        const after = inForm(before, config);
+        if (after !== before) await this.app.vault.modify(file, after);
+        return;
+      }
+      if (channel === "editor" && open) {
         const before = open.getValue();
         const changes = changesOf(before, inForm(before, config));
         if (!changes.length) {
@@ -504,8 +519,14 @@ export default class CompanyGraphPlugin extends Plugin {
         open.setCursor({ line, ch: columnAfter(was, open.getLine(line), cursor.ch) });
         return;
       }
+      // The file itself: no tab holds this note, or the one that does is in Reading view, where
+      // the editor is behind the page and a change dispatched into it goes where nobody looks.
       const text = await this.app.vault.read(file);
-      if (inForm(text, config) !== text) await this.app.vault.process(file, (current) => inForm(current, config));
+      if (inForm(text, config) === text) {
+        if (loud) new Notice("This note is already in the family's Markdown form.");
+        return;
+      }
+      await this.app.vault.process(file, (current) => inForm(current, config));
     } catch (error) {
       const why = error instanceof Error ? error.message : String(error);
       new Notice(`${file.path} was not written in the family's Markdown form: ${why}`);

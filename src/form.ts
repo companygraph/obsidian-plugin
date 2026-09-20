@@ -143,6 +143,19 @@ export function changesOf(before: string, after: string): { from: number; to: nu
   return out;
 }
 
+// Which channel writes the form into a note. The editor is the one that keeps a cursor and
+// carries edits Obsidian has not saved yet, but it is only the right channel while it is on
+// screen and the application is staying up. In Reading view there is an editor behind the page
+// with nothing of it visible, and dispatching into it wrote where no one was looking. On the way
+// out Obsidian's own save never comes, so a change handed to the editor there was simply lost:
+// the note the owner left last kept its diff at every quit.
+export type Channel = "editor" | "leaving" | "file";
+
+export function channelFor({ hasEditor, showing, leaving }: { hasEditor: boolean; showing: boolean; leaving: boolean }): Channel {
+  if (leaving) return "leaving";
+  return hasEditor && showing ? "editor" : "file";
+}
+
 // Where a cursor at `ch` in a line stands once the form has rewritten the line. The form changes
 // spacing and never what is written, so the cursor keeps the characters before it that are not
 // spaces: in `| a   | b   |` just after `b`, it is just after `b` in `| a | b |` too.

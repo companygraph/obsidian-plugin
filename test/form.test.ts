@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { RULE_PATHS, changesOf, columnAfter, excludesOf, formOf, formed, inForm, spanOf } from "../src/form.ts";
+import { RULE_PATHS, changesOf, channelFor, columnAfter, excludesOf, formOf, formed, inForm, spanOf } from "../src/form.ts";
 import { reference } from "./helpers.ts";
 
 // The rule set this repository vendored, the file a vault that took the form carries.
@@ -214,4 +214,21 @@ test("a cursor keeps the characters before it that are not spaces, wherever the 
   assert.equal(columnAfter("| a   | b   |", "| a | b |", 0), 0);
   assert.equal(columnAfter("  - x", "- x", 5), 3);
   assert.equal(columnAfter("same", "same", 2), 2);
+});
+
+// Review found two faults of one shape: the form was written through the wrong channel. In
+// Reading view an editor exists behind the page with nothing of it on screen, and a change
+// dispatched into it went where no one was looking. On quit, Obsidian saves nothing after the
+// task runs, so a change handed to the editor was lost and the note left last kept its diff at
+// every quit. Both are decided here, where a test can hold the rule.
+test("the editor writes only while it is on screen and the application is staying up", () => {
+  assert.equal(channelFor({ hasEditor: true, showing: true, leaving: false }), "editor");
+  // Reading view: an editor, but none of it visible.
+  assert.equal(channelFor({ hasEditor: true, showing: false, leaving: false }), "file");
+  // No tab holds the note at all.
+  assert.equal(channelFor({ hasEditor: false, showing: false, leaving: false }), "file");
+  // On the way out, whatever is on screen, because no save follows.
+  for (const hasEditor of [true, false])
+    for (const showing of [true, false])
+      assert.equal(channelFor({ hasEditor, showing, leaving: true }), "leaving", `${hasEditor} ${showing}`);
 });
