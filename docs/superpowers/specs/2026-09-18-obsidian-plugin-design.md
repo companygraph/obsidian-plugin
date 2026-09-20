@@ -10,8 +10,10 @@ the repository exists so that the spec has a home, in the order the family keeps
 is hand-built and proven on the reference instance, `robertblust/mental-model`, before anything
 about it moves into the meta-model.
 
-Reads against three specs in `companygraph/meta-model`: `2026-08-25-companygraph-tooling-design.md`
-(the CLI that was designed and not built, and whose `check` this plugin runs), `2026-09-10-instance-checks-design.md`
+Reads against four specs in `companygraph/meta-model`: `2026-08-25-companygraph-tooling-design.md`
+(the first tooling design, partly superseded, and whose `check` this plugin runs),
+`2026-09-20-the-cli-design.md` (the CLI as it was settled, in the meta-model rather than a
+repository of its own), `2026-09-10-instance-checks-design.md`
 (the instance checks, and why they read the instance's own core) and `2026-09-15-typed-resolution-design.md`
 (references resolve by declared type). Where this spec and the conventions in `core/CONVENTIONS.md`
 disagree, the conventions stand and this spec is wrong.
@@ -318,6 +320,16 @@ shell and in this plugin, so that whoever builds `init`, `add` and `upgrade` doe
 ---
 
 ## 8. Version two, what is known
+
+Since this section was written, three of its questions have been answered and one of its three
+things has been built, so read it with this paragraph in front of it. The CLI question is settled:
+`init`, `upgrade` and `check` live in the meta-model, not in a repository of their own and not in
+this plugin, and the plugin will call that library rather than carry its own copy — see
+`2026-09-20-the-cli-design.md` and the plan beside it. `add` was dropped from the tooling
+altogether, because an editor scaffolds an entity and a second way to do one thing is a second
+thing to keep true. And **Add an entity** below is built here: New entity, Rename entity and
+Delete entity shipped in 0.2.0. The agent pass, §8's third, was built, tried once and dropped on
+2026-09-20; what replaced it is nothing, and the record of why is below.
 
 Three things were asked for and deferred, in the order they are likely to come.
 
