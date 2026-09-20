@@ -335,11 +335,12 @@ export default class CompanyGraphPlugin extends Plugin {
           .setChecked(this.settings.referencesInDocument)
           .onClick(() => void this.toggleInlineReferences()),
       );
-      // Obsidian's own Add file property, taken out of the menu while it is still being built:
-      // by the time it is shown it is either a page of elements or a native menu the page cannot
-      // reach, and this event is the one moment a plugin holds the menu itself. Obsidian's own
-      // items are in it already, since a view adds its own before it tells the plugins.
-      if (this.settings.replaceObsidianPanes && this.layout) this.dropAddProperty(menu);
+      // Obsidian's own Add file property, taken out the moment the menu is shown. Not while it is
+      // built: a handler registered after this one may add the item afterwards, which is what the
+      // owner kept seeing. And not from the page: with native menus the menu never becomes
+      // elements at all. Every way of showing a menu is wrapped on the menu this plugin is
+      // handed, so the list is swept last, whoever filled it.
+      if (this.settings.replaceObsidianPanes && this.layout) this.sweepWhenShown(menu);
     }));
 
     // Once typing pauses. The path is tested before the debounce, not inside it: a debounced
@@ -875,6 +876,22 @@ export default class CompanyGraphPlugin extends Plugin {
     const name = (this.app as unknown as { commands?: { commands?: Record<string, { name?: string }> } })
       .commands?.commands?.["markdown:add-metadata-property"]?.name;
     return name?.trim() || null;
+  }
+
+  // Every way a menu is shown, wrapped so the item is taken out just before it: showAtPosition,
+  // showAtMouseEvent and the show a submenu uses. The wrapping is on the one menu, which Obsidian
+  // throws away after it closes, so nothing of the application is left changed.
+  sweepWhenShown(menu: Menu) {
+    const shows = ["showAtPosition", "showAtMouseEvent", "showAtEntry"] as const;
+    const held = menu as unknown as Record<string, ((...args: unknown[]) => unknown) | undefined>;
+    for (const name of shows) {
+      const original = held[name];
+      if (typeof original !== "function") continue;
+      held[name] = (...args: unknown[]) => {
+        this.dropAddProperty(menu);
+        return original.apply(menu, args);
+      };
+    }
   }
 
   // The item taken out of a menu object, before Obsidian draws or hands it to the system. Neither
