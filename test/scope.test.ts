@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildModel } from "../src/model.ts";
+import { buildModel, schemasOf } from "../src/model.ts";
+import { vocabularyOf } from "../src/vocabulary.ts";
+import { candidatesFor } from "../src/candidates.ts";
 import { namedOf, namesIn } from "../src/scope.ts";
 import { example, EXAMPLE, edited } from "./helpers.ts";
 
@@ -63,4 +65,18 @@ test("an owner with nothing of the owned type is offered nothing of it, not ever
   const graph = buildModel(files, EXAMPLE).graph;
   if (!graph) return; // an owner whose folder is gone may not parse; the case is covered when it does
   assert.deepEqual(namesIn(namedOf(graph), MIRA, M).get("experience") ?? [], []);
+});
+
+// A track is owned by its process since core 0.33.0, and a phase's `### ` heading under
+// `## Activities` names one: what is offered there is the process's own tracks, less those the
+// section already carries.
+test("a phase's track heading is offered its own process's tracks", () => {
+  const files = example();
+  const phase = "example/model/processes/delivery/phases/release.md";
+  const names = namesIn(namedOf(buildModel(files, EXAMPLE).graph!), phase, M);
+  assert.deepEqual(names.get("track"), ["Code", "Docs"]);
+  const vocabulary = vocabularyOf(schemasOf(files, EXAMPLE));
+  const lines = ["# Release", "", "## Activities", "", "### Code", "", "1. Ship it.", "", "### "];
+  const offered = candidatesFor({ kind: "grouped", section: "Activities", typed: "", start: 4 }, vocabulary.get("phase")!, names, lines);
+  assert.deepEqual(offered.map((c) => c.label), ["Docs"]);
 });
