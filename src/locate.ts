@@ -32,7 +32,21 @@ function tokens(line: string): string[] {
 // The first line of `scope` where a value sits as a whole token; failing that, the first where
 // one reads anywhere, which is how a half-typed value that is nobody's whole token still lands
 // somewhere. -1 when no value reads at all.
+//
+// Before either, a line that holds two of the values as whole tokens: a failure about a row
+// quotes more than one of its cells, a skill and the experience beside it, and the first of
+// them alone reads on every row under the same claim. The line that carries the most is the
+// row meant, and only a line carrying at least two counts, so a failure quoting one value is
+// found exactly as before.
 function seek(lines: string[], scope: number[], values: string[]): number {
+  const distinct = [...new Set(values)];
+  let best = -1, most = 1;
+  for (const i of scope) {
+    const held = tokens(lines[i]);
+    const count = distinct.filter((v) => held.includes(v)).length;
+    if (count > most) { most = count; best = i; }
+  }
+  if (best >= 0) return best;
   for (const value of values) for (const i of scope) if (tokens(lines[i]).includes(value)) return i;
   for (const value of values) for (const i of scope) if (lines[i].includes(value)) return i;
   return -1;

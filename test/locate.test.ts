@@ -147,3 +147,15 @@ test("a qualifier cell that fails lands on its row in the Evidence table, for ev
     assert.equal(at.line, lineOf(files, MIRA, "| A period that never was |"));
   }
 });
+
+// A join failure quotes two cells of the row at fault, the skill and the experience, and the
+// skill alone reads on every row under that claim. The row that carries both is the row meant.
+test("a failure that quotes two cells of one row lands on that row, not on the first to carry one", () => {
+  const page = ["---", "source: Local", "---", "", "# Ada", "", "## Evidence", "",
+    "| Skill | What it shows | Experience |", "| --- | --- | --- |",
+    "| Java | Built the first. | Alpha |", "| Java | Built the second. | Beta |", "| Talks | Spoke. | Beta |", ""].join("\n");
+  const files = new Map([["model/profiles/ada/ada.md", page]]);
+  const failure = 'model/profiles/ada/ada.md: a row of "## Evidence" under "Java" names `Experience` "Beta", and model/profiles/ada/experiences/beta.md does not list "Java" in `skills`; the schema declares that it does (R16)';
+  assert.equal(locate(failure, files).line, 11);
+});
+
