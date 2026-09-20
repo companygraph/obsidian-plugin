@@ -3,7 +3,7 @@
 node_modules
 .vscode
 .claudian
+.superpowers
 
 test/fixtures/
 main.js
-.superpowers/
