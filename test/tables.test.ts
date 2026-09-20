@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { cellContextOf, sectionAbove, tableRowOf, cellOfFailure } from "../src/tables.ts";
+import { cellContextOf, sectionAbove, tableRowOf, cellOfFailure, cellOfLine, columnDeclared } from "../src/tables.ts";
 import { contextAt } from "../src/context.ts";
 
 const NOTE = [
@@ -74,4 +74,23 @@ test("a failure in a table row names its cell: the row as the widget counts it, 
   // The header and the separator are the header row; a line outside a table is no cell.
   assert.deepEqual(cellOfFailure(lines, 3, message), { first: 2, row: 0, col: 1 });
   assert.equal(cellOfFailure(lines, 0, message), null);
+});
+
+// Found in the owner's use: a reference opened from the references pane landed in the row's first
+// cell whatever column the name stood in, so a level or an experience opened on the skill beside it.
+test("a mention in a table row names its cell: the column is the one that declares the name", () => {
+  const lines = ["## Skills", "", "| Skill | Level |", "| --- | --- |", "| Java | Expert |", "| Go | Expert |", ""];
+  assert.deepEqual(cellOfLine(lines, 5, "Level"), { first: 2, row: 2, col: 1 });
+  assert.deepEqual(cellOfLine(lines, 5, "Skill"), { first: 2, row: 2, col: 0 });
+  // A column the table does not have, or none named, is the row's first cell; no table, no cell.
+  assert.deepEqual(cellOfLine(lines, 4, "Evidence"), { first: 2, row: 1, col: 0 });
+  assert.deepEqual(cellOfLine(lines, 4, null), { first: 2, row: 1, col: 0 });
+  assert.equal(cellOfLine(lines, 0, "Level"), null);
+});
+
+test("what declares a name says which column it stands in, and a field names none", () => {
+  assert.equal(columnDeclared("## Evidence · Experience"), "Experience");
+  assert.equal(columnDeclared("Skills · Level"), "Level");   // as a list shows it, without the hashes
+  assert.equal(columnDeclared("requires"), null);
+  assert.equal(columnDeclared("## Phases"), null);           // the heading of a grouped section
 });
