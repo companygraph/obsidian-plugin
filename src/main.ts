@@ -1,6 +1,7 @@
 // The wiring: when to rebuild, and the three places a rebuild shows — the pane, the open file's
 // lines and the status bar. Everything that decides anything is in the pure modules.
 import { Keymap, MarkdownView, Notice, Plugin, TFile, debounce, editorInfoField } from "obsidian";
+import type { Menu } from "obsidian";
 import type { WorkspaceLeaf } from "obsidian";
 import type { Debouncer } from "obsidian";
 import { EditorView as EditorViewClass } from "@codemirror/view";
@@ -56,9 +57,12 @@ export interface State {
 const CHECKING: State = { status: "checking", notice: null, pinDiffers: false, located: [], skipped: [] };
 const IDLE: State = { ...CHECKING, status: "idle" };
 
-// Obsidian's own panes this plugin stands in for, while the references pane runs. Read and
+// Obsidian's own panes this plugin stands in for. Its backlinks and outgoing links list the
+// Markdown links a file holds, and an instance writes none; its properties plugin lists every
+// property name in the vault, which no entity is held to, and a note's own fields are the ones
+// its schema declares, shown in the note's own widget and offered by the field picker. Read and
 // switched through `internalPlugins`, which is not public API.
-const CORE_PANES = ["backlink", "outgoing-link"] as const;
+const CORE_PANES = ["backlink", "outgoing-link", "properties"] as const;
 type InternalPane = { enabled?: boolean; enable(): unknown; disable(): unknown };
 
 export default class CompanyGraphPlugin extends Plugin {
@@ -111,6 +115,7 @@ export default class CompanyGraphPlugin extends Plugin {
     this.registerView(VIEW_TYPE, (leaf) => new Pane(leaf, this));
     this.registerView(BRIEF_VIEW, (leaf) => new BriefPane(leaf, this));
     this.registerView(REFERENCES_VIEW, (leaf) => new RefsPane(leaf, this));
+    this.watchMenus();
     // The brief follows the cursor of the editor that has the focus, a moment after it settles.
     const brief = debounce((view: EditorView) => this.showBrief(view), 150, true);
     const inline = debounce(() => this.paintInlineRefs(), 200, true);
@@ -330,6 +335,12 @@ export default class CompanyGraphPlugin extends Plugin {
           .setChecked(this.settings.referencesInDocument)
           .onClick(() => void this.toggleInlineReferences()),
       );
+      // Obsidian's own Add file property, taken out the moment the menu is shown. Not while it is
+      // built: a handler registered after this one may add the item afterwards, which is what the
+      // owner kept seeing. And not from the page: with native menus the menu never becomes
+      // elements at all. Every way of showing a menu is wrapped on the menu this plugin is
+      // handed, so the list is swept last, whoever filled it.
+      if (this.settings.replaceObsidianPanes && this.layout) this.sweepWhenShown(menu);
     }));
 
     // Once typing pauses. The path is tested before the debounce, not inside it: a debounced
@@ -851,6 +862,68 @@ export default class CompanyGraphPlugin extends Plugin {
   // them and back on for whatever this plugin itself switched off. Not public API, so every step
   // is optional, and only a pane confirmed on (`enabled === true`) before is tracked to restore:
   // one this plugin cannot confirm is left exactly as it was found.
+  // Obsidian's Add file property, taken out of every menu that opens with it. It offers every
+  // property name the vault has ever seen, and an entity's fields are the ones its schema
+  // declares, which the note's own widget and the field picker answer. Two menus carry it, the
+  // editor's more-options menu and the Properties heading's own, and the second is built by
+  // Obsidian with no event a plugin can answer, so the menus are watched as they are added to
+  // the page instead. The item is found by the name Obsidian gives its own command, so it is the
+  // right item in any language, and by the markup a menu is drawn with, which is not API: where
+  // either changes the item stays and nothing else does.
+  // The name Obsidian gives its own Add file property command, which is the item's title in
+  // whatever language the application runs in.
+  addPropertyTitle(): string | null {
+    const name = (this.app as unknown as { commands?: { commands?: Record<string, { name?: string }> } })
+      .commands?.commands?.["markdown:add-metadata-property"]?.name;
+    return name?.trim() || null;
+  }
+
+  // Every way a menu is shown, wrapped so the item is taken out just before it: showAtPosition,
+  // showAtMouseEvent and the show a submenu uses. The wrapping is on the one menu, which Obsidian
+  // throws away after it closes, so nothing of the application is left changed.
+  sweepWhenShown(menu: Menu) {
+    const shows = ["showAtPosition", "showAtMouseEvent", "showAtEntry"] as const;
+    const held = menu as unknown as Record<string, ((...args: unknown[]) => unknown) | undefined>;
+    for (const name of shows) {
+      const original = held[name];
+      if (typeof original !== "function") continue;
+      held[name] = (...args: unknown[]) => {
+        this.dropAddProperty(menu);
+        return original.apply(menu, args);
+      };
+    }
+  }
+
+  // The item taken out of a menu object, before Obsidian draws or hands it to the system. Neither
+  // the list of items nor an item's own title element is public API, so every step is optional.
+  dropAddProperty(menu: Menu) {
+    const title = this.addPropertyTitle();
+    const items = (menu as unknown as { items?: { titleEl?: HTMLElement; dom?: HTMLElement }[] }).items;
+    if (!title || !Array.isArray(items)) return;
+    for (let i = items.length - 1; i >= 0; i--) {
+      const said = items[i]?.titleEl?.textContent ?? items[i]?.dom?.textContent ?? "";
+      if (said.trim() !== title) continue;
+      items[i].dom?.remove();
+      items.splice(i, 1);
+    }
+  }
+
+  watchMenus() {
+    const observer = new MutationObserver((records) => {
+      if (!this.settings.replaceObsidianPanes || !this.layout) return;
+      const title = this.addPropertyTitle();
+      if (!title) return;
+      for (const record of records)
+        for (const added of Array.from(record.addedNodes)) {
+          if (!(added instanceof HTMLElement) || !added.hasClass("menu")) continue;
+          for (const item of Array.from(added.querySelectorAll<HTMLElement>(".menu-item")))
+            if ((item.querySelector(".menu-item-title")?.textContent ?? "").trim() === title) item.remove();
+        }
+    });
+    observer.observe(document.body, { childList: true });
+    this.register(() => observer.disconnect());
+  }
+
   syncPanes(off: boolean) {
     const internal = (this.app as unknown as {
       internalPlugins?: { getPluginById(id: string): InternalPane | null };
