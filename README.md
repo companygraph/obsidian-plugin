@@ -88,8 +88,8 @@ a failure. The note's own Properties widget stays, and a setting keeps all four 
 
 Obsidian's table editor rewrites a whole table the moment one cell is edited, every column padded
 to its widest cell, and undo gives back the cell but not the padding, so a note that was only
-opened carries a diff. In a vault that vendors the family's conventions at a release with
-`conventions/markdown.markdownlint-cli2.jsonc`, any vault and not only an instance, the plugin
+opened carries a diff. In a vault that vendors the family's conventions, any vault and not only an
+instance, the plugin
 writes a note back into that Markdown form when the note is left, when it is saved with Cmd+S or
 Ctrl+S, and when Obsidian quits: the same rules and the same markdownlint that
 `conventions-format` runs in CI, so the note comes out byte for byte as the CI's fix would write

@@ -52,22 +52,25 @@ these decides whether an entity is valid, each is a candidate for an export upst
 design's section on what goes upstream lists them.
 
 The Markdown form written back into a note is the conventions', not a rule of this repository:
-`src/form.ts` reads the rule set from the vault's vendored
-`conventions/markdown.markdownlint-cli2.jsonc`, takes the one custom rule from this repository's
-own vendored `conventions/markdown-rules.cjs`, and runs markdownlint, pinned exactly in
+`src/form.ts` reads the rule set from the vault's own copy, `.markdownlint-cli2.jsonc` at its
+root since conventions v1.21.0 and `conventions/markdown.markdownlint-cli2.jsonc` before it. Both
+are read, newest first, because a vault takes a release when its owner says so and one still on
+the older layout must keep its form. It takes the one custom rule from this repository's own
+vendored `conventions/markdown-rules.cjs`, and runs markdownlint, pinned exactly in
 `package.json` to the release conventions-format's CLI runs. `test/pin.test.ts` fails when a
 conventions release moves the CLI and the plugin's markdownlint has not moved with it.
 
 ## Layout
 
 Everything that decides anything is a pure module under `src/`, with a test beside it under
-`test/`: `manifest.ts`, `model.ts`, `locate.ts`, `context.ts`, `vocabulary.ts`, `candidates.ts`,
-`properties.ts`, `report.ts`, `tables.ts`, `scope.ts`,
-`references.ts`, `links.ts`, `form.ts`.
-The modules that touch Obsidian, `vault.ts`, `marks.ts`, `pane.ts`, `suggest.ts`, `addfield.ts`,
-`widget.ts`, `livetable.ts`, `namelinks.ts` and `main.ts`,
-are kept thin because nothing here can run them; they are proven by hand on the reference
-instance. No module under `src/` imports from `node:`, because the plugin also runs on a phone.
+`test/`. A module is Obsidian's when it imports `obsidian` or `@codemirror/`, and those are kept
+thin because nothing here can run them: they are proven by hand on the reference instance. No
+module under `src/` imports from `node:`, because the plugin also runs on a phone.
+
+Those are rules and not a list. `test/layout.test.ts` holds each of them, so a module added on
+either side of the line is placed by what it imports rather than by anyone remembering to write it
+down here. This paragraph used to name every module instead, and the list was wrong within a week:
+it named thirteen pure modules while there were twenty-three.
 
 The tests run under Node's own type stripping, so a source file uses only syntax that erases: no
 enum, no parameter property, no namespace, a relative import named with its `.ts`, a type
