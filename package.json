@@ -1,6 +1,6 @@
 {
   "name": "companygraph-obsidian-plugin",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "description": "CompanyGraph in Obsidian: checks an instance as it is edited and completes what its schemas declare",
   "license": "Apache-2.0",
