@@ -34,3 +34,23 @@ test("the plugin's markdownlint is the one the conventions' CLI runs", () => {
   assert.equal(read("package.json").dependencies.markdownlint, CLI_RUNS[cli]);
   assert.equal(read("node_modules/markdownlint/package.json").version, CLI_RUNS[cli], "install markdownlint by name so the lockfile moves");
 });
+
+// The plugin bundles this package and declares itself not desktop-only, so the package's syntax
+// has to parse where the plugin runs. A regex literal is parsed with the file that holds it, so a
+// lookbehind is a syntax error and not a failed match on an engine without one: Safari gained
+// lookbehind in 16.4, and one `(?<!!)` in the checks meant the whole bundle failed to parse and
+// the plugin did not load at all on an older iPhone. Fixed upstream in 0.32.0; held here, because
+// the next release is the one that could bring it back and a phone is where it would be found.
+test("nothing in the bundled package uses a lookbehind, which older engines cannot parse", () => {
+  const lib = path.join(root, "node_modules", "companygraph-meta-model", "lib");
+  const offenders: string[] = [];
+  for (const file of fs.readdirSync(lib).filter((f) => f.endsWith(".mjs"))) {
+    const lines = fs.readFileSync(path.join(lib, file), "utf8").split("\n");
+    lines.forEach((line, i) => {
+      // A whole-line comment is not code. Anything else holding `(?<` is, near enough: a named
+      // group is written the same way and is no safer on the engines this is about.
+      if (!line.trimStart().startsWith("//") && line.includes("(?<")) offenders.push(`${file}:${i + 1}`);
+    });
+  }
+  assert.deepEqual(offenders, [], "a lookbehind here stops the whole bundle parsing on iOS before 16.4");
+});

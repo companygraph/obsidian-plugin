@@ -10,6 +10,9 @@ declare module "companygraph-meta-model/checks" {
   }[];
   // R12's slug: lower case, every run of other characters one hyphen, none at either end.
   export function slug(s: string): string;
+  // R9's date: a year, a year and a month, or a full date. Exported by the package since 0.32.0,
+  // so nothing here keeps a second copy of it.
+  export const DATE: RegExp;
   export function checkInstance(
     files: Map<string, string>,
     options?: { core?: string; model?: string },

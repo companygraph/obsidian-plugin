@@ -6,12 +6,9 @@
 // exist. What it starts with is what its schema requires: the required fields, the H1, an empty
 // tagline and every required section in the schema's order, a table section with its header.
 // Pure.
-import { TYPES, slug } from "companygraph-meta-model/checks";
+import { DATE, TYPES, slug } from "companygraph-meta-model/checks";
 import type { TypeVocabulary } from "./vocabulary.ts";
 import { tableStart } from "./headings.ts";
-
-// R9's date: a year, a year and month, or a full date.
-const DATE = /^\d{4}(-\d{2}(-\d{2})?)?$/;
 
 export interface Target {
   type: string;
