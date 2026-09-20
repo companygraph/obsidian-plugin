@@ -1,6 +1,6 @@
 // The wiring: when to rebuild, and the three places a rebuild shows — the pane, the open file's
 // lines and the status bar. Everything that decides anything is in the pure modules.
-import { Keymap, MarkdownView, Notice, Plugin, TFile, debounce, editorInfoField } from "obsidian";
+import { Keymap, MarkdownView, Menu, Notice, Plugin, TFile, debounce, editorInfoField } from "obsidian";
 import type { WorkspaceLeaf } from "obsidian";
 import type { Debouncer } from "obsidian";
 import { EditorView as EditorViewClass } from "@codemirror/view";
@@ -333,6 +333,14 @@ export default class CompanyGraphPlugin extends Plugin {
           .setChecked(this.settings.referencesInDocument)
           .onClick(() => void this.toggleInlineReferences()),
       );
+      // Obsidian's own Add file property offers every property name the vault has ever seen, and
+      // an entity's fields are the ones its schema declares, which the note's widget and the
+      // field picker answer. The item is taken out of this menu while this plugin stands in for
+      // Obsidian's property panes. It is found by the name Obsidian gives its own command, so it
+      // is the right item in any language, and taken out a tick later, since the menu is still
+      // being filled while this runs. None of the menu's insides are public API, so every step
+      // is optional: where any of it changes, the item stays and nothing else does.
+      if (this.settings.replaceObsidianPanes && this.layout) window.setTimeout(() => this.dropAddProperty(menu), 0);
     }));
 
     // Once typing pauses. The path is tested before the debounce, not inside it: a debounced
@@ -854,6 +862,20 @@ export default class CompanyGraphPlugin extends Plugin {
   // them and back on for whatever this plugin itself switched off. Not public API, so every step
   // is optional, and only a pane confirmed on (`enabled === true`) before is tracked to restore:
   // one this plugin cannot confirm is left exactly as it was found.
+  // Obsidian's Add file property, taken out of a menu it has just been put into.
+  dropAddProperty(menu: Menu) {
+    const title = (this.app as unknown as { commands?: { commands?: Record<string, { name?: string }> } })
+      .commands?.commands?.["markdown:add-metadata-property"]?.name;
+    const items = (menu as unknown as { items?: { titleEl?: HTMLElement; dom?: HTMLElement }[] }).items;
+    if (!title || !Array.isArray(items)) return;
+    for (let i = items.length - 1; i >= 0; i--) {
+      const said = items[i]?.titleEl?.textContent ?? items[i]?.dom?.textContent ?? "";
+      if (said.trim() !== title.trim()) continue;
+      items[i].dom?.remove();
+      items.splice(i, 1);
+    }
+  }
+
   syncPanes(off: boolean) {
     const internal = (this.app as unknown as {
       internalPlugins?: { getPluginById(id: string): InternalPane | null };
