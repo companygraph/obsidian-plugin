@@ -10,6 +10,7 @@ import { focusProperty } from "./widget.ts";
 import { cellOfFailure } from "./tables.ts";
 import { openCell } from "./livetable.ts";
 import type { EditorView } from "@codemirror/view";
+import { draggedOver } from "./dragged.ts";
 
 export const VIEW_TYPE = "companygraph-checks";
 
@@ -80,8 +81,8 @@ export class Pane extends ItemView {
         if (found.path) {
           item.addClass("companygraph-open");
           item.onClickEvent(() => {
-            // A press that ends a drag over the text was a selection, not a wish to leave.
-            if (activeWindow.getSelection()?.toString()) return;
+            // A press that ends a drag over this entry's own text was a selection, not a wish to leave.
+            if (draggedOver(item, activeWindow.getSelection())) return;
             void this.openAt(found.path!, found.line, found.message);
           });
         }

@@ -7,6 +7,7 @@ import type { App, WorkspaceLeaf } from "obsidian";
 import type CompanyGraphPlugin from "./main.ts";
 import type { References } from "./refs.ts";
 import { viewOf } from "./refsview.ts";
+import { draggedOver } from "./dragged.ts";
 
 export const REFERENCES_VIEW = "companygraph-references";
 
@@ -49,8 +50,8 @@ export function renderReferences(el: HTMLElement, refs: References, open: (path:
         item.createSpan({ cls: "companygraph-line", text: mention.line === null ? "·" : String(mention.line) });
         item.createSpan({ cls: "companygraph-message", text: `${mention.name} — ${mention.declared}` });
         item.onClickEvent(() => {
-          // A press that ends a drag over the text was a selection, not a wish to leave.
-          if (activeWindow.getSelection()?.toString()) return;
+          // A press that ends a drag over this entry's own text was a selection, not a wish to leave.
+          if (draggedOver(item, activeWindow.getSelection())) return;
           void open(mention.path, mention.at);
         });
       }
