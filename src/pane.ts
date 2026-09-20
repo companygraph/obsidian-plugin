@@ -1,15 +1,11 @@
 // The instance's compliance with the meta-model, beside the editor: what the checks came to, then
 // the failures grouped by file. A type whose schema the vendored core does not carry is said
 // under them, since nothing held it.
-import { ItemView, MarkdownView, Notice, TFile, editorLivePreviewField, setIcon } from "obsidian";
+import { ItemView, Notice, setIcon } from "obsidian";
 import type { WorkspaceLeaf } from "obsidian";
 import type CompanyGraphPlugin from "./main.ts";
 import { IDLE_TEXT, groupsOf, headline, noSchemaFor, reportText } from "./report.ts";
-import { fieldOfLine } from "./properties.ts";
-import { focusProperty } from "./widget.ts";
-import { cellOfFailure } from "./tables.ts";
-import { openCell } from "./livetable.ts";
-import type { EditorView } from "@codemirror/view";
+import { openAt } from "./open.ts";
 import { draggedOver } from "./dragged.ts";
 
 export const VIEW_TYPE = "companygraph-checks";
@@ -93,52 +89,10 @@ export class Pane extends ItemView {
     if (missing) el.createDiv({ cls: "companygraph-pane-note", text: missing });
   }
 
-  // Not `open`: Obsidian's View has an internal method of that name, which the leaf calls to set
-  // a view up and which is what calls `onOpen`. The public types do not declare it, so a method
-  // named `open` here typechecks, replaces it, and leaves the pane blank.
+  // The one opener every list of places uses; not named `open`, since Obsidian's View has an
+  // internal method of that name which the leaf calls to set a view up, and a method named `open`
+  // here typechecks, replaces it, and leaves the pane blank.
   async openAt(path: string, line: number, message = "") {
-    const file = this.app.vault.getAbstractFileByPath(path);
-    if (!(file instanceof TFile)) return;
-    const leaf = this.app.workspace.getLeaf(false);
-    await leaf.openFile(file, { active: true, eState: { line } });
-    // In Live Preview a frontmatter line sits behind the Properties widget and the cursor has
-    // nowhere visible to land; bringing the note to the front keeps the click from feeling dead.
-    this.app.workspace.setActiveLeaf(leaf, { focus: true });
-    // Where the widget is drawn, the failing field's row takes the focus, so the correction can
-    // be typed at once. Found through the same markup the tint uses; a note only just opened
-    // may not have drawn its rows yet, so it is tried once more a moment later.
-    const view = leaf.view;
-    const inFrontmatter = view instanceof MarkdownView && fieldOfLine(view.editor.getValue().split("\n"), line) !== null;
-    if (inFrontmatter) {
-      if (!this.focusRow(view, line)) window.setTimeout(() => this.focusRow(view, line), 150);
-    } else this.place(view, line, message);
-  }
-
-  // Where a failure in the body lands, in the editor; Reading view scrolls to the line and
-  // highlights it from the line handed to openFile. A line is scrolled to the middle of the view
-  // and the cursor put on it, except in a table drawn by Live Preview, where a cursor has no row
-  // to stand on: there the failing cell is opened, as a click on it would open it.
-  place(view: unknown, line: number, message: string) {
-    if (!(view instanceof MarkdownView) || view.getMode() !== "source") return;
-    const editor = view.editor;
-    if (line < 0 || line >= editor.lineCount()) return;
-    const at = { line, ch: 0 };
-    editor.scrollIntoView({ from: at, to: at }, true);
-    const cm = (editor as unknown as { cm?: EditorView }).cm;
-    const live = cm?.state.field(editorLivePreviewField, false) === true;
-    const cell = live ? cellOfFailure(editor.getValue().split("\n"), line, message) : null;
-    if (!cell || !cm) {
-      editor.setCursor(at);
-      return;
-    }
-    // The table is drawn once it is in view, so it is asked for a moment after the scroll.
-    const open = () => openCell(view, cm, cell.first, cell.row, cell.col);
-    window.setTimeout(() => { if (!open()) window.setTimeout(open, 200); }, 50);
-  }
-
-  focusRow(view: unknown, line: number): boolean {
-    if (!(view instanceof MarkdownView)) return true;
-    const field = fieldOfLine(view.editor.getValue().split("\n"), line);
-    return field ? focusProperty(view, field) : true;
+    await openAt(this.app, path, line, message);
   }
 }

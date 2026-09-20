@@ -2,11 +2,12 @@
 // share, `renderReferences`, so they say the same thing about the same note. Obsidian's own
 // backlinks and outgoing links read a file's Markdown links, and the model has none, so this pane
 // is what stands in for them; main.ts switches those two off while it runs, in an instance.
-import { ItemView, TFile } from "obsidian";
+import { ItemView } from "obsidian";
 import type { App, WorkspaceLeaf } from "obsidian";
 import type CompanyGraphPlugin from "./main.ts";
 import type { References } from "./refs.ts";
 import { viewOf } from "./refsview.ts";
+import { openAt } from "./open.ts";
 import { draggedOver } from "./dragged.ts";
 
 export const REFERENCES_VIEW = "companygraph-references";
@@ -15,14 +16,10 @@ const NO_NOTE = "Put the cursor in an entity's note.";
 const NAMED_BY_NOTHING = "Nothing names it yet.";
 const NAMES_NOTHING = "It names nothing.";
 
-// A mention's file, opened with the cursor on its line, as pane.ts's openAt opens a failure's.
-// No frontmatter or table-cell focus here: a reference is a place to read, not one to correct.
+// A mention's file, opened with the cursor on its line, the way a failure's is: one opener for
+// every list that names a place.
 export async function openMention(app: App, path: string, line: number) {
-  const file = app.vault.getAbstractFileByPath(path);
-  if (!(file instanceof TFile)) return;
-  const leaf = app.workspace.getLeaf(false);
-  await leaf.openFile(file, { active: true, eState: { line } });
-  app.workspace.setActiveLeaf(leaf, { focus: true });
+  await openAt(app, path, line);
 }
 
 // The two lists, drawn into `el`; shared by the pane and the section under a note, so a change to

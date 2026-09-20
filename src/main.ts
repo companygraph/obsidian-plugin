@@ -113,14 +113,19 @@ export default class CompanyGraphPlugin extends Plugin {
     this.registerView(REFERENCES_VIEW, (leaf) => new RefsPane(leaf, this));
     // The brief follows the cursor of the editor that has the focus, a moment after it settles.
     const brief = debounce((view: EditorView) => this.showBrief(view), 150, true);
+    const inline = debounce(() => this.paintInlineRefs(), 200, true);
     this.registerEditorExtension(
       EditorViewClass.updateListener.of((update) => {
         // Only the editor that has the focus: a note open in a second pane takes every change
         // made in the first, and would otherwise answer for a cursor nobody is looking at.
         if ((update.selectionSet || update.docChanged || update.focusChanged) && update.view.hasFocus) brief(update.view);
+        // A note switched between Live Preview and Source mode is built again, and the section
+        // under it goes with the old editor: it is hung again a moment after the editor settles.
+        if (update.docChanged || update.viewportChanged || update.geometryChanged) inline();
       }),
     );
     this.register(() => brief.cancel());
+    this.register(() => inline.cancel());
     this.registerEditorExtension(marksField);
     this.registerEditorExtension(nameLinks(this));
     this.registerEditorExtension(headingMarks(this));
@@ -788,6 +793,11 @@ export default class CompanyGraphPlugin extends Plugin {
 
   // The section under every open note: drawn where the setting is on and the note is an entity,
   // removed otherwise, so it never survives the setting going off or a note that stops being one.
+  // What the section under a note last said, per the element it hangs in: drawn again only where
+  // that changed, since the editor asks for this as it settles and a redraw under the pointer
+  // would swallow a press, as the references pane's own redraw once did.
+  inlineSaid = new WeakMap<HTMLElement, string>();
+
   paintInlineRefs() {
     this.app.workspace.iterateAllLeaves((leaf) => {
       if (!(leaf.view instanceof MarkdownView) || !leaf.view.file) return;
@@ -808,7 +818,10 @@ export default class CompanyGraphPlugin extends Plugin {
       const existing = host?.querySelector<HTMLElement>(":scope > .companygraph-inline-refs") ?? null;
       if (!refs || !host) { existing?.remove(); return; }
       const section = existing ?? host.createDiv({ cls: "companygraph-inline-refs" });
-      renderReferences(section, refs, (path, line) => void openMention(this.app, path, line));
+      const said = JSON.stringify([path, refs]);
+      if (existing && this.inlineSaid.get(section) === said) return;
+      this.inlineSaid.set(section, said);
+      renderReferences(section, refs, (where, line) => void openMention(this.app, where, line));
     });
   }
 
