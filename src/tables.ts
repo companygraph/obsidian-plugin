@@ -53,11 +53,12 @@ export function tableRowOf(line: number, first: number, lines: number): TableRow
   return at < 2 ? { kind: "header" } : { kind: "body", index: at - 2 };
 }
 
-// The cell of a drawn table a failure on `line` is in, for the pane to open it: the table's first
-// line, the row as Obsidian's table counts it, the header being 0 and the separator no row, and
-// the column the failure's message names in backticks, as the checks name a column; the first
-// column where it names none. Null when the line is in no table the package reads as one.
-export function cellOfFailure(lines: string[], line: number, message: string): { first: number; row: number; col: number } | null {
+export interface Cell { first: number; row: number; col: number }
+
+// The drawn table `line` is in: its first line, the row as Obsidian's table counts it, the header
+// being 0 and the separator no row, and what its columns are called, read by the package's
+// `tableOf`. Null when the line is in no table the package reads as one.
+function tableAt(lines: string[], line: number): { first: number; row: number; columns: string[] } | null {
   if (!(lines[line] ?? "").trimStart().startsWith("|")) return null;
   let first = line;
   while (first > 0 && lines[first - 1].trimStart().startsWith("|")) first--;
@@ -66,6 +67,30 @@ export function cellOfFailure(lines: string[], line: number, message: string): {
   const columns = tableOf(lines.slice(first, last + 1).join("\n"))?.columns;
   if (!columns) return null;
   const at = line - first;
+  return { first, row: at < 2 ? 0 : at - 1, columns };
+}
+
+// The cell of a drawn table `line` is in, for whoever opens it, in the column called `column`;
+// the first column where none is named or the table has none of that name.
+export function cellOfLine(lines: string[], line: number, column: string | null): Cell | null {
+  const table = tableAt(lines, line);
+  if (!table) return null;
+  return { first: table.first, row: table.row, col: column !== null && table.columns.includes(column) ? table.columns.indexOf(column) : 0 };
+}
+
+// The cell a failure on `line` is in, for the pane to open it: the column is the one the
+// failure's message names in backticks, as the checks name a column; the first column where it
+// names none.
+export function cellOfFailure(lines: string[], line: number, message: string): Cell | null {
+  const columns = tableAt(lines, line)?.columns ?? [];
   const named = [...message.matchAll(/`([^`]+)`/g)].map((m) => m[1]).find((name) => columns.includes(name));
-  return { first, row: at < 2 ? 0 : at - 1, col: named ? columns.indexOf(named) : 0 };
+  return cellOfLine(lines, line, named ?? null);
+}
+
+// The column a mention stands in, read from what declares it: `## Section · Column` for a cell,
+// with or without the hashes, as a list shows it. A field and the heading of a grouped section
+// name no column.
+export function columnDeclared(declared: string): string | null {
+  const at = declared.lastIndexOf(" · ");
+  return at < 0 ? null : declared.slice(at + 3).trim() || null;
 }

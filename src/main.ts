@@ -892,7 +892,7 @@ export default class CompanyGraphPlugin extends Plugin {
       const said = JSON.stringify([path, refs]);
       if (existing && this.inlineSaid.get(section) === said) return;
       this.inlineSaid.set(section, said);
-      renderReferences(section, refs, (where, line) => void openMention(this.app, where, line));
+      renderReferences(section, refs, (where, line, declared) => void openMention(this.app, where, line, declared));
     });
   }
 
