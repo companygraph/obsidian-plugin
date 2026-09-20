@@ -815,6 +815,12 @@ export default class CompanyGraphPlugin extends Plugin {
       for (const stray of Array.from(view.containerEl.querySelectorAll<HTMLElement>(".companygraph-inline-refs")))
         if (stray.parentElement !== host) stray.remove();
       const refs = this.settings.referencesInDocument && host ? this.referencesAt(path) : null;
+      // A note is padded at the bottom by half the window, so it can be scrolled past its end,
+      // and Obsidian shrinks that padding to a hundred pixels for its own in-document backlinks;
+      // read from the installed application. Without the same, the section under a note stands
+      // that half window below the text it belongs to, which the owner saw as a huge gap.
+      const content = (view.editor as unknown as { cm?: EditorView }).cm?.contentDOM;
+      if (content) content.style.paddingBottom = refs ? "100px" : "";
       const existing = host?.querySelector<HTMLElement>(":scope > .companygraph-inline-refs") ?? null;
       if (!refs || !host) { existing?.remove(); return; }
       const section = existing ?? host.createDiv({ cls: "companygraph-inline-refs" });
