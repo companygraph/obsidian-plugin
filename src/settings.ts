@@ -1,16 +1,10 @@
 // The plugin's own settings tab (spec §8): whether it replaces Obsidian's backlink and outgoing
 // links panes, and whether the section under a note is shown. Both persisted through Obsidian's
-// own `loadData`/`saveData`, so they are remembered across a restart.
+// own `loadData`/`saveData`, so they are remembered across a restart. What is stored and how it
+// is read back is stored.ts's; this module only draws it.
 import { PluginSettingTab, Setting } from "obsidian";
 import type { App } from "obsidian";
 import type CompanyGraphPlugin from "./main.ts";
-
-export interface Settings {
-  replaceObsidianPanes: boolean;
-  referencesInDocument: boolean;
-}
-
-export const DEFAULT_SETTINGS: Settings = { replaceObsidianPanes: true, referencesInDocument: false };
 
 export class CompanyGraphSettingTab extends PluginSettingTab {
   plugin: CompanyGraphPlugin;
