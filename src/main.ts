@@ -19,6 +19,11 @@ import { vocabularyOf } from "./vocabulary.ts";
 import type { TypeVocabulary } from "./vocabulary.ts";
 import { concerns, loadManifest, readInstance } from "./vault.ts";
 import { Pane, VIEW_TYPE } from "./pane.ts";
+import { REFERENCES_VIEW, RefsPane, openMention, renderReferences } from "./refspane.ts";
+import { referencesFor } from "./refs.ts";
+import type { References } from "./refs.ts";
+import { CompanyGraphSettingTab, DEFAULT_SETTINGS } from "./settings.ts";
+import type { Settings } from "./settings.ts";
 import { Suggest } from "./suggest.ts";
 import { marksField, setMarks } from "./marks.ts";
 import { fieldOfLine, propertyRules } from "./properties.ts";
@@ -51,6 +56,11 @@ export interface State {
 const CHECKING: State = { status: "checking", notice: null, pinDiffers: false, located: [], skipped: [] };
 const IDLE: State = { ...CHECKING, status: "idle" };
 
+// Obsidian's own panes this plugin stands in for, while the references pane runs. Read and
+// switched through `internalPlugins`, which is not public API.
+const CORE_PANES = ["backlink", "outgoing-link"] as const;
+type InternalPane = { enabled?: boolean; enable(): unknown; disable(): unknown };
+
 export default class CompanyGraphPlugin extends Plugin {
   state: State = CHECKING;
   layout: Layout | null = null;
@@ -79,8 +89,17 @@ export default class CompanyGraphPlugin extends Plugin {
   unloaded = false;
   // The note open last, written back into the family's Markdown form when another is opened.
   left: TFile | null = null;
+  // The last rebuild's files, for references.ts's world; an open editor's own text is read fresh
+  // through `textOf`, since it may hold an edit the last rebuild has not seen yet.
+  files: Map<string, string> = new Map();
+  settings: Settings = DEFAULT_SETTINGS;
+  // The core panes this plugin itself switched off, so unloading or the setting going off puts
+  // back only those, never one the owner had off already.
+  suppressedPanes: string[] = [];
 
   async onload() {
+    this.settings = { ...DEFAULT_SETTINGS, ...(await this.loadData()) };
+    this.addSettingTab(new CompanyGraphSettingTab(this.app, this));
     this.statusBar = this.addStatusBarItem();
     this.rowStyle = document.head.createEl("style");
     this.register(() => this.rowStyle?.remove());
@@ -93,6 +112,7 @@ export default class CompanyGraphPlugin extends Plugin {
     this.statusBar.onClickEvent(() => void this.openPane());
     this.registerView(VIEW_TYPE, (leaf) => new Pane(leaf, this));
     this.registerView(BRIEF_VIEW, (leaf) => new BriefPane(leaf, this));
+    this.registerView(REFERENCES_VIEW, (leaf) => new RefsPane(leaf, this));
     // The brief follows the cursor of the editor that has the focus, a moment after it settles.
     const brief = debounce((view: EditorView) => this.showBrief(view), 150, true);
     this.registerEditorExtension(
@@ -282,13 +302,33 @@ export default class CompanyGraphPlugin extends Plugin {
     this.addCommand({ id: "open-brief", name: "Open the writing brief", callback: () => void this.openBrief() });
     this.addCommand({ id: "open-checks", name: "Open the compliance pane", callback: () => void this.openPane() });
     this.addCommand({ id: "check-now", name: "Check compliance now", callback: () => void this.rebuild() });
+    this.addCommand({ id: "open-references", name: "Open the references pane", callback: () => void this.openReferencesPane() });
+    this.addCommand({
+      id: "toggle-inline-references",
+      name: "Toggle references in document",
+      callback: () => void this.toggleInlineReferences(),
+    });
+    // The editor's own more-options menu, so the toggle sits beside the note it acts on. Offered
+    // only from that menu, not from the file explorer's context menu, which sends other sources.
+    this.registerEvent(this.app.workspace.on("file-menu", (menu, _file, source) => {
+      if (source !== "pane-more-options" && source !== "more-options") return;
+      menu.addItem((item) =>
+        item
+          .setTitle("References in document")
+          .setChecked(this.settings.referencesInDocument)
+          .onClick(() => void this.toggleInlineReferences()),
+      );
+    }));
 
     // Once typing pauses. The path is tested before the debounce, not inside it: a debounced
     // call keeps only its last arguments, and the last file touched may not be the one that mattered.
     this.soon = debounce(() => void this.rebuild(), 400, true);
     const changed = (path: string) => { if (this.layout && concerns(path, this.layout)) this.soon?.(); };
     this.registerEvent(this.app.workspace.on("file-open", () => this.paint()));
-    this.registerEvent(this.app.workspace.on("active-leaf-change", () => this.refreshBrief()));
+    this.registerEvent(this.app.workspace.on("active-leaf-change", () => {
+      this.refreshBrief();
+      this.refreshReferences();
+    }));
     // A table widget is drawn a moment after its note opens, and CodeMirror draws only what is in
     // view, so a table scrolled into sight is a new one: the rows are tinted again when the
     // layout settles and, once it pauses, on a scroll. Only the rows: a scroll should not send a
@@ -330,6 +370,9 @@ export default class CompanyGraphPlugin extends Plugin {
     // What the model added to Obsidian's map of links goes with the plugin.
     this.links = {};
     this.relink();
+    // Obsidian's own panes, and the section under every open note, go back to how they were.
+    this.syncPanes(false);
+    this.removeInlineRefs();
   }
 
   // The model's edges, added to the map Obsidian draws its graph view, local graph and backlink
@@ -446,6 +489,7 @@ export default class CompanyGraphPlugin extends Plugin {
     if (!manifest) {
       this.layout = null;
       this.links = {};
+      this.files = new Map();
       this.relink();
       return this.show(IDLE);
     }
@@ -464,6 +508,7 @@ export default class CompanyGraphPlugin extends Plugin {
     try {
       const files = await readInstance(this.app, this.layout);
       if (generation !== this.generation) return;
+      this.files = files;
       const model = buildModel(files, this.layout);
       if (generation !== this.generation) return;
       let schemas: string | null = null;
@@ -512,6 +557,9 @@ export default class CompanyGraphPlugin extends Plugin {
     );
     for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE))
       if (leaf.view instanceof Pane) leaf.view.render();
+    // `this.layout` is set exactly when this vault is a CompanyGraph instance, refused checks
+    // included: guard.ts's refusal is about the checker's own version, not about what the vault is.
+    this.syncPanes(this.settings.replaceObsidianPanes && this.layout !== null);
     this.paint();
   }
 
@@ -621,6 +669,8 @@ export default class CompanyGraphPlugin extends Plugin {
     this.tintTables();
     // A rebuild may have brought the schemas the brief had to wait for.
     this.refreshBrief();
+    this.refreshReferences();
+    this.paintInlineRefs();
   }
 
   // The rows of Live Preview's table widgets, for every open note; see livetable.ts.
@@ -673,5 +723,105 @@ export default class CompanyGraphPlugin extends Plugin {
     if (!leaf) return;
     if (!open) await leaf.setViewState({ type: VIEW_TYPE, active: true });
     await this.app.workspace.revealLeaf(leaf);
+  }
+
+  async openReferencesPane() {
+    const open = this.app.workspace.getLeavesOfType(REFERENCES_VIEW)[0];
+    const leaf = open ?? this.app.workspace.getRightLeaf(false);
+    if (!leaf) return;
+    if (!open) await leaf.setViewState({ type: REFERENCES_VIEW, active: true });
+    await this.app.workspace.revealLeaf(leaf);
+    this.refreshReferences();
+  }
+
+  // The text of the file at `path` as it stands now: an open editor's, since it may hold an edit
+  // the last rebuild has not read yet, or `this.files`, the last rebuild's own map, otherwise.
+  textOf(path: string): string | null {
+    let text: string | null = null;
+    this.app.workspace.iterateAllLeaves((leaf) => {
+      if (text === null && leaf.view instanceof MarkdownView && leaf.view.file?.path === path) text = leaf.view.editor.getValue();
+    });
+    return text ?? this.files.get(path) ?? null;
+  }
+
+  // The two lists for the entity the file at `path` is, or null when there is none, the vault is
+  // no instance, or the file is no entity of a type whose schema was read — every case the pane
+  // and the section under a note both read as "put the cursor in an entity's note." The world is
+  // `this.files`, except for `path` itself, read fresh through `textOf`.
+  referencesAt(path: string | null): References | null {
+    const layout = this.layout;
+    if (!layout || !path || !path.startsWith(`${layout.model}/`)) return null;
+    const type = typeOfPath(path, layout.model);
+    if (!type || !this.vocabulary.has(type)) return null;
+    const text = this.textOf(path);
+    const files = text === null ? this.files : new Map(this.files).set(path, text);
+    return referencesFor({ files, vocabulary: this.vocabulary, named: this.named, model: layout.model }, path);
+  }
+
+  // The references pane, for the note in front, refreshed exactly when the brief is: the pane
+  // opened, the model rebuilt, another note came forward.
+  refreshReferences() {
+    const path = this.app.workspace.getActiveViewOfType(MarkdownView)?.file?.path ?? null;
+    const refs = this.referencesAt(path);
+    for (const leaf of this.app.workspace.getLeavesOfType(REFERENCES_VIEW))
+      if (leaf.view instanceof RefsPane) leaf.view.render(path, refs);
+  }
+
+  // The section under every open note: drawn where the setting is on and the note is an entity,
+  // removed otherwise, so it never survives the setting going off or a note that stops being one.
+  paintInlineRefs() {
+    this.app.workspace.iterateAllLeaves((leaf) => {
+      if (!(leaf.view instanceof MarkdownView) || !leaf.view.file) return;
+      const content = leaf.view.contentEl;
+      const existing = content.querySelector<HTMLElement>(":scope > .companygraph-inline-refs");
+      const refs = this.settings.referencesInDocument ? this.referencesAt(leaf.view.file.path) : null;
+      if (!refs) { existing?.remove(); return; }
+      const section = existing ?? content.createDiv({ cls: "companygraph-inline-refs" });
+      renderReferences(section, refs, (path, line) => void openMention(this.app, path, line));
+    });
+  }
+
+  removeInlineRefs() {
+    this.app.workspace.iterateAllLeaves((leaf) => {
+      if (leaf.view instanceof MarkdownView) leaf.view.contentEl.querySelector(".companygraph-inline-refs")?.remove();
+    });
+  }
+
+  async toggleInlineReferences() {
+    this.settings.referencesInDocument = !this.settings.referencesInDocument;
+    await this.saveSettings();
+    this.paintInlineRefs();
+  }
+
+  async saveSettings() {
+    await this.saveData(this.settings);
+  }
+
+  // Obsidian's own backlink and outgoing-link panes, switched off while this plugin stands in for
+  // them and back on for whatever this plugin itself switched off. Not public API, so every step
+  // is optional, and only a pane confirmed on (`enabled === true`) before is tracked to restore:
+  // one this plugin cannot confirm is left exactly as it was found.
+  syncPanes(off: boolean) {
+    const internal = (this.app as unknown as {
+      internalPlugins?: { getPluginById(id: string): InternalPane | null };
+    }).internalPlugins;
+    if (!internal) return;
+    for (const id of CORE_PANES) {
+      try {
+        const plugin = internal.getPluginById(id);
+        if (!plugin) continue;
+        if (off) {
+          if (plugin.enabled === true && !this.suppressedPanes.includes(id)) {
+            plugin.disable();
+            this.suppressedPanes.push(id);
+          }
+        } else if (this.suppressedPanes.includes(id)) {
+          plugin.enable();
+        }
+      } catch {
+        // Not public API: a change upstream leaves Obsidian's own panes exactly as they were.
+      }
+    }
+    if (!off) this.suppressedPanes = [];
   }
 }

@@ -171,6 +171,52 @@
   overflow-wrap: anywhere;
 }
 
+/* The references pane and the section under a note (spec §8): both drawn by refspane.ts's
+   `renderReferences`, so only what neither already had gets a class of its own. Every other class
+   here is `.companygraph-file`'s family, reused as the checks pane uses it. */
+.companygraph-refs-title {
+  margin-top: var(--size-4-4);
+  margin-bottom: var(--size-4-1);
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.companygraph-refs-title:first-child {
+  margin-top: 0;
+}
+
+/* The section under a note's own content: a muted rule above it, its own two lists — the pane's
+   `in` and `out` blocks — laid side by side once the note is wide enough, and stacked below that,
+   since a note this narrow has no room for two columns. Measured on the note itself, not the
+   window, so a split pane gets the layout its own width earns. */
+.companygraph-inline-refs {
+  container-type: inline-size;
+  margin-top: var(--size-4-6);
+  padding-top: var(--size-4-4);
+  border-top: 1px solid var(--background-modifier-border);
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+}
+
+.companygraph-inline-refs > div {
+  min-width: 0;
+}
+
+@container (min-width: 700px) {
+  .companygraph-inline-refs {
+    display: flex;
+    gap: var(--size-4-6);
+    align-items: flex-start;
+  }
+
+  .companygraph-inline-refs > div {
+    flex: 1 1 0;
+  }
+}
+
 /* A failing row of a table in Live Preview. Obsidian's own rules colour a row with more weight
    than one class has: `.markdown-rendered tbody tr:nth-child(odd)` and `thead tr`. These two
    selectors outrank both. On the row and not its cells, whose own striping would cut it up. */
