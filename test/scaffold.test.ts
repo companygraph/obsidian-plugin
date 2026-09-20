@@ -84,8 +84,11 @@ test("a scaffold written into the example passes the checks as a page", () => {
 
 test("what a new entity still owes is said: an owner's first owned entity, an owned one's row", () => {
   const targets = byType(targetsFor(MODEL, "model/processes/delivery/phases/plan.md", none));
-  assert.match(targets.get("process")!.owes!, /first phase/);
+  // A process owns two collections, and the checks want a folder for each: the notice names
+  // both, joined as two things owed and not as a choice between them.
+  assert.match(targets.get("process")!.owes!, /its first phase and its first track/);
   assert.match(targets.get("phase")!.owes!, /process lists/);
+  assert.match(targets.get("track")!.owes!, /process lists/);
   assert.equal(targets.get("skill")!.owes, null);
 });
 
@@ -95,7 +98,7 @@ test("every type scaffolded into the reference instance owes only what its notic
   // yet, an owner's folder with nothing owned in it, an owner's table that does not list it.
   const files = reference();
   const refVocabulary = vocabularyOf(schemasOf(files, REFERENCE));
-  const expected = [/carries no items/, /is missing (phases|experiences)\//, /does not list/];
+  const expected = [/carries no items/, /is missing (phases|tracks|experiences)\//, /does not list/];
   const seen = new Set<string>();
   for (const active of ["model/processes/delivery/delivery.md", "model/profiles/robert-blust/robert-blust.md"]) {
     for (const target of targetsFor(REFERENCE.model, active, (p) => files.has(p))) {
@@ -108,5 +111,5 @@ test("every type scaffolded into the reference instance owes only what its notic
       assert.deepEqual(unexpected, [], target.type);
     }
   }
-  assert.ok(seen.has("phase") && seen.has("experience") && seen.has("process"));
+  assert.ok(seen.has("phase") && seen.has("track") && seen.has("experience") && seen.has("process"));
 });
