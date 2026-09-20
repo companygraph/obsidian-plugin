@@ -7,6 +7,7 @@ import assert from "node:assert/strict";
 import { available, start } from "./obsidian.ts";
 import type { Session } from "./obsidian.ts";
 import { PROFILE, focusedCell, openNote, paddedLines, tablesOf } from "./notes.ts";
+import { clearNotices, command, entityOf, waitForNotice } from "./ui.ts";
 
 const skip = available() ? false : "Obsidian is not installed here; set OBSIDIAN_BIN to run this suite";
 
@@ -77,5 +78,47 @@ describe("the Markdown form, saved from a cell", { skip }, () => {
     assert.equal(now.length, was.length);
     assert.deepEqual(now.map((l, i) => (l === was[i] ? null : i)).filter((i) => i !== null), [line]);
     assert.ok(now[line].includes("x"));
+  });
+
+  test("Write this note in the form says so of a note already in it, and writes one that is not", async () => {
+    const { ui } = session;
+    await session.restore([PROFILE]);
+    await openNote(ui, PROFILE);
+    await ui.evaluate(() => app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor.focus());
+    await clearNotices(ui);
+    await command(ui, "write-form");
+    await waitForNotice(ui, "already in the family's Markdown form");
+
+    // A table padded the way an editor pads one, put there under the editor.
+    const before = await ui.evaluate(async (at: string) => app.vault.adapter.read(at) as string, [PROFILE]);
+    const skills = tablesOf(before).find((t) => t.header.join("|") === "Skill|Level")!;
+    const lines = before.split("\n");
+    lines[skills.first + 2] = lines[skills.first + 2].replace(/ \|$/, "      |");
+    await ui.evaluate(async (at: string, text: string) => app.vault.modify(app.vault.getAbstractFileByPath(at), text), [PROFILE, lines.join("\n")]);
+    await ui.waitFor("the editor to hold the padded row", () =>
+      (app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor.getValue() as string).split("\n").some((l) => l.startsWith("|") && / {2,}\|/.test(l)));
+    await command(ui, "write-form");
+    await ui.waitFor("the editor to be in the form again", (text: string) => app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor.getValue() === text, [before]);
+  });
+
+  test("a note left with a table Obsidian padded is written back into the form", async () => {
+    const { ui } = session;
+    await session.restore([PROFILE]);
+    await openNote(ui, PROFILE);
+    const before = await ui.evaluate(async (at: string) => app.vault.adapter.read(at) as string, [PROFILE]);
+    await ui.click(() => document.querySelector(".cm-table-widget table")?.querySelectorAll("tr")[2]?.children[1]);
+    await ui.waitFor("the cell to be open", focusedCell);
+    await ui.press("End");
+    await ui.type("x");
+    await ui.waitFor("Obsidian to have padded the table under the edit", () =>
+      (app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor.getValue() as string).split("\n").some((l) => l.startsWith("|") && / {2,}\|/.test(l)));
+    const other = await entityOf(ui, "skill");
+    await openNote(ui, other);
+    const left = await ui.waitFor("the note that was left to hold the edit, in the form", async (at: string, was: string) => {
+      const now = (await app.vault.adapter.read(at)) as string;
+      return now !== was && !now.split("\n").some((l) => l.startsWith("|") && / {2,}\|/.test(l)) ? now : null;
+    }, [PROFILE, before]);
+    assert.equal(paddedLines(left), 0);
+    assert.equal(left.split("\n").filter((l, i) => l !== before.split("\n")[i]).length, 1, "the typed line and no other");
   });
 });

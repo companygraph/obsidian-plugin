@@ -23,7 +23,8 @@ export interface Driver {
   // says what it was waiting for (spec §5).
   waitFor<T>(what: string, condition: PageFn<T>, args?: unknown[], timeout?: number): Promise<NonNullable<T>>;
   // The one thing a condition cannot be: that something does not happen. Watches for `window`
-  // milliseconds and fails the moment the condition answers something truthy.
+  // milliseconds and fails the moment the condition answers something truthy. An empty list is
+  // truthy: a condition that collects what went wrong answers null where nothing did.
   never(what: string, condition: PageFn<unknown>, args: unknown[], window: number): Promise<void>;
   screenshot(file: string): Promise<void>;
   // Errors and unhandled rejections the page has seen since the session began.
