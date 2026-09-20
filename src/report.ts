@@ -1,4 +1,5 @@
-// What a report says, once: the pane draws it and Copy report writes it as text, and both read
+// What a report of the instance's compliance with the meta-model says, once: the pane draws it
+// and Copy report writes it as text, and both read
 // it from here so that what is pasted elsewhere is what was on the screen. Pure.
 import type { Located } from "./locate.ts";
 
@@ -13,7 +14,7 @@ export interface Group { title: string; path: string | null; entries: Located[] 
 
 export const IDLE_TEXT =
   "This vault has no .companygraph/manifest.json, so it is not an instance and nothing is checked." +
-  ' Run "CompanyGraph: Check the instance now" after adding one.';
+  ' Run "CompanyGraph: Check compliance now" after adding one.';
 
 // Failures by file, in the order files first appear; a failure about no one file belongs to
 // the instance.
@@ -39,13 +40,13 @@ export function headline(report: Report): string {
   if (report.status === "idle") return "not an instance";
   if (report.status === "refused") return "not checked";
   const count = report.located.length;
-  return count === 0 ? "the mechanical checks pass" : `${count} failure${count > 1 ? "s" : ""}`;
+  return count === 0 ? "the instance complies with the meta-model" : `${count} failure${count > 1 ? "s" : ""}`;
 }
 
 // The report as plain text, for pasting to an agent or into an issue. Lines are counted from
 // one here, as a person counts them; inside the plugin they are zero-based.
 export function reportText(report: Report): string {
-  const out = [`CompanyGraph checks: ${headline(report)}`];
+  const out = [`CompanyGraph, meta-model compliance: ${headline(report)}`];
   if (report.status === "idle") out.push(IDLE_TEXT);
   if (report.notice) out.push(report.notice);
   if (report.status === "checked") {

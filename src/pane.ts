@@ -1,4 +1,5 @@
-// The report beside the editor: failures grouped by file, then what was not checked. It ends
+// The instance's compliance with the meta-model, beside the editor: failures grouped by file,
+// then what was not checked. It ends
 // that way on every render, because a green list alone reads as a validated instance.
 import { ItemView, MarkdownView, Notice, TFile, editorLivePreviewField, setIcon } from "obsidian";
 import type { WorkspaceLeaf } from "obsidian";
@@ -21,7 +22,7 @@ export class Pane extends ItemView {
   }
 
   getViewType() { return VIEW_TYPE; }
-  getDisplayText() { return "CompanyGraph checks"; }
+  getDisplayText() { return "Meta-model compliance"; }
   getIcon() { return "list-checks"; }
 
   async onOpen() { this.render(); }
