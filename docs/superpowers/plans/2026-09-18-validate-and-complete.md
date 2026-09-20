@@ -62,9 +62,11 @@ Task 1 is committed on `main` of the local repository, which is how a repository
 ### Task 1: The repository, a member of the family
 
 **Files:**
+
 - Create: `package.json`, `manifest.json`, `tsconfig.json`, `esbuild.config.mjs`, `.gitignore`, `LICENSE`, `README.md`, `AGENTS.md`, `CLAUDE.md`, `conventions.json`, `conventions/` (by sync), `.github/workflows/conventions.yml`, `.github/workflows/test.yml`, `scripts/fixtures.mjs`, `src/main.ts`, `src/meta-model.d.ts`, `test/helpers.ts`, `test/pin.test.ts`
 
 **Interfaces:**
+
 - Produces: `npm test`, `npm run typecheck`, `npm run build`; `test/helpers.ts` exporting `EXAMPLE`, `example()`, `REFERENCE`, `reference()`, `referenceManifest()`, `edited(files, file, change)`; the ambient module types in `src/meta-model.d.ts`.
 
 Work in `~/git/companygraph/obsidian-plugin`, which exists with one commit, the spec. Run `git config user.email` first and read the answer: it must be the owner's address, which the `includeIf` for `~/git/companygraph/` supplies.
@@ -554,6 +556,7 @@ The ruleset is added in Task 11, after the first pull request has produced the t
 ### Task 2: Upstream, the two readers exported (in `companygraph/meta-model`)
 
 **Files (in `~/git/companygraph/meta-model`):**
+
 - Modify: `lib/instance.mjs` (the line `function declarationOf(cell) {`)
 - Modify: `lib/checks.mjs` (the line `function enumTokensOf(description) {`)
 - Modify: `verify/instance.test.mjs:6`, `verify/instance-checks.test.mjs:11`, and one test appended to each
@@ -561,6 +564,7 @@ The ruleset is added in Task 11, after the first pull request has produced the t
 - Modify: `package.json` version, a minor
 
 **Interfaces:**
+
 - Produces: `declarationOf(cell: string | undefined): { form: "ref" | "ref?" | "qualifier", target: string } | null` from `companygraph-meta-model/instance`; `enumTokensOf(description: string): string[]` from `companygraph-meta-model/checks`.
 
 Read `AGENTS.md` of that repository first; its rules govern this task, this plan does not.
@@ -676,10 +680,12 @@ Report the pull request and its check. **Merging it, tagging the release and wri
 ### Task 3: The manifest and the two guards
 
 **Files:**
+
 - Create: `src/manifest.ts`
 - Test: `test/manifest.test.ts`
 
 **Interfaces:**
+
 - Consumes: `isNewer(a, b)` from `companygraph-meta-model/checks`; `referenceManifest()` from `test/helpers.ts`.
 - Produces: `interface InstanceManifest { tooling: string | null; coreVersion: string | null; units: string }`; `type Guard = { kind: "ok" } | { kind: "report"; message: string } | { kind: "refuse"; message: string }`; `readManifest(text: string): InstanceManifest` (throws on text that is not JSON); `guard(manifest: InstanceManifest, checker: string): Guard`.
 
@@ -806,10 +812,12 @@ EOF
 ### Task 4: One rebuild, the checks and the parse
 
 **Files:**
+
 - Create: `src/model.ts`
 - Test: `test/model.test.ts`
 
 **Interfaces:**
+
 - Consumes: `checkInstance(files, { core, model })` returning `{ failures: string[], skipped: string[] }` from `companygraph-meta-model/checks`; `parseInstance(files, { sub, schemas })` from `companygraph-meta-model/instance`, which takes content keyed **relative to the container** (`skills/x.md`, not `model/skills/x.md`), schemas keyed bare (`skill-schema.md`), and throws on an unresolvable reference, a duplicate name, an undeclared folder, a missing identity.
 - Produces: `interface Layout { core: string; model: string }`; `interface Model { failures: string[]; skipped: string[]; graph: Graph | null; schemas: Map<string, string> }`; `schemasOf(files, layout): Map<string, string>`; `buildModel(files, layout): Model`; `namesByType(graph): Map<string, string[]>`.
 
@@ -949,10 +957,12 @@ EOF
 > **Superseded by review, 2026-09-18.** The `src/locate.ts` and the tests below are what was first committed. Review found that a failure about a body table or a grouped heading quotes its section before its value, so the first match was the section's heading. The committed code treats a quoted `## Section` as an anchor for the search and scopes the field search to the frontmatter; three tests hold that. Read the repository, not this block. The signature `locate(failure, files): Located` did not change.
 
 **Files:**
+
 - Create: `src/locate.ts`
 - Test: `test/locate.test.ts`
 
 **Interfaces:**
+
 - Consumes: `buildModel` and the fixture helpers, in the test only.
 - Produces: `interface Located { path: string | null; line: number; message: string }` (`line` zero-based; `path` null when the failure is about the instance); `locate(failure: string, files: Map<string, string>): Located`.
 
@@ -1082,10 +1092,12 @@ EOF
 > **Superseded by review, 2026-09-18.** The `src/context.ts` below carried `cellsOf`, its own copy of the package's cell splitter, which the design's first non-goal rules out. The committed code reads the header row with the package's `tableOf` and returns no cell context for a table without a valid separator row; one test holds that, and `tableOf` is declared in `src/meta-model.d.ts`. Read the repository, not this block. The signature `contextAt(lines, line, ch): Context | null` did not change.
 
 **Files:**
+
 - Create: `src/context.ts`
 - Test: `test/context.test.ts`
 
 **Interfaces:**
+
 - Produces: `type Context = { kind: "key"; typed; start } | { kind: "value"; field; typed; start } | { kind: "cell"; section; column; typed; start } | { kind: "heading"; typed; start }` with `typed: string`, `start: number`, `field`, `section`, `column: string`; `frontmatterEnd(lines: string[]): number`; `contextAt(lines: string[], line: number, ch: number): Context | null`. `column` is the **name in the table's header row**, never a position: a schema declares columns by name.
 
 - [ ] **Step 1: Write the failing test, `test/context.test.ts`**
@@ -1244,11 +1256,13 @@ EOF
 **Blocked until** Task 2's pull request is merged and released by the owner. Check: `gh release view --repo companygraph/meta-model --json tagName --jq .tagName` names a tag newer than the one in `package.json`, and that release's notes name the two exports.
 
 **Files:**
+
 - Modify: `package.json`, `package-lock.json` (by npm), `src/meta-model.d.ts`
 - Create: `src/vocabulary.ts`
 - Test: `test/vocabulary.test.ts`
 
 **Interfaces:**
+
 - Consumes: `parseSchemas(schemas)` whose entities have `id: "core/<type>"` and `sections`, each with `heading`, `tables: { caption, columns, rows }[]` and `table` (the first); `declarationOf`, `enumTokensOf`, `COLUMN_CAPTION`; `schemasOf` from Task 4.
 - Produces: `type Offer = { kind: "names"; target: string } | { kind: "values"; values: string[] } | { kind: "none" }`; `interface Field { name; required: boolean; list: boolean; offer: Offer }`; `interface Column { name; offer: Offer }`; `interface SectionDecl { heading; required: boolean; columns: Column[] | null }`; `interface TypeVocabulary { fields: Field[]; sections: SectionDecl[] }`; `vocabularyOf(schemas: Map<string, string>): Map<string, TypeVocabulary>` keyed by type.
 
@@ -1417,10 +1431,12 @@ EOF
 ### Task 8: What is offered
 
 **Files:**
+
 - Create: `src/candidates.ts`
 - Test: `test/candidates.test.ts`
 
 **Interfaces:**
+
 - Consumes: `Context`, `frontmatterEnd` (Task 6); `Offer`, `TypeVocabulary` (Task 7); `namesByType` output (Task 4).
 - Produces: `interface Candidate { label: string; insert: string }`; `candidatesFor(context: Context, vocabulary: TypeVocabulary, names: Map<string, string[]>, lines: string[]): Candidate[]`. `vocabulary` is the one type's, already chosen by the caller from the file's path.
 
@@ -1581,10 +1597,12 @@ EOF
 ### Task 9: The plugin in Obsidian
 
 **Files:**
+
 - Create: `src/vault.ts`, `src/marks.ts`, `src/pane.ts`, `src/suggest.ts`, `styles.css`
 - Modify: `src/main.ts` (replace the stub whole)
 
 **Interfaces:**
+
 - Consumes: everything Tasks 3 to 8 produce, with the signatures their Interfaces blocks give; `typeOfPath(rel, model)` from `companygraph-meta-model/checks`, which expects `rel` to begin with the container, so the caller tests that first.
 - Produces: the default export `CompanyGraphPlugin` with `state: State`, `layout: Layout | null`, `vocabulary: Map<string, TypeVocabulary>`, `names: Map<string, string[]>`, which `pane.ts` and `suggest.ts` read; `interface State { status: "idle" | "refused" | "checked"; notice: string | null; located: Located[]; skipped: string[] }`.
 
@@ -1978,6 +1996,7 @@ EOF
 This is the family's order for a tool: it is proven by hand on `robertblust/mental-model` before anything about it moves on. **It needs a person at a screen**; an agent prepares it and records what the person reports.
 
 **Files:**
+
 - Modify (in `~/git/robertblust/mental-model`, on a branch, its own pull request): `.gitignore`, one line `.obsidian/`
 - Modify: `docs/superpowers/specs/2026-09-18-obsidian-plugin-design.md` §9, the findings
 

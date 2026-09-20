@@ -1,7 +1,7 @@
 // The family's one Markdown form, written back into a note. Obsidian's table editor rewrites a
 // table in the aligned form the moment a cell is edited, and undo gives back the cell but not the
 // table; this is what puts the table back. Nothing here is a rule of its own: the rule set is the
-// vault's vendored conventions/markdown.markdownlint-cli2.jsonc, the one custom rule is the
+// vault's rule set, the one custom rule is the
 // conventions' markdown-rules.cjs as this repository vendored it, and markdownlint is the library
 // conventions-format runs in CI, at the version it pins. So a note left in Obsidian and a file
 // fixed by `conventions-format fix` come out byte for byte the same.
@@ -10,9 +10,15 @@ import { applyFixes } from "markdownlint";
 import type { Configuration } from "markdownlint";
 import customRules from "../conventions/markdown-rules.cjs";
 
-// Where a member keeps the rule set. A vault without it has not taken the form, and nothing is
-// written into its notes.
-export const RULES = "conventions/markdown.markdownlint-cli2.jsonc";
+// Where a member keeps the rule set, newest first. Conventions v1.21.0 moved it to the root,
+// under the name markdownlint-cli2 and the editors built on it discover, and retired the copy
+// under conventions/. Both are read because a vault takes a release when its owner says so: one
+// still on v1.20.0 keeps the old path, and a plugin that knew only the new one would write
+// nothing into it and say the vault has no form. A vault without either has not taken the form.
+export const RULE_PATHS = [".markdownlint-cli2.jsonc", "conventions/markdown.markdownlint-cli2.jsonc"];
+
+// What to call the rule set when there is none to name.
+export const RULES = RULE_PATHS[0];
 export const PIN = "conventions.json";
 
 // The rule set out of the file conventions-format hands the CLI; null when it does not parse or
