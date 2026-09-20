@@ -7,7 +7,7 @@
 import { TYPES, slug, typeOfPath } from "companygraph-meta-model/checks";
 import type { TypeVocabulary } from "./vocabulary.ts";
 import { referencesIn, resolveIn } from "./references.ts";
-import { visibleIn } from "./scope.ts";
+import { refusedHere, refusedName } from "./names.ts";
 import type { Named } from "./scope.ts";
 
 export interface Mention { path: string; line: number; from: number; to: number }
@@ -79,16 +79,10 @@ export function renamePlan(
   const name = newName.trim();
   const kind = kindOf(target.type);
   if (!kind) return { refused: `${target.type} is not a type this plugin knows.` };
-  if (!name || !slug(name)) return { refused: "The new name has no letter or digit to name a file by." };
   if (name === target.name) return { refused: "The new name is the name it has." };
-  // A name is written into table cells and frontmatter values as it stands, so it may hold
-  // nothing either reads as its own: a pipe splits a cell; a quote at either end, a bracket, a
-  // `#`, `-`, `>`, `&`, `*`, `!`, `%` or `@` at the start, `: ` or ` #` inside, are YAML's.
-  if (/\||: | #|^["'\[{#\->&*!%@`]|["']$/.test(name) || /[\r\n]/.test(name))
-    return { refused: "A name may hold no pipe, no quote at either end, no `: ` or ` #`, and may not open with a sign YAML reads as its own." };
-  // R2: unique within its type, and for an owned type within its owner.
-  if (visibleIn(named, target.path, model).some((n) => n.type === target.type && n.name === name && n.path !== target.path))
-    return { refused: `Another ${target.type} is named "${name}" already.` };
+  // The same guard New entity asks, so that a name one refuses the other never writes.
+  const wrong = refusedName(name) ?? refusedHere(named, model, target.type, target.path, name, target.path);
+  if (wrong) return { refused: wrong };
   const own = files.get(target.path);
   if (own === undefined) return { refused: `${target.path} is not in the vault.` };
   const at = h1Line(own.split("\n"));

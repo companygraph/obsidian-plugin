@@ -274,7 +274,7 @@ export default class CompanyGraphPlugin extends Plugin {
         if (checking) return true;
         const active = this.app.workspace.getActiveFile()?.path ?? null;
         const targets = targetsFor(layout.model, active, (path) => this.app.vault.getAbstractFileByPath(path) !== null);
-        new PickType(this.app, targets, this.vocabulary).open();
+        new PickType(this.app, targets, this.vocabulary, this.named, layout.model).open();
         return true;
       },
     });
