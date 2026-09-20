@@ -1,6 +1,7 @@
 // The wiring: when to rebuild, and the three places a rebuild shows — the pane, the open file's
 // lines and the status bar. Everything that decides anything is in the pure modules.
 import { Keymap, MarkdownView, Notice, Plugin, TFile, debounce, editorInfoField } from "obsidian";
+import type { Menu } from "obsidian";
 import type { WorkspaceLeaf } from "obsidian";
 import type { Debouncer } from "obsidian";
 import { EditorView as EditorViewClass } from "@codemirror/view";
@@ -334,6 +335,11 @@ export default class CompanyGraphPlugin extends Plugin {
           .setChecked(this.settings.referencesInDocument)
           .onClick(() => void this.toggleInlineReferences()),
       );
+      // Obsidian's own Add file property, taken out of the menu while it is still being built:
+      // by the time it is shown it is either a page of elements or a native menu the page cannot
+      // reach, and this event is the one moment a plugin holds the menu itself. Obsidian's own
+      // items are in it already, since a view adds its own before it tells the plugins.
+      if (this.settings.replaceObsidianPanes && this.layout) this.dropAddProperty(menu);
     }));
 
     // Once typing pauses. The path is tested before the debounce, not inside it: a debounced
@@ -863,17 +869,38 @@ export default class CompanyGraphPlugin extends Plugin {
   // the page instead. The item is found by the name Obsidian gives its own command, so it is the
   // right item in any language, and by the markup a menu is drawn with, which is not API: where
   // either changes the item stays and nothing else does.
+  // The name Obsidian gives its own Add file property command, which is the item's title in
+  // whatever language the application runs in.
+  addPropertyTitle(): string | null {
+    const name = (this.app as unknown as { commands?: { commands?: Record<string, { name?: string }> } })
+      .commands?.commands?.["markdown:add-metadata-property"]?.name;
+    return name?.trim() || null;
+  }
+
+  // The item taken out of a menu object, before Obsidian draws or hands it to the system. Neither
+  // the list of items nor an item's own title element is public API, so every step is optional.
+  dropAddProperty(menu: Menu) {
+    const title = this.addPropertyTitle();
+    const items = (menu as unknown as { items?: { titleEl?: HTMLElement; dom?: HTMLElement }[] }).items;
+    if (!title || !Array.isArray(items)) return;
+    for (let i = items.length - 1; i >= 0; i--) {
+      const said = items[i]?.titleEl?.textContent ?? items[i]?.dom?.textContent ?? "";
+      if (said.trim() !== title) continue;
+      items[i].dom?.remove();
+      items.splice(i, 1);
+    }
+  }
+
   watchMenus() {
     const observer = new MutationObserver((records) => {
       if (!this.settings.replaceObsidianPanes || !this.layout) return;
-      const title = (this.app as unknown as { commands?: { commands?: Record<string, { name?: string }> } })
-        .commands?.commands?.["markdown:add-metadata-property"]?.name;
+      const title = this.addPropertyTitle();
       if (!title) return;
       for (const record of records)
         for (const added of Array.from(record.addedNodes)) {
           if (!(added instanceof HTMLElement) || !added.hasClass("menu")) continue;
           for (const item of Array.from(added.querySelectorAll<HTMLElement>(".menu-item")))
-            if ((item.querySelector(".menu-item-title")?.textContent ?? "").trim() === title.trim()) item.remove();
+            if ((item.querySelector(".menu-item-title")?.textContent ?? "").trim() === title) item.remove();
         }
     });
     observer.observe(document.body, { childList: true });
