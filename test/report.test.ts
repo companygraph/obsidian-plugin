@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { groupsOf, notChecked, reportText } from "../src/report.ts";
+import { groupsOf, noSchemaFor, reportText } from "../src/report.ts";
 
 const located = [
   { path: "model/roles/writer.md", line: 1, message: "`source` says \"Nowhere\"" },
@@ -14,10 +14,10 @@ test("failures are grouped by file in the order files first appear, the instance
   assert.equal(groups[0].entries.length, 2);
 });
 
-test("what was not checked names the skipped types and always the writing rules", () => {
-  assert.deepEqual(notChecked([]), ["every ## Writing rules in every schema: that is the agent pass, R0"]);
-  assert.equal(notChecked(["skill"]).length, 2);
-  assert.ok(notChecked(["skill"])[0].startsWith("skill: "));
+test("a type the vendored core carries no schema for is said, and nothing is said otherwise", () => {
+  assert.equal(noSchemaFor([]), null);
+  assert.match(noSchemaFor(["skill"])!, /no schema for skill, so nothing holds that type/);
+  assert.match(noSchemaFor(["skill", "role"])!, /skill, role, so nothing holds those types/);
 });
 
 test("the report as text says what the pane says, with lines a person counts from one", () => {
@@ -25,7 +25,13 @@ test("the report as text says what the pane says, with lines a person counts fro
   assert.ok(text.startsWith("CompanyGraph, meta-model compliance: 3 failures\n"));
   assert.ok(text.includes("\nmodel/roles/writer.md\n- line 2: `source` says \"Nowhere\"\n- line 5: skill \"Cobol\" resolves to nothing\n"));
   assert.ok(text.includes("\nThe instance\n- two skill files share the canonical name \"Java\"\n"));
-  assert.ok(text.trimEnd().endsWith("- every ## Writing rules in every schema: that is the agent pass, R0"));
+  assert.ok(text.trimEnd().endsWith("- two skill files share the canonical name \"Java\""));
+  assert.ok(!/not checked/i.test(text));
+});
+
+test("a type with no schema is named in the copied report, after the failures", () => {
+  const text = reportText({ status: "checked", notice: null, located: [], skipped: ["skill"] });
+  assert.ok(text.trimEnd().endsWith("so nothing holds that type."));
 });
 
 test("a clean report, a notice, and the states in which nothing was checked", () => {

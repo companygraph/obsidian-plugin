@@ -504,12 +504,11 @@ export default class CompanyGraphPlugin extends Plugin {
   show(state: State) {
     this.state = state;
     const failures = state.located.length;
-    const unchecked = state.skipped.length + 1; // the writing rules, always
     this.statusBar?.setText(
       state.status === "checking" ? "CompanyGraph: checking"
         : state.status === "idle" ? ""
         : state.status === "refused" ? "CompanyGraph: not checked"
-        : `CompanyGraph: ${failures} failure${failures === 1 ? "" : "s"}, ${unchecked} not checked${state.pinDiffers ? ", pin differs" : ""}`,
+        : `CompanyGraph: ${failures === 0 ? "complies" : `${failures} failure${failures === 1 ? "" : "s"}`}${state.pinDiffers ? ", pin differs" : ""}`,
     );
     for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE))
       if (leaf.view instanceof Pane) leaf.view.render();

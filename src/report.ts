@@ -27,12 +27,12 @@ export function groupsOf(located: Located[]): Group[] {
   return [...groups.values()];
 }
 
-// Every report ends with this, because a green list alone reads as a validated instance.
-export function notChecked(skipped: string[]): string[] {
-  return [
-    ...skipped.map((type) => `${type}: the vendored core carries no schema for it`),
-    "every ## Writing rules in every schema: that is the agent pass, R0",
-  ];
+// A type whose schema the vendored core does not carry is a type nothing was held to, which is a
+// broken or partial copy of core and worth saying. The writing rules were named here too, while
+// the agent pass was meant to answer for them; it was built, tried and dropped, and the plugin
+// reports compliance with the meta-model and claims nothing about them.
+export function noSchemaFor(skipped: string[]): string | null {
+  return skipped.length ? `The vendored core carries no schema for ${skipped.join(", ")}, so nothing holds ${skipped.length === 1 ? "that type" : "those types"}.` : null;
 }
 
 export function headline(report: Report): string {
@@ -54,7 +54,8 @@ export function reportText(report: Report): string {
       out.push("", group.title);
       for (const found of group.entries) out.push(group.path ? `- line ${found.line + 1}: ${found.message}` : `- ${found.message}`);
     }
-    out.push("", "Not checked", ...notChecked(report.skipped).map((line) => `- ${line}`));
+    const missing = noSchemaFor(report.skipped);
+    if (missing) out.push("", missing);
   }
   return out.join("\n") + "\n";
 }

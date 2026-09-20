@@ -148,7 +148,7 @@
 }
 
 /* An entry that opens its file reads as something to press. The instance's own failures and
-   what was not checked open nothing, so they do not. */
+   own failures open nothing, so they do not. */
 .companygraph-file li.companygraph-open {
   cursor: pointer;
 }
@@ -169,27 +169,6 @@
 
 .companygraph-message {
   overflow-wrap: anywhere;
-}
-
-/* What was not checked: on every report, folded so it does not stand in front of the failures. */
-.companygraph-not-checked {
-  margin-top: var(--size-4-4);
-  font-size: var(--font-ui-small);
-  color: var(--text-muted);
-}
-
-.companygraph-not-checked summary {
-  cursor: pointer;
-  color: var(--text-muted);
-  font-size: var(--font-ui-smaller);
-  font-weight: var(--font-semibold);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.companygraph-not-checked ul {
-  margin: var(--size-4-2) 0 0;
-  padding-inline-start: var(--size-4-4);
 }
 
 /* A failing row of a table in Live Preview. Obsidian's own rules colour a row with more weight

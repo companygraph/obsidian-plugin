@@ -9,16 +9,15 @@ error, and so is a field the schema does not declare. The plugin says so while t
 It implements no rule of its own. The parser and the checks are those of
 `companygraph/meta-model`, bundled at the release `package.json` pins, and the schemas are read
 from the core the vault vendored, so an instance is held to the release it adopted and to no
-other. The writing rules in each schema are not checked here or by anything mechanical, and
-every report ends by saying so.
+other. The writing rules in each schema are checked by nothing mechanical, here or anywhere: they are a
+judgment, and this plugin reports compliance with the meta-model and claims nothing about them.
 
 ## What it does
 
 A vault with a `.companygraph/manifest.json` is an instance; in any other vault the plugin stays
 idle. In an instance it checks the whole model on every change, because a reference crosses
-files, and shows the result in a pane that lists the failures by file and then what was not
-checked, as a mark on the line of each failure in the open file, and as a count in the status
-bar. The pane's text can be selected and copied, and Copy report puts the whole of it on the
+files, and shows the result in a pane that lists the failures by file, as a mark on the line of each
+failure in the open file, and as a count in the status bar. The pane's text can be selected and copied, and Copy report puts the whole of it on the
 clipboard as plain text, for an agent or an issue. The pane is called Meta-model compliance,
 which is what it reports: the instance held to the schemas and the rules of the core it
 vendored, and nothing else. A click on the status bar opens it, and so does the command
