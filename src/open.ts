@@ -25,7 +25,12 @@ function place(view: unknown, line: number, message: string) {
   const editor = view.editor;
   if (line < 0 || line >= editor.lineCount()) return;
   const at = { line, ch: 0 };
-  editor.scrollIntoView({ from: at, to: at }, true);
+  // Twice, a breath apart: the section under a note is hung in the same scroller a moment after
+  // the note opens, and whatever is added there moves what was already scrolled to. The second
+  // pass puts the line back in the middle once the note has settled.
+  const show = () => editor.scrollIntoView({ from: at, to: at }, true);
+  show();
+  window.setTimeout(show, 300);
   const cm = (editor as unknown as { cm?: EditorView }).cm;
   const live = cm?.state.field(editorLivePreviewField, false) === true;
   const cell = live ? cellOfFailure(editor.getValue().split("\n"), line, message) : null;
