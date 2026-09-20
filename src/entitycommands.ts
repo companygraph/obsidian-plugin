@@ -173,7 +173,7 @@ export class DeleteEntity extends Modal {
       this.contentEl.createEl("p", { text: plan.refused, cls: "companygraph-notice" });
       return;
     }
-    list(this.contentEl, "Goes to the trash:", plan.removed);
+    list(this.contentEl, "Deleted, as this vault deletes:", plan.removed);
     list(this.contentEl, `References that will name nothing, ${plan.mentions.length}:`, perFile(plan.mentions));
     if (!plan.mentions.length) this.contentEl.createEl("p", { text: "No reference from outside names it." });
     new Setting(this.contentEl)
@@ -188,7 +188,11 @@ export class DeleteEntity extends Modal {
               new Notice(`${plan.remove} is no longer in the vault; nothing was deleted.`);
               return;
             }
-            await this.app.vault.trash(item, true);
+            // The owner's own setting for a deleted file decides where it goes, which is what
+            // `trashFile` reads: the system bin, the vault's own `.trash`, or gone outright.
+            // `vault.trash(item, true)` forced the system bin and ignored that, so a vault set to
+            // keep its deletions inside itself sent them somewhere the owner does not look.
+            await this.app.fileManager.trashFile(item);
             this.close();
             new Notice(`Deleted "${state.now.name}". The pane names what no longer resolves.`);
           } catch (error) {
