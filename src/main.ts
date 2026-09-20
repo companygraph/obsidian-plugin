@@ -341,7 +341,12 @@ export default class CompanyGraphPlugin extends Plugin {
     // layout settles and, once it pauses, on a scroll. Only the rows: a scroll should not send a
     // transaction to every open note.
     const repaint = debounce(() => this.tintTables(), 300, true);
-    this.registerEvent(this.app.workspace.on("layout-change", () => repaint()));
+    this.registerEvent(this.app.workspace.on("layout-change", () => {
+      repaint();
+      // A note switched between reading and editing is drawn again in the other sizer, so the
+      // section under it is hung there again.
+      this.paintInlineRefs();
+    }));
     this.registerDomEvent(document, "scroll", () => repaint(), { capture: true, passive: true });
     this.register(() => repaint.cancel());
     // A tinted row keeps its tooltip after the stylesheet is gone, so the rows are swept on unload.
@@ -786,11 +791,22 @@ export default class CompanyGraphPlugin extends Plugin {
   paintInlineRefs() {
     this.app.workspace.iterateAllLeaves((leaf) => {
       if (!(leaf.view instanceof MarkdownView) || !leaf.view.file) return;
-      const content = leaf.view.contentEl;
-      const existing = content.querySelector<HTMLElement>(":scope > .companygraph-inline-refs");
-      const refs = this.settings.referencesInDocument ? this.referencesAt(leaf.view.file.path) : null;
-      if (!refs) { existing?.remove(); return; }
-      const section = existing ?? content.createDiv({ cls: "companygraph-inline-refs" });
+      const view = leaf.view;
+      const path = view.file.path;
+      // Where a section under the note belongs, read from the installed application: Obsidian
+      // hangs its own in-document backlinks inside what scrolls with the note, the editor's sizer
+      // while it is edited and the preview's while it is read. Put in the view's outer element,
+      // as this was, a section is there and never in sight, which the owner's trial found.
+      const host = view.containerEl.querySelector<HTMLElement>(
+        view.getMode() === "preview" ? ".markdown-preview-sizer" : ".cm-sizer",
+      );
+      // A mode switch builds the other sizer, so a section left in the old one goes.
+      for (const stray of Array.from(view.containerEl.querySelectorAll<HTMLElement>(".companygraph-inline-refs")))
+        if (stray.parentElement !== host) stray.remove();
+      const refs = this.settings.referencesInDocument && host ? this.referencesAt(path) : null;
+      const existing = host?.querySelector<HTMLElement>(":scope > .companygraph-inline-refs") ?? null;
+      if (!refs || !host) { existing?.remove(); return; }
+      const section = existing ?? host.createDiv({ cls: "companygraph-inline-refs" });
       renderReferences(section, refs, (path, line) => void openMention(this.app, path, line));
     });
   }
