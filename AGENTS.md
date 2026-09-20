@@ -64,8 +64,22 @@ conventions release moves the CLI and the plugin's markdownlint has not moved wi
 
 Everything that decides anything is a pure module under `src/`, with a test beside it under
 `test/`. A module is Obsidian's when it imports `obsidian` or `@codemirror/`, and those are kept
-thin because nothing here can run them: they are proven by hand on the reference instance. No
-module under `src/` imports from `node:`, because the plugin also runs on a phone.
+thin because the unit suite cannot run them. No module under `src/` imports from `node:`, because
+the plugin also runs on a phone.
+
+`npm run e2e` runs what the unit suite cannot: it starts Obsidian on a copy of the pinned
+reference instance and works the plugin with real clicks and keys, and
+`docs/superpowers/specs/2026-09-20-run-in-obsidian-design.md` says how and why. **A change to a
+module that imports `obsidian` or `@codemirror/` runs `npm run e2e` before its pull request, and
+the `Verified:` line says that it ran.** A defect found in Obsidian gets its test under `e2e/`
+first, seen to fail, as a defect in a pure module gets its unit test first, and a test of a
+defect is also seen to fail on the release that had it, with `E2E_PLUGIN_DIR` naming a folder
+that holds that release's three files. A test there is handed a driver and never imports the
+transport, never sleeps a fixed time to let something happen, and reads the pinned fixture,
+never a live vault. Inside a function handed to the driver `app` is Obsidian's own global and is
+untyped, so the type check will not catch the driver being called by that name: the driver is
+`ui`. What only a person can judge, whether a mark is strong enough or a list reads well, is
+still tried by hand.
 
 Those are rules and not a list. `test/layout.test.ts` holds each of them, so a module added on
 either side of the line is placed by what it imports rather than by anyone remembering to write it
@@ -82,6 +96,14 @@ imported with `import type`.
 `conventions / conventions` is called from robertblust/conventions at the pinned tag; both run
 on every pull request and on `main`. `npm test` fetches its two fixtures first, the meta-model at the pinned tag and
 the reference instance at the commit `scripts/fixtures.mjs` names.
+
+`npm run e2e` is run by hand and by no job. It needs Obsidian installed, at `OBSIDIAN_BIN` or
+where macOS puts it, and says it was skipped where there is none; it opens a window and takes
+the keyboard while it runs. A test that fails leaves a screenshot and the page's errors under
+`e2e/failures/`, which git ignores. `npm run e2e:coverage` runs it with the protocol's coverage
+switched on and prints, module by module, how much of the plugin ran and which functions were
+never entered; `scripts/e2e-coverage.mjs` says at its head what that number does and does not
+show.
 
 ## The pin
 

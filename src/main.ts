@@ -828,7 +828,10 @@ export default class CompanyGraphPlugin extends Plugin {
     if (!leaf) return;
     if (!open) await leaf.setViewState({ type: REFERENCES_VIEW, active: true });
     await this.app.workspace.revealLeaf(leaf);
-    this.refreshReferences();
+    // Drawn whatever is active: opening the pane makes it the active view, and the refresh stands
+    // down for an active pane, so a pane opened by its command stayed on its idle line until
+    // another note came forward. Found by the suite under e2e/ on its first run.
+    this.refreshReferences(true);
   }
 
   // The text of the file at `path` as it stands now: an open editor's, since it may hold an edit
@@ -857,11 +860,12 @@ export default class CompanyGraphPlugin extends Plugin {
 
   // The references pane, for the note in front, refreshed exactly when the brief is: the pane
   // opened, the model rebuilt, another note came forward.
-  refreshReferences() {
+  refreshReferences(opening = false) {
     // Not while the references pane itself is what became active: a press inside it would redraw
     // the entry under the pointer between the press and its release, and the click would land on
-    // an element that no longer exists, which the owner's trial found as needing two clicks.
-    if (this.app.workspace.getActiveViewOfType(RefsPane)) return;
+    // an element that no longer exists, which the owner's trial found as needing two clicks. The
+    // pane's own opening is no press inside it, and is drawn.
+    if (!opening && this.app.workspace.getActiveViewOfType(RefsPane)) return;
     // The file in front, not the view with the focus: a click inside the references pane makes
     // the pane itself the active view, and asking for the active Markdown view would answer
     // nothing and leave the pane on its idle line the moment it is used.

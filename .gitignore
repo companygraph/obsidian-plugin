@@ -7,3 +7,5 @@ node_modules
 
 test/fixtures/
 main.js
+e2e/failures/
+e2e/coverage/
