@@ -68,3 +68,23 @@ test("the repair adopts what is off and switches nothing", () => {
   // A pane that is on was never this plugin's doing.
   assert.deepEqual(onRepair(PANES, vault(["tag-pane"]), []).remembered, ["backlink", "outgoing-link", "properties"]);
 });
+
+// Found by the suite under e2e/ in a fresh vault: a pane switched off left its tab behind as a
+// ghost, labelled with its raw id, for every new user to close by hand. Obsidian's own switch
+// closes a pane's tabs when a person turns it off; the plugin's did not.
+test("a rebuild closes the tabs of what it switches off, and of what it holds off that still has one", () => {
+  const tabs = (open: string[]) => (id: string) => open.includes(id);
+  // Just switched off: its tab goes with it.
+  assert.deepEqual(onRebuild(PANES, true, vault(PANES), [], tabs(PANES)).close, PANES);
+  // Held off since an earlier release, tab still open: closed now. A pane with no tab is left alone.
+  assert.deepEqual(onRebuild(PANES, true, vault([]), ["backlink", "tag-pane"], tabs(["backlink", "properties"])).close, ["backlink"]);
+  // Off by the owner's own doing and never remembered: not this plugin's tab to close.
+  assert.deepEqual(onRebuild(PANES, true, vault([]), [], tabs(PANES)).close, []);
+  // Nothing known about the vault yet: nothing is closed, as nothing is switched.
+  assert.deepEqual(onRebuild(PANES, false, vault(PANES), ["backlink"], tabs(PANES)).close, []);
+});
+
+test("a restore and a repair close nothing", () => {
+  assert.deepEqual(onRestore(["backlink"]).close, []);
+  assert.deepEqual(onRepair(PANES, vault([]), []).close, []);
+});
