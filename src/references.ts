@@ -59,6 +59,19 @@ export function cellAt(text: string, ch: number): number | null {
   return at < 0 ? null : at;
 }
 
+// Where on its row a cursor `ch` characters into the words of cell `col` stands: past the pipe
+// and the space after it, and no further than the words reach, whatever padding follows them.
+// Null where the row has no such cell. For whoever rewrites a row under a cell being edited and
+// has to put the note's own cursor back inside it.
+export function chOfCell(text: string, col: number, ch: number): number | null {
+  const cell = cells(text)[col];
+  if (!cell) return null;
+  const inner = text.slice(cell.from, cell.to);
+  const words = inner.trim();
+  const lead = words ? inner.length - inner.trimStart().length : Math.min(1, inner.length);
+  return cell.from + lead + Math.min(Math.max(ch, 0), words.length);
+}
+
 export function referencesIn(lines: string[], vocabulary: TypeVocabulary): Reference[] {
   const out: Reference[] = [];
   const end = frontmatterEnd(lines);

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { buildModel, schemasOf } from "../src/model.ts";
 import { vocabularyOf } from "../src/vocabulary.ts";
 import { namedOf } from "../src/scope.ts";
-import { referencesIn, resolveIn, cellAt } from "../src/references.ts";
+import { referencesIn, resolveIn, cellAt, chOfCell } from "../src/references.ts";
 import { example, EXAMPLE } from "./helpers.ts";
 
 const files = example();
@@ -129,4 +129,22 @@ test("a reference in a row says which cell it stands in, counted as the row is s
   // Outside every cell: before the first pipe, and on a line that has none.
   assert.equal(cellAt("x | Cobol | Expert |", 0), null);
   assert.equal(cellAt("source: Local", 8), null);
+});
+
+// Found in the owner's use: Cmd+S in a cell of a long table left the table padded and the cursor
+// in the table's last row. The form replaces a run of changed lines whole, which carries the
+// note's own cursor to the run's edge, a line's start, in no cell; Obsidian then moves it into
+// the last row and pads the table again. So the cursor is put back where the cell's cursor
+// stands, and that place has to be found on the row as the form wrote it.
+test("a cursor in a cell is a place on its row: past the pipe and the space after it", () => {
+  const row = "| Cobol | Expert   |";
+  assert.equal(chOfCell(row, 0, 0), 2);
+  assert.equal(chOfCell(row, 0, 3), 5);
+  assert.equal(chOfCell(row, 1, 6), 16);
+  // No further than the cell's words, whatever padding follows them; an empty cell is its start.
+  assert.equal(chOfCell(row, 1, 40), 16);
+  assert.equal(chOfCell("| Cobol |  |", 1, 0), 10);
+  // A column the row does not have is no place.
+  assert.equal(chOfCell(row, 2, 0), null);
+  assert.equal(chOfCell("source: Local", 0, 0), null);
 });

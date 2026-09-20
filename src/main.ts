@@ -32,6 +32,8 @@ import { Suggest } from "./suggest.ts";
 import { marksField, setMarks } from "./marks.ts";
 import { fieldOfLine, propertyRules } from "./properties.ts";
 import { cellEditorOf, editingCell, openCell, tintRows } from "./livetable.ts";
+import { chOfCell } from "./references.ts";
+import { until } from "./until.ts";
 import { typeOfPath } from "companygraph-meta-model/checks";
 import { absentFields } from "./candidates.ts";
 import { AddField } from "./addfield.ts";
@@ -506,12 +508,25 @@ export default class CompanyGraphPlugin extends Plugin {
         const cursor = open.getCursor();
         const was = open.getLine(cursor.line);
         if (cm) {
-          const tr = cm.state.update({ changes, userEvent: "input.form" });
-          cm.dispatch(tr);
+          const set = cm.state.changes(changes);
+          // The note's own cursor goes back into the cell with the same change. The form replaces
+          // a run of changed lines whole, which carries a cursor inside the run to its edge, the
+          // start of a line, in no cell; and a cursor in a drawn table but in no cell is one
+          // Obsidian moves into the table's last row at the next thing any plugin tells the
+          // editor, writing the table out again in its own padding on the way. Found in the
+          // owner's use: Cmd+S in a cell of a long table left the table padded and the cursor in
+          // its last row. A short table hid it, since there the run began on the cursor's line.
+          const formed = set.apply(cm.state.doc);
+          const first = cell ? formed.lineAt(set.mapPos(cell.start)).number - 1 : 0;
+          const row = cell ? first + (cell.row === 0 ? 0 : cell.row + 1) : 0;
+          const ch = cell && row < formed.lines ? chOfCell(formed.line(row + 1).text, cell.col, cell.ch) : null;
+          const selection = ch === null ? undefined : { anchor: formed.line(row + 1).from + ch };
+          cm.dispatch(cm.state.update({ changes: set, selection, userEvent: "input.form" }));
           if (cell && view) {
-            const first = cm.state.doc.lineAt(tr.changes.mapPos(cell.start)).number - 1;
-            const reopen = () => openCell(view, cm, first, cell.row, cell.col, cell.ch);
-            window.setTimeout(() => { if (!reopen()) window.setTimeout(reopen, 200); }, 50);
+            // The table is drawn anew a moment after its text changes, a long one later than a
+            // short one, so the cell is asked for until its widget is there.
+            window.setTimeout(() => until(() => openCell(view, cm, first, cell.row, cell.col, cell.ch),
+              { every: 100, tries: 50, later: (run, ms) => window.setTimeout(run, ms) }), 50);
             return;
           }
         } else for (const c of [...changes].reverse()) open.replaceRange(c.insert, open.offsetToPos(c.from), open.offsetToPos(c.to));
