@@ -16,6 +16,9 @@ export interface Reference {
   name: string;
   target: string; // the type the declaration names
   optional: boolean; // declared `ref?`: a value that names nothing is a fact, not a broken name
+  // What declares it, in the schema's words: a field's name, `## Section · Column` for a cell,
+  // `## Section` for the heading of a grouped section. A references list says it beside the name.
+  declared: string;
 }
 
 type Offer = TypeVocabulary["fields"][number]["offer"];
@@ -25,7 +28,7 @@ const optionalOf = (offer: Offer) => offer.kind === "names" && offer.optional ==
 // The span of a value as written, with surrounding quotes and spaces left out of it. In
 // frontmatter a YAML comment after it is left out as well: a `#` after a space, outside quotes.
 // A table cell has no comments, so a name there may hold one.
-function span(line: number, text: string, start: number, target: string, optional: boolean, yaml = false): Reference | null {
+function span(line: number, text: string, start: number, target: string, optional: boolean, declared: string, yaml = false): Reference | null {
   let from = start, to = text.length;
   const value = text.slice(start).trimStart();
   if (yaml && !/^["']/.test(value)) {
@@ -35,7 +38,7 @@ function span(line: number, text: string, start: number, target: string, optiona
   while (from < to && /\s/.test(text[from])) from++;
   while (to > from && /\s/.test(text[to - 1])) to--;
   if (to - from >= 2 && /^["']$/.test(text[from]) && text[to - 1] === text[from]) { from++; to--; }
-  return to > from ? { line, from, to, name: text.slice(from, to), target, optional } : null;
+  return to > from ? { line, from, to, name: text.slice(from, to), target, optional, declared } : null;
 }
 
 // The cells of a table row as spans, split on every pipe. That is how the package's table reader
@@ -63,14 +66,14 @@ export function referencesIn(lines: string[], vocabulary: TypeVocabulary): Refer
       const key = lines[up].match(/^([\w-]+):\s*$/)?.[1];
       const f = key ? field(key) : undefined;
       const target = f?.list ? targetOf(f.offer) : null;
-      const ref = target ? span(line, text, item[1].length, target, optionalOf(f!.offer), true) : null;
+      const ref = target ? span(line, text, item[1].length, target, optionalOf(f!.offer), key!, true) : null;
       if (ref) out.push(ref);
       continue;
     }
     const value = text.match(/^([\w-]+):/);
     const f = value ? field(value[1]) : undefined;
     const target = f && !f.list ? targetOf(f.offer) : null;
-    const ref = target ? span(line, text, value![0].length, target, optionalOf(f!.offer), true) : null;
+    const ref = target ? span(line, text, value![0].length, target, optionalOf(f!.offer), value![1], true) : null;
     if (ref) out.push(ref);
   }
 
@@ -87,7 +90,7 @@ export function referencesIn(lines: string[], vocabulary: TypeVocabulary): Refer
     if (text.startsWith("### ")) {
       const grouped = vocabulary.sections.find((s) => s.heading === section)?.grouped;
       const target = grouped ? targetOf(grouped) : null;
-      const ref = target ? span(line, text, 4, target, optionalOf(grouped!)) : null;
+      const ref = target ? span(line, text, 4, target, optionalOf(grouped!), `## ${section}`) : null;
       if (ref) out.push(ref);
       continue;
     }
@@ -107,7 +110,7 @@ export function referencesIn(lines: string[], vocabulary: TypeVocabulary): Refer
         cells(lines[row]).forEach((cell, i) => {
           const column = columns.find((c) => c.name === header[i]);
           const target = column ? targetOf(column.offer) : null;
-          const ref = target ? span(row, lines[row].slice(0, cell.to), cell.from, target, optionalOf(column!.offer)) : null;
+          const ref = target ? span(row, lines[row].slice(0, cell.to), cell.from, target, optionalOf(column!.offer), `## ${section} · ${column!.name}`) : null;
           if (ref) out.push(ref);
         });
     line = last;
