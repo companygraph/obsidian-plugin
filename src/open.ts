@@ -46,7 +46,10 @@ function place(view: unknown, line: number, message: string) {
 export async function openAt(app: App, path: string, line: number, message = "") {
   const file = app.vault.getAbstractFileByPath(path);
   if (!(file instanceof TFile)) return;
-  const leaf = app.workspace.getLeaf(false);
+  // The note belongs in the main area, never in the sidebar the click came from: a leaf asked for
+  // while a sidebar pane is active can be that pane's own, and the list would open the note over
+  // itself. The most recent leaf of the main area is where a reader expects it.
+  const leaf = app.workspace.getMostRecentLeaf(app.workspace.rootSplit) ?? app.workspace.getLeaf(false);
   await leaf.openFile(file, { active: true, eState: { line } });
   // In Live Preview a frontmatter line sits behind the Properties widget and the cursor has
   // nowhere visible to land; bringing the note to the front keeps the click from feeling dead.
