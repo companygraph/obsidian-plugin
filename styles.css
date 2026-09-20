@@ -483,3 +483,20 @@
   font-size: var(--font-ui-smaller);
   font-style: italic;
 }
+
+/* A mention: the name as it is written, and what declares it beside it — a field, or a section
+   and its column — as a quiet chip, since the schema's own hashes are no part of what a reader
+   of a list needs. */
+.companygraph-ref-name {
+  color: var(--text-normal);
+}
+
+.companygraph-declared {
+  margin-inline-start: var(--size-4-2);
+  padding: 0 var(--size-4-1);
+  border-radius: var(--radius-s);
+  background-color: var(--background-modifier-hover);
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+  white-space: nowrap;
+}

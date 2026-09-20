@@ -45,7 +45,9 @@ export function renderReferences(el: HTMLElement, refs: References, open: (path:
       for (const mention of group.mentions) {
         const item = list.createEl("li", { cls: "companygraph-open" });
         item.createSpan({ cls: "companygraph-line", text: mention.line === null ? "·" : String(mention.line) });
-        item.createSpan({ cls: "companygraph-message", text: `${mention.name} — ${mention.declared}` });
+        const words = item.createDiv({ cls: "companygraph-message" });
+        words.createSpan({ cls: "companygraph-ref-name", text: mention.name });
+        words.createSpan({ cls: "companygraph-declared", text: mention.declared });
         item.onClickEvent(() => {
           // A press that ends a drag over this entry's own text was a selection, not a wish to leave.
           if (draggedOver(item, activeWindow.getSelection())) return;

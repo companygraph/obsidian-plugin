@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { viewOf } from "../src/refsview.ts";
+import { readable, viewOf } from "../src/refsview.ts";
 import type { References } from "../src/refs.ts";
 
 const refs: References = {
@@ -51,7 +51,8 @@ test("a mention's line is counted from one, and it keeps its name, what declares
 test("a group's mentions are drawn in the order refs.ts already put them in, not re-sorted here", () => {
   const view = viewOf(refs);
   const mira = view.in.groups.find((g) => g.path.endsWith("mira-halvorsen.md"))!;
-  assert.deepEqual(mira.mentions.map((m) => m.declared), ["## Skills · Skill", "## Evidence · Skill"]);
+  // The schema spells a section with hashes; a list of references does not.
+  assert.deepEqual(mira.mentions.map((m) => m.declared), ["Skills · Skill", "Evidence · Skill"]);
 });
 
 test("no group and no mention gives an empty direction, its count zero", () => {
@@ -74,4 +75,10 @@ test("a row that refers out opens the entity it names, from its first line, and 
     { line: null, name: "Java Programming", declared: "requires", path: "model/skills/java-programming.md", at: 0 },
   ]);
   assert.equal(view.out.title, "Refers to · 1");
+});
+
+test("what declares a name reads without the hashes a schema writes it with", () => {
+  assert.equal(readable("## Evidence · Skill"), "Evidence · Skill");
+  assert.equal(readable("### Achievements"), "Achievements");
+  assert.equal(readable("requires"), "requires");
 });

@@ -5,6 +5,10 @@
 import type { Group, References } from "./refs.ts";
 import { countOf } from "./refs.ts";
 
+// What declares a name, as a reader reads it: a field's name as it is written, and a section
+// without the hashes the schema spells it with, since a list is not the file's text.
+export const readable = (declared: string): string => declared.replace(/^#+\s*/, "");
+
 export interface MentionRow {
   // The line the name is written on, counted from one; null where the row opens another note and
   // its own line would name a place in that one.
@@ -48,7 +52,7 @@ const groupsOf = (groups: Group[], outgoing: boolean): FileGroup[] =>
     mentions: g.mentions.map((m) => ({
       line: outgoing ? null : m.line + 1,
       name: m.name,
-      declared: m.declared,
+      declared: readable(m.declared),
       path: outgoing ? m.target : m.path,
       at: outgoing ? 0 : m.line,
     })),
