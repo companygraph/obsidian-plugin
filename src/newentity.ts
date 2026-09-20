@@ -5,38 +5,50 @@
 import { FuzzySuggestModal, MarkdownView, Modal, Notice, Setting, TFile } from "obsidian";
 import type { App } from "obsidian";
 import type { TypeVocabulary } from "./vocabulary.ts";
+import { refusedHere, refusedName } from "./names.ts";
+import type { Named } from "./scope.ts";
 import { scaffoldOf } from "./scaffold.ts";
 import type { Target } from "./scaffold.ts";
 
 export class PickType extends FuzzySuggestModal<Target> {
   targets: Target[];
   vocabulary: Map<string, TypeVocabulary>;
+  // The last parse's entities and where the model sits, so that the name asked for next can be
+  // held to R2 the way Rename entity holds one.
+  named: Named[];
+  model: string;
 
-  constructor(app: App, targets: Target[], vocabulary: Map<string, TypeVocabulary>) {
+  constructor(app: App, targets: Target[], vocabulary: Map<string, TypeVocabulary>, named: Named[], model: string) {
     super(app);
     this.targets = targets;
     this.vocabulary = vocabulary;
+    this.named = named;
+    this.model = model;
     this.setPlaceholder("The type of the new entity");
   }
   getItems() { return this.targets.filter((t) => this.vocabulary.has(t.type)); }
   getItemText(target: Target) { return `${target.type} — ${target.where}`; }
   onChooseItem(target: Target) {
-    new NameEntity(this.app, target, this.vocabulary.get(target.type)!).open();
+    new NameEntity(this.app, target, this.vocabulary.get(target.type)!, this.named, this.model).open();
   }
 }
 
 class NameEntity extends Modal {
   target: Target;
   vocabulary: TypeVocabulary;
+  named: Named[];
+  model: string;
   name = "";
   asked = "";
   // Set while a file is being written, so a second Enter or a click does not write it twice.
   busy = false;
 
-  constructor(app: App, target: Target, vocabulary: TypeVocabulary) {
+  constructor(app: App, target: Target, vocabulary: TypeVocabulary, named: Named[], model: string) {
     super(app);
     this.target = target;
     this.vocabulary = vocabulary;
+    this.named = named;
+    this.model = model;
   }
 
   onOpen() {
@@ -65,6 +77,15 @@ class NameEntity extends Modal {
     const path = this.target.pathFor(name, this.asked.trim());
     if (!name || !path) {
       new Notice(this.target.asks ? `A name, and a ${this.target.asks} written YYYY, YYYY-MM or YYYY-MM-DD, are needed.` : "A name is needed.");
+      return;
+    }
+    // The guard Rename entity asks. A name it would refuse is one this must not write: a pipe or
+    // a leading `#` would break the first cell or field that names this entity, and a name
+    // already taken breaks R2. The file's own path is where the name is read from, which is what
+    // scopes an owned type's name to its owner.
+    const wrong = refusedName(name) ?? refusedHere(this.named, this.model, this.target.type, path, name);
+    if (wrong) {
+      new Notice(wrong);
       return;
     }
     const vault = this.app.vault;
