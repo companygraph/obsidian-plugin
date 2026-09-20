@@ -8,11 +8,10 @@ import { MarkdownView, editorInfoField } from "obsidian";
 import { RangeSetBuilder, StateEffect } from "@codemirror/state";
 import { Decoration, ViewPlugin } from "@codemirror/view";
 import type { DecorationSet, EditorView, ViewUpdate } from "@codemirror/view";
-import { tableOf, typeOfPath } from "companygraph-meta-model/checks";
+import { typeOfPath } from "companygraph-meta-model/checks";
 import type CompanyGraphPlugin from "./main.ts";
-import { referencesIn, resolveIn } from "./references.ts";
+import { cellAt, referencesIn, resolveIn } from "./references.ts";
 import { visibleIn } from "./scope.ts";
-import { sectionAbove } from "./tables.ts";
 
 // Sent after a rebuild, since what a name resolves to can change without the text changing.
 export const refreshNames = StateEffect.define<null>();
@@ -111,7 +110,16 @@ export function markNames(plugin: CompanyGraphPlugin, view: MarkdownView, cm: Ed
   }
 
   if (!cm) return;
+  // A cell is marked on the screen and read from the note. What is drawn in it is not the name
+  // while it is edited: the cell then holds its drawn text, hidden, and its own editor, and its
+  // text is the name twice over, which resolves to nothing, so every name being edited was drawn
+  // as one that names nothing. Which spans are references is references.ts's here as well, as it
+  // is for Source mode's marks, and a row of the widget is a line of the note: the header is the
+  // table's first line, the separator is no row, and the body follows.
   const note = view.editor;
+  const lines = note.getValue().split("\n");
+  const byLine = new Map<number, ReturnType<typeof referencesIn>>();
+  for (const ref of referencesIn(lines, resolver.vocabulary)) byLine.set(ref.line, [...(byLine.get(ref.line) ?? []), ref]);
   for (const widget of Array.from(root.querySelectorAll<HTMLElement>(".cm-table-widget"))) {
     let first: number;
     try {
@@ -119,20 +127,13 @@ export function markNames(plugin: CompanyGraphPlugin, view: MarkdownView, cm: Ed
     } catch {
       continue;
     }
-    const columns = resolver.vocabulary.sections.find((s) => s.heading === sectionAbove((n) => note.getLine(n), first - 1))?.columns;
-    if (!columns) continue;
-    let last = first;
-    while (last + 1 < note.lineCount() && note.getLine(last + 1).trimStart().startsWith("|")) last++;
-    const block: string[] = [];
-    for (let n = first; n <= last; n++) block.push(note.getLine(n));
-    const header = tableOf(block.join("\n"))?.columns;
-    if (!header) continue;
-    Array.from(widget.querySelectorAll("tr")).slice(1).forEach((tr) =>
-      Array.from(tr.children).forEach((cell, i) => {
-        const column = columns.find((c) => c.name === header[i]);
-        if (column?.offer.kind === "names") mark(cell, column.offer.target, cell.textContent, column.offer.optional === true);
-      }),
-    );
+    Array.from(widget.querySelectorAll("tr")).slice(1).forEach((tr, body) => {
+      const line = first + 2 + body;
+      for (const ref of byLine.get(line) ?? []) {
+        const cell = cellAt(lines[line], ref.from);
+        if (cell !== null) mark(tr.children[cell] ?? null, ref.target, ref.name, ref.optional);
+      }
+    });
   }
 }
 
