@@ -159,3 +159,32 @@ test("deleting an owner removes its folder and what it owns, and lists only refe
   // The phases name each other and the process lists them, but all of that goes with them.
   assert.ok(!plan.mentions.some((m) => m.path.startsWith("example/model/processes/delivery/")));
 });
+
+// The edit this release came from: a track renamed in a process's table left three phases headed
+// with the old name and nothing said so. A track is an entity since core 0.33.0, so the heading
+// is a reference like any other and a rename carries it.
+test("renaming a track rewrites its process's table and every phase heading that names it", () => {
+  const { files, named, vocabulary, model } = setup(reference(), REFERENCE);
+  const code = entity(named, "track", "Code");
+  const headed = referencesTo(files, vocabulary, named, model, code).filter((m) => m.path.includes("/phases/"));
+  assert.deepEqual([...new Set(headed.map((m) => m.path.split("/").pop()))].sort(), ["implement.md", "plan.md", "spec.md"]);
+  for (const m of headed) assert.equal(files.get(m.path)!.split("\n")[m.line], "### Code");
+
+  const after = carried(files, renamePlan(files, vocabulary, named, model, code, "Software"));
+  assert.ok(after.has("model/processes/delivery/tracks/software.md"));
+  assert.ok(after.get("model/processes/delivery/delivery.md")!.includes("| Software |"));
+  for (const phase of ["implement", "plan", "spec"]) {
+    const text = after.get(`model/processes/delivery/phases/${phase}.md`)!;
+    assert.ok(text.includes("\n### Software\n") && !text.includes("\n### Code\n"), phase);
+  }
+  assert.deepEqual(checkInstance(after, REFERENCE).failures, []);
+});
+
+test("a track renamed in the table alone is a failure naming the row, which is what went unsaid", () => {
+  const files = reference();
+  const path = "model/processes/delivery/delivery.md";
+  files.set(path, files.get(path)!.replace("| Code |", "| Code2 |"));
+  const failures = checkInstance(files, REFERENCE).failures;
+  assert.ok(failures.some((f) => f.startsWith(`${path}: `) && f.includes('"Code2"') && f.includes("ref → track")), failures.join("\n"));
+  assert.ok(failures.some((f) => f.includes('does not list "Code"')), failures.join("\n"));
+});

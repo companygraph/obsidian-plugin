@@ -52,7 +52,7 @@ export function targetsFor(model: string, activePath: string | null, exists: (pa
     const asks = t.filename?.year ?? null;
     const owned = TYPES.filter((o) => o.owner === t.type).map((o) => o.type);
     const owes = own && owned.length
-      ? `A ${t.type} needs its first ${owned.join(" or ")}: run New entity from it next.`
+      ? `A ${t.type} needs ${owned.map((o) => `its first ${o}`).join(" and ")}: run New entity from it next.`
       : t.owner && placeholder !== -1 && placeholder !== parts.length - 1
         ? `Where the ${t.owner} lists what it owns, add this ${t.type} in its place.`
         : null;
