@@ -160,6 +160,55 @@ test("lines the form adds or removes are one span between the unchanged ones", (
   assert.deepEqual(changesOf("same", "same"), []);
 });
 
+// Review found this. MD012 takes trailing blank lines off the end of a file, and lines removed at
+// the very end have no line after them to take the newline from: the last one's newline belongs
+// to the line before the run. Taking the newline after each instead left one behind, so the text
+// written was never the text asked for, the note was read back out of form, written again, and a
+// note ending in blank lines never settled.
+test("lines removed at the end of a file take the newline before the run, not after it", () => {
+  for (const [before, after] of [
+    ["a\nb\n\n\n", "a\nb\n"],
+    ["a\nb\n\n", "a\nb\n"],
+    ["a\nb\n\n\n\n\n", "a\nb\n"],
+    ["a\nb\nc\n", "a\n"],
+    ["# A\n\n> t\n\n\n", "# A\n\n> t\n"],
+  ]) assert.equal(apply(before, changesOf(before, after)), after, JSON.stringify([before, after]));
+});
+
+// The form settles: what it writes is already in the form, so the next save changes nothing.
+test("a note whose only fault is trailing blank lines is in form after one write", () => {
+  const before = "# A\n\n> t\n\n\n";
+  const once = apply(before, changesOf(before, inForm(before, config!)));
+  assert.equal(once, inForm(once, config!));
+  assert.deepEqual(changesOf(once, inForm(once, config!)), []);
+});
+
+// What every case above is one of: the changes applied to `before` give `after` exactly. This
+// function has now been wrong twice, each time in a shape nobody had written a case for — a
+// cursor carried to a table's end, a newline left behind at a file's end — so the property is
+// held here over a few thousand pairs rather than over the shapes anyone thought of. The numbers
+// come from a seeded generator, so a failure is the same failure on every run.
+test("the changes applied to the first text give the second, whatever the two are", () => {
+  let seed = 20260920;
+  const next = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+  const pick = <T,>(xs: T[]) => xs[Math.floor(next() * xs.length)];
+  const WORDS = ["", "a", "b", "  c", "| x | y |", "# A", "> t", "```", "- one"];
+  for (let run = 0; run < 3000; run++) {
+    const a: string[] = [];
+    for (let i = 0, n = Math.floor(next() * 8); i < n; i++) a.push(pick(WORDS));
+    const b = [...a];
+    for (let i = 0, n = Math.floor(next() * 4); i < n; i++) {
+      const at = Math.floor(next() * (b.length + 1));
+      if (next() < 0.4) b.splice(at, 1);
+      else if (next() < 0.5) b.splice(at, 0, pick(WORDS));
+      else if (at < b.length) b[at] = pick(WORDS);
+    }
+    const before = a.join("\n");
+    const after = b.join("\n");
+    assert.equal(apply(before, changesOf(before, after)), after, JSON.stringify([before, after]));
+  }
+});
+
 test("a cursor keeps the characters before it that are not spaces, wherever the form moves them", () => {
   assert.equal(columnAfter("| a   | b   |", "| a | b |", 9), 7);
   assert.equal(columnAfter("| a   | b   |", "| a | b |", 0), 0);
