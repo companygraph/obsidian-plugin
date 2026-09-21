@@ -147,3 +147,23 @@ test("a vault that is not an instance has no core to move", async () => {
   const plan = await planMove(memoryDisk(), release);
   assert.ok("refused" in plan && plan.refused.includes("not an instance"));
 });
+
+// companygraph/mental-model's case: made before the skills existed, its manifest records none and
+// it holds none, and moving its core gives it all three.
+test("moving the core of a vault that records no skills and holds none writes them", async () => {
+  const disk = memoryDisk();
+  const made = await planInstance(disk, release, { name: "Acme" });
+  assert.ok("writes" in made);
+  await carryOut(disk, made.writes, made.removes);
+  const manifest = JSON.parse(disk.files.get(".companygraph/manifest.json")!);
+  for (const key of Object.keys(manifest.files)) if (key.startsWith(".claude/")) delete manifest.files[key];
+  disk.files.set(".companygraph/manifest.json", JSON.stringify(manifest));
+  for (const key of [...disk.files.keys()]) if (key.startsWith(".claude/")) disk.files.delete(key);
+
+  const move = await planMove(disk, release);
+  assert.ok("writes" in move);
+  await carryOut(disk, move.writes, move.removes);
+  for (const path of Object.keys(release.skills))
+    assert.equal(disk.files.get(`.claude/skills/${path}`), release.skills[path], path);
+  assert.ok(Object.keys(JSON.parse(disk.files.get(".companygraph/manifest.json")!).files).includes(".claude/skills/companygraph-validate/SKILL.md"));
+});
