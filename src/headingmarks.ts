@@ -23,7 +23,17 @@ import { refreshNames } from "./namelinks.ts";
 // installed application; such an editor is not the note's own, and its text is a cell.
 function vocabularyIn(plugin: CompanyGraphPlugin, state: EditorState): { path: string; vocabulary: TypeVocabulary } | null {
   const info = state.field(editorInfoField, false);
-  const own = (info?.editor as unknown as { cm?: EditorView } | undefined)?.cm;
+  // `editor` is a getter of Obsidian's, and on a release as old as the manifest promises it
+  // throws while the view is still being built: the editor it reaches for is not there yet, and
+  // no note could be opened at all. Where it cannot answer, nothing is known about a cell's own
+  // editor and the file alone decides, as it did before this field was read. Found by the suite
+  // under e2e/ against Obsidian 1.5.3.
+  let own: EditorView | undefined;
+  try {
+    own = (info?.editor as unknown as { cm?: EditorView } | undefined)?.cm;
+  } catch {
+    own = undefined;
+  }
   const view = state.field(editorEditorField, false);
   if (own && view && own !== view) return null;
   const path = info?.file?.path;
