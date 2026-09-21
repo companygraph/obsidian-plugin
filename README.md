@@ -26,11 +26,15 @@ Obsidian's table editor rewrites a whole table the moment one cell is edited, ev
 
 ## Installing it
 
-Copy `main.js`, `manifest.json` and `styles.css` from a release into `.obsidian/plugins/companygraph/` in the vault, or point BRAT at this repository. Then, in Obsidian's settings under Community plugins, turn community plugins on and switch CompanyGraph on in the section Installed plugins; Browse, above it, searches Obsidian's public directory, where this plugin is not listed. Completion is written for Source mode, which the command `Toggle Live Preview/Source mode` reaches. An instance that is a git repository keeps `.obsidian/` in its `.gitignore`.
+```sh
+npx --yes 'github:companygraph/meta-model#semver:*'
+```
+
+The plugin is not in Obsidian's community directory, so the meta-model's tooling installs it: its menu's Obsidian plugin entry, or `obsidian <vault>` without the menu, puts this plugin's newest release into `.obsidian/plugins/companygraph/` in the vault and switches it on in `.obsidian/community-plugins.json`, keeping the plugins already on there. Run again, it updates the plugin and leaves its settings as they are. The first time Obsidian opens the vault it asks whether its author is trusted. A vault once browsed in restricted mode lists no community plugin until Settings → Community plugins → Turn on community plugins, a switch Obsidian keeps outside the vault, where no command reaches it; the tooling says so after every install. Copying `main.js`, `manifest.json` and `styles.css` from a release by hand does the same. Completion is written for Source mode, which the command `Toggle Live Preview/Source mode` reaches. An instance that is a git repository keeps `.obsidian/` in its `.gitignore`.
 
 ## Working on it
 
-Node 24 or newer, because the tests run TypeScript through Node's own type stripping. `npm install`, then `npm test`, which first fetches its fixtures over the network, the meta-model at the pinned tag and the reference instance at one commit, then `npm run typecheck` and `npm run build`. `npm run e2e` starts Obsidian on a copy of the pinned reference instance and works the plugin with real clicks and keys; it needs Obsidian installed and is run by hand. The design, with every decision and its reason, is in `docs/superpowers/specs/`.
+Node 24 or newer, because the tests run TypeScript through Node's own type stripping. `npm install`, then `npm test`, which first fetches its fixtures over the network, the meta-model at the pinned tag and the reference instance at one commit, then `npm run typecheck` and `npm run build`. `npx --yes 'github:companygraph/meta-model#semver:*' obsidian <vault> --from .` puts a build of one's own into a vault. `npm run e2e` starts Obsidian on a copy of the pinned reference instance, with the build installed through that command's code, and works the plugin with real clicks and keys; it needs Obsidian installed and is run by hand. The design, with every decision and its reason, is in `docs/superpowers/specs/`.
 
 ## License
 
