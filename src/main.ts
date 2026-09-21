@@ -44,10 +44,14 @@ import { addableSections } from "./headings.ts";
 import { PickType } from "./newentity.ts";
 import { targetsFor } from "./scaffold.ts";
 import { DeleteEntity, RenameEntity } from "./entitycommands.ts";
+import { MakeInstance, MoveCore } from "./instancecommands.ts";
+import type { Release } from "./instantiate.ts";
 import { PIN, RULES, RULE_PATHS, changesOf, channelFor, columnAfter, excludesOf, formOf, formed, inForm } from "./form.ts";
 
 // The release of companygraph-meta-model this build bundles; esbuild.config.mjs defines it.
 declare const __CHECKER_VERSION__: string;
+// That release's core and Claude's skills, which the two instance commands write.
+declare const __RELEASE__: Release;
 
 export interface State {
   // "checking" until the first rebuild lands: a pane restored at startup would otherwise say
@@ -331,6 +335,19 @@ export default class CompanyGraphPlugin extends Plugin {
       // `leaving`: the editor's own save never comes after this, so the file is written.
       if (left) tasks.add(() => this.writeForm(left, false, true));
     }));
+    // The meta-model's `init` and `upgrade`, from inside the vault. Each modal says what it would
+    // write before it writes, and refuses as the command line does: a vault that is an instance
+    // already is not made one again, and one that is not has no core to move.
+    this.addCommand({
+      id: "make-instance",
+      name: "Make this vault an instance",
+      callback: () => new MakeInstance(this.app, __RELEASE__, () => void this.rebuild()).open(),
+    });
+    this.addCommand({
+      id: "move-core",
+      name: "Move this vault's core",
+      callback: () => new MoveCore(this.app, __RELEASE__, () => void this.rebuild()).open(),
+    });
     this.addCommand({ id: "open-brief", name: "Open the writing brief", callback: () => void this.openBrief() });
     this.addCommand({ id: "open-checks", name: "Open the compliance pane", callback: () => void this.openPane() });
     this.addCommand({ id: "check-now", name: "Check compliance now", callback: () => void this.rebuild() });

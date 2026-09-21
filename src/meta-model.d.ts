@@ -42,3 +42,20 @@ declare module "companygraph-meta-model/instance" {
   export interface Declaration { form: "ref" | "ref?" | "qualifier"; target: string }
   export function declarationOf(cell: string | undefined): Declaration | null;
 }
+
+declare module "companygraph-meta-model/plan" {
+  // Where the agent's skills are written, and what `init` and `upgrade` would write: a plan, or a
+  // refusal saying why nothing may be. Maps are path → text.
+  export const SKILLS: string;
+  export function initPlan(ask: {
+    core: Map<string, string>; skills?: Map<string, string>; tooling: string; tag: string; name: string;
+    agent: string; units?: string; folders?: string[]; present?: Set<string>; fetched?: boolean;
+  }): { refused: string; writes?: undefined } | { refused?: undefined; writes: Map<string, string> };
+  export function upgradePlan(ask: {
+    core: Map<string, string>; skills?: Map<string, string>; tooling: string; tag: string;
+    manifest: { files?: Record<string, string>; units?: string; core?: { version?: string }; tooling?: string };
+    held: Map<string, string>; workflow: string | null; fetched?: boolean; force?: boolean;
+  }):
+    | { refused: string }
+    | { refused?: undefined; writes: Map<string, string>; removes: string[]; edited: string[]; missing: string[]; from: string; to: string };
+}
