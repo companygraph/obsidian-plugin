@@ -1,5 +1,7 @@
 // A failure is a string. Until the checks return a structure, this reads it: the file from the
 // path the message opens with, the line from the value or the field the message quotes.
+import type { Files } from "./model.ts";
+
 export interface Located {
   path: string | null; // null: the failure is about the instance, not one file
   line: number;        // zero-based; 0 when nothing in the message could be found in the file
@@ -54,7 +56,7 @@ function seek(lines: string[], scope: number[], values: string[]): number {
 
 const upto = (from: number, to: number) => Array.from({ length: Math.max(0, to - from) }, (_, i) => from + i);
 
-export function locate(failure: string, files: Map<string, string>): Located {
+export function locate(failure: string, files: Files): Located {
   // The file a failure opens with, found as the longest path of the map the failure leads with.
   // No pattern reads the path: Obsidian names a note "Untitled 1.md" by default, and a path with
   // a space in it is exactly the file an R12 failure is about.
@@ -64,7 +66,11 @@ export function locate(failure: string, files: Map<string, string>): Located {
       lead = path;
   if (!lead) return { path: null, line: 0, message: failure };
   const message = failure.startsWith(lead + ": ") ? failure.slice(lead.length + 2) : failure;
-  const lines = files.get(lead)!.split("\n");
+  // A failure that leads with an image is about the picture itself — its size, its format — and
+  // a picture has no line to land on: the click opens the file, which Obsidian shows.
+  const held = files.get(lead)!;
+  if (typeof held !== "string") return { path: lead, line: 0, message };
+  const lines = held.split("\n");
   const fmEnd = lines[0] === "---" ? lines.indexOf("---", 1) : -1;
   const values = [...message.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
   // A backticked token is a frontmatter field only inside the frontmatter block; a file with no

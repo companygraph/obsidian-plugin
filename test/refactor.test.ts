@@ -6,10 +6,10 @@ import { vocabularyOf } from "../src/vocabulary.ts";
 import { namedOf } from "../src/scope.ts";
 import { deletePlan, referencesTo, renamePlan } from "../src/refactor.ts";
 import type { RenamePlan } from "../src/refactor.ts";
-import { example, EXAMPLE, reference, REFERENCE } from "./helpers.ts";
+import { example, EXAMPLE, reference, REFERENCE, whole } from "./helpers.ts";
 
 const setup = (files: Map<string, string>, layout: typeof EXAMPLE) => {
-  const named = namedOf(buildModel(files, layout).graph!);
+  const named = namedOf(buildModel(whole(files), layout).graph!);
   return { files, named, vocabulary: vocabularyOf(schemasOf(files, layout)), model: layout.model };
 };
 const entity = (named: ReturnType<typeof namedOf>, type: string, name: string) => named.find((n) => n.type === type && n.name === name)!;
@@ -56,7 +56,7 @@ test("renaming a skill rewrites its H1, its file and every reference, and the ch
   const after = carried(files, plan);
   assert.ok(after.get("example/model/skills/java.md")!.includes("\n# Java\n"));
   assert.ok(!after.get("example/model/roles/backend-engineer.md")!.includes("Java Programming"));
-  assert.deepEqual(checkInstance(after, EXAMPLE).failures, []);
+  assert.deepEqual(checkInstance(whole(after), EXAMPLE).failures, []);
 });
 
 test("renaming a phase rewrites its process's table and its sibling's gate-to, within that process", () => {
@@ -65,7 +65,7 @@ test("renaming a phase rewrites its process's table and its sibling's gate-to, w
   const after = carried(files, plan);
   assert.ok(after.has("example/model/processes/delivery/phases/implement.md"));
   assert.ok(after.get("example/model/processes/delivery/delivery.md")!.includes("| Implement |"));
-  assert.deepEqual(checkInstance(after, EXAMPLE).failures, []);
+  assert.deepEqual(checkInstance(whole(after), EXAMPLE).failures, []);
 });
 
 test("renaming an owner moves its folder and its file, and what it owns goes with it", () => {
@@ -78,7 +78,7 @@ test("renaming an owner moves its folder and its file, and what it owns goes wit
   ]);
   const after = carried(files, plan);
   assert.ok(after.has("example/model/processes/shipping/phases/build.md"));
-  assert.deepEqual(checkInstance(after, EXAMPLE).failures, []);
+  assert.deepEqual(checkInstance(whole(after), EXAMPLE).failures, []);
 });
 
 test("an experience keeps its chosen filename, and a name taken in the same scope is refused", () => {
@@ -87,7 +87,7 @@ test("an experience keeps its chosen filename, and a name taken in the same scop
   const plan = renamePlan(files, vocabulary, named, model, experience, "A New Title");
   assert.ok(!("refused" in plan));
   assert.deepEqual(plan.moves, []);
-  assert.deepEqual(checkInstance(carried(files, plan), EXAMPLE).failures, []);
+  assert.deepEqual(checkInstance(whole(carried(files, plan)), EXAMPLE).failures, []);
   const taken = renamePlan(files, vocabulary, named, model, entity(named, "skill", "Java Programming"), "Product Discovery");
   assert.ok("refused" in taken && /named "Product Discovery" already/.test(taken.refused));
   const same = renamePlan(files, vocabulary, named, model, entity(named, "skill", "Java Programming"), "Java Programming");
@@ -100,7 +100,7 @@ test("renaming any entity of the reference instance leaves the checks as clean a
   // Every entity, one at a time: a review found the achievement kinds, named by the `###` headings
   // of grouped sections, left behind by a rename that read only fields and cells.
   const { files, named, vocabulary, model } = setup(reference(), REFERENCE);
-  assert.deepEqual(checkInstance(files, REFERENCE).failures, []);
+  assert.deepEqual(checkInstance(whole(files), REFERENCE).failures, []);
   const broken: string[] = [];
   for (const target of named) {
     const plan = renamePlan(files, vocabulary, named, model, target, `${target.name} X`);
@@ -108,7 +108,7 @@ test("renaming any entity of the reference instance leaves the checks as clean a
       broken.push(`${target.type} ${target.name}: refused, ${plan.refused}`);
       continue;
     }
-    const failures = checkInstance(carried(files, plan), REFERENCE).failures;
+    const failures = checkInstance(whole(carried(files, plan)), REFERENCE).failures;
     if (failures.length) broken.push(`${target.type} ${target.name}: ${failures[0]}`);
   }
   assert.deepEqual(broken, []);
@@ -177,14 +177,14 @@ test("renaming a track rewrites its process's table and every phase heading that
     const text = after.get(`model/processes/delivery/phases/${phase}.md`)!;
     assert.ok(text.includes("\n### Software\n") && !text.includes("\n### Code\n"), phase);
   }
-  assert.deepEqual(checkInstance(after, REFERENCE).failures, []);
+  assert.deepEqual(checkInstance(whole(after), REFERENCE).failures, []);
 });
 
 test("a track renamed in the table alone is a failure naming the row, which is what went unsaid", () => {
   const files = reference();
   const path = "model/processes/delivery/delivery.md";
   files.set(path, files.get(path)!.replace("| Code |", "| Code2 |"));
-  const failures = checkInstance(files, REFERENCE).failures;
+  const failures = checkInstance(whole(files), REFERENCE).failures;
   assert.ok(failures.some((f) => f.startsWith(`${path}: `) && f.includes('"Code2"') && f.includes("ref → track")), failures.join("\n"));
   assert.ok(failures.some((f) => f.includes('does not list "Code"')), failures.join("\n"));
 });

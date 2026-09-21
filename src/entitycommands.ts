@@ -7,7 +7,7 @@ import { MarkdownView, Modal, Notice, Setting, TFile } from "obsidian";
 import type { App } from "obsidian";
 import type CompanyGraphPlugin from "./main.ts";
 import { readInstance } from "./vault.ts";
-import { buildModel } from "./model.ts";
+import { buildModel, textOf } from "./model.ts";
 import { namedOf } from "./scope.ts";
 import { deletePlan, renamePlan } from "./refactor.ts";
 import type { Mention } from "./refactor.ts";
@@ -38,7 +38,7 @@ async function current(plugin: CompanyGraphPlugin, target: Named): Promise<Curre
   const named = namedOf(graph);
   const now = named.find((n) => n.path === target.path);
   if (!now) return { refused: `${target.path} is no longer an entity the model holds.` };
-  return { layout, files, named, now };
+  return { layout, files: textOf(files), named, now };
 }
 
 // Mentions counted per file, for a plan's list.

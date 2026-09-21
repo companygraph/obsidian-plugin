@@ -7,7 +7,7 @@ import type { Debouncer } from "obsidian";
 import { EditorView as EditorViewClass } from "@codemirror/view";
 import type { EditorView } from "@codemirror/view";
 import { guard } from "./manifest.ts";
-import { buildModel } from "./model.ts";
+import { buildModel, textOf } from "./model.ts";
 import { namedOf } from "./scope.ts";
 import { linksOf, merge, mergePath, rename } from "./links.ts";
 import type { Added, Links } from "./links.ts";
@@ -613,7 +613,7 @@ export default class CompanyGraphPlugin extends Plugin {
     try {
       const files = await readInstance(this.app, this.layout);
       if (generation !== this.generation) return;
-      this.files = files;
+      this.files = textOf(files);
       const model = buildModel(files, this.layout);
       if (generation !== this.generation) return;
       let schemas: string | null = null;

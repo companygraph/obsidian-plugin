@@ -13,8 +13,14 @@ declare module "companygraph-meta-model/checks" {
   // R9's date: a year, a year and a month, or a full date. Exported by the package since 0.32.0,
   // so nothing here keeps a second copy of it.
   export const DATE: RegExp;
+  // R9's bounds for an image, and what an image's own bytes say it is; null for anything that is
+  // neither a PNG nor a JPEG.
+  export const IMAGE_BOUNDS: { min: number; max: number; bytes: number };
+  export function imageInfoOf(bytes: unknown): { format: "png" | "jpeg"; width: number; height: number } | null;
+  // A file IMAGE_FILE matches enters the map as bytes and every other file as text (R9): an
+  // image read as text is corrupted before the check that reads its header sees it.
   export function checkInstance(
-    files: Map<string, string>,
+    files: Map<string, string | Uint8Array>,
     options?: { core?: string; model?: string },
   ): { failures: string[]; skipped: string[] };
   export function typeOfPath(rel: string, model: string): string | null;
@@ -29,6 +35,8 @@ declare module "companygraph-meta-model/checks" {
 }
 
 declare module "companygraph-meta-model/instance" {
+  // R9's image: `.jpg`, `.jpeg` or `.png`, lowercase. Every reader of an instance decides by it.
+  export const IMAGE_FILE: RegExp;
   export interface Table { caption: string | null; columns: string[]; rows: string[][] }
   export interface Section { heading: string; text: string; tables: Table[]; table?: Table }
   export interface Entity {
