@@ -335,16 +335,13 @@ test("the plugin's manifest and package.json carry one version", () => {
 
 - [ ] **Step 12: Run the tests**
 
-Run: `npm test`
-Expected: the fixtures script prints two `fetched into test/fixtures/` lines, then 2 tests pass.
+Run: `npm test` Expected: the fixtures script prints two `fetched into test/fixtures/` lines, then 2 tests pass.
 
 - [ ] **Step 13: Build, and typecheck what exists**
 
-Run: `npm run build && ls -la main.js`
-Expected: esbuild prints `main.js` with its size and `Done`.
+Run: `npm run build && ls -la main.js` Expected: esbuild prints `main.js` with its size and `Done`.
 
-Run: `npm run typecheck`
-Expected: no output, exit 0.
+Run: `npm run typecheck` Expected: no output, exit 0.
 
 - [ ] **Step 14: Vendor the conventions**
 
@@ -522,8 +519,7 @@ Replace `<the tag in conventions.json>` with the tag itself, `sed -n 's/.*"tag":
 
 - [ ] **Step 17: Run the prose check and commit**
 
-Run: `sh conventions/conventions-check`
-Expected: `✓ every Markdown file follows WRITING.md`.
+Run: `sh conventions/conventions-check` Expected: `✓ every Markdown file follows WRITING.md`.
 
 ```sh
 git add -A
@@ -619,18 +615,15 @@ test("enumTokensOf reads the run of backticked values a Description opens with",
 
 - [ ] **Step 3: Run them and see them fail**
 
-Run: `npm run test:instance; npm run test:instance-checks`
-Expected: both fail at import, `does not provide an export named 'declarationOf'` and `'enumTokensOf'`.
+Run: `npm run test:instance; npm run test:instance-checks` Expected: both fail at import, `does not provide an export named 'declarationOf'` and `'enumTokensOf'`.
 
 - [ ] **Step 4: Export the two**
 
-`lib/instance.mjs`: `function declarationOf(cell) {` becomes `export function declarationOf(cell) {`.
-`lib/checks.mjs`: `function enumTokensOf(description) {` becomes `export function enumTokensOf(description) {`.
+`lib/instance.mjs`: `function declarationOf(cell) {` becomes `export function declarationOf(cell) {`. `lib/checks.mjs`: `function enumTokensOf(description) {` becomes `export function enumTokensOf(description) {`.
 
 - [ ] **Step 5: Run every suite**
 
-Run: `npm run verify && npm run test:instance && npm run test:instance-checks && npm run test:rules`
-Expected: all pass.
+Run: `npm run verify && npm run test:instance && npm run test:instance-checks && npm run test:rules` Expected: all pass.
 
 - [ ] **Step 6: Say so in the README and move the version**
 
@@ -732,8 +725,7 @@ test("a core behind the checker with a matching pin is fine", () => {
 
 - [ ] **Step 3: Run it and see it fail**
 
-Run: `node --test test/manifest.test.ts`
-Expected: FAIL, `Cannot find module '…/src/manifest.ts'`.
+Run: `node --test test/manifest.test.ts` Expected: FAIL, `Cannot find module '…/src/manifest.ts'`.
 
 - [ ] **Step 4: Write `src/manifest.ts`**
 
@@ -785,8 +777,7 @@ export function guard(manifest: InstanceManifest, checker: string): Guard {
 
 - [ ] **Step 5: Run it and see it pass**
 
-Run: `node --test test/manifest.test.ts`
-Expected: 5 tests pass.
+Run: `node --test test/manifest.test.ts` Expected: 5 tests pass.
 
 - [ ] **Step 6: Commit**
 
@@ -861,8 +852,7 @@ test("a core with a schema missing names the type as skipped", () => {
 
 - [ ] **Step 2: Run it and see it fail**
 
-Run: `node --test test/model.test.ts`
-Expected: FAIL, `Cannot find module '…/src/model.ts'`.
+Run: `node --test test/model.test.ts` Expected: FAIL, `Cannot find module '…/src/model.ts'`.
 
 - [ ] **Step 3: Write `src/model.ts`**
 
@@ -924,11 +914,9 @@ export function namesByType(graph: Graph): Map<string, string[]> {
 
 - [ ] **Step 4: Run it, then the typecheck**
 
-Run: `node --test test/model.test.ts`
-Expected: 4 tests pass.
+Run: `node --test test/model.test.ts` Expected: 4 tests pass.
 
-Run: `npm run typecheck`
-Expected: no output, exit 0.
+Run: `npm run typecheck` Expected: no output, exit 0.
 
 - [ ] **Step 5: Commit**
 
@@ -1019,8 +1007,7 @@ test("a path with nothing findable in the file falls back to its first line", ()
 
 - [ ] **Step 2: Run it and see it fail**
 
-Run: `node --test test/locate.test.ts`
-Expected: FAIL, `Cannot find module '…/src/locate.ts'`.
+Run: `node --test test/locate.test.ts` Expected: FAIL, `Cannot find module '…/src/locate.ts'`.
 
 - [ ] **Step 3: Write `src/locate.ts`**
 
@@ -1064,8 +1051,7 @@ export function locate(failure: string, files: Map<string, string>): Located {
 
 - [ ] **Step 4: Run it and see it pass**
 
-Run: `node --test test/locate.test.ts`
-Expected: 6 tests pass.
+Run: `node --test test/locate.test.ts` Expected: 6 tests pass.
 
 - [ ] **Step 5: Commit**
 
@@ -1165,8 +1151,7 @@ test("the fences and a file with no frontmatter offer no key", () => {
 
 - [ ] **Step 2: Run it and see it fail**
 
-Run: `node --test test/context.test.ts`
-Expected: FAIL, `Cannot find module '…/src/context.ts'`.
+Run: `node --test test/context.test.ts` Expected: FAIL, `Cannot find module '…/src/context.ts'`.
 
 - [ ] **Step 3: Write `src/context.ts`**
 
@@ -1228,8 +1213,7 @@ export function contextAt(lines: string[], line: number, ch: number): Context | 
 
 - [ ] **Step 4: Run it and see it pass**
 
-Run: `node --test test/context.test.ts`
-Expected: 8 tests pass.
+Run: `node --test test/context.test.ts` Expected: 8 tests pass.
 
 - [ ] **Step 5: Commit**
 
@@ -1334,8 +1318,7 @@ test("sections are the `## ` rows of the index table, and a table section carrie
 
 - [ ] **Step 4: Run it and see it fail**
 
-Run: `node --test test/vocabulary.test.ts`
-Expected: FAIL, `Cannot find module '…/src/vocabulary.ts'`.
+Run: `node --test test/vocabulary.test.ts` Expected: FAIL, `Cannot find module '…/src/vocabulary.ts'`.
 
 - [ ] **Step 5: Write `src/vocabulary.ts`**
 
@@ -1404,8 +1387,7 @@ export function vocabularyOf(schemas: Map<string, string>): Map<string, TypeVoca
 
 - [ ] **Step 6: Run it, and the typecheck**
 
-Run: `node --test test/vocabulary.test.ts && npm run typecheck`
-Expected: 5 tests pass, the typecheck is clean.
+Run: `node --test test/vocabulary.test.ts && npm run typecheck` Expected: 5 tests pass, the typecheck is clean.
 
 - [ ] **Step 7: Commit**
 
@@ -1500,8 +1482,7 @@ test("with no parsed graph there are no names, and enum values still come", () =
 
 - [ ] **Step 2: Run it and see it fail**
 
-Run: `node --test test/candidates.test.ts`
-Expected: FAIL, `Cannot find module '…/src/candidates.ts'`.
+Run: `node --test test/candidates.test.ts` Expected: FAIL, `Cannot find module '…/src/candidates.ts'`.
 
 - [ ] **Step 3: Write `src/candidates.ts`**
 
@@ -1570,8 +1551,7 @@ export function candidatesFor(
 
 - [ ] **Step 4: Run the whole suite and the typecheck**
 
-Run: `npm test && npm run typecheck`
-Expected: every test passes, the typecheck is clean.
+Run: `npm test && npm run typecheck` Expected: every test passes, the typecheck is clean.
 
 - [ ] **Step 5: Commit**
 
@@ -1958,11 +1938,9 @@ export default class CompanyGraphPlugin extends Plugin {
 
 - [ ] **Step 7: Typecheck, test, build, and hold the phone rule**
 
-Run: `npm run typecheck && npm test && npm run build`
-Expected: clean, every test passes, esbuild writes `main.js`.
+Run: `npm run typecheck && npm test && npm run build` Expected: clean, every test passes, esbuild writes `main.js`.
 
-Run: `grep -rn '"node:' src/ ; echo "exit $?"`
-Expected: no line printed, `exit 1`. A module under `src/` that imports from `node:` breaks the plugin on a phone.
+Run: `grep -rn '"node:' src/ ; echo "exit $?"` Expected: no line printed, `exit 1`. A module under `src/` that imports from `node:` breaks the plugin on a phone.
 
 - [ ] **Step 8: Commit**
 

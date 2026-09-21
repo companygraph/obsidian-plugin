@@ -1,10 +1,6 @@
 # Rename entity and Delete entity — what to try
 
-The build is in `~/git/robertblust/mental-model/.obsidian/plugins/companygraph/`. Reload Obsidian
-with Cmd+P, "Reload app without saving". None of this has run inside Obsidian yet, so every step is
-a question. Both commands change files, so afterwards put the vault back with
-`git checkout -- model/` and `git clean -n model/`, then `git clean -f model/`. Anything deleted is
-in the system's trash as well.
+The build is in `~/git/robertblust/mental-model/.obsidian/plugins/companygraph/`. Reload Obsidian with Cmd+P, "Reload app without saving". None of this has run inside Obsidian yet, so every step is a question. Both commands change files, so afterwards put the vault back with `git checkout -- model/` and `git clean -n model/`, then `git clean -f model/`. Anything deleted is in the system's trash as well.
 
 ## Rename entity
 

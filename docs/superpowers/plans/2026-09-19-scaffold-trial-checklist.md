@@ -1,9 +1,6 @@
 # Sections and entities scaffolded — what to try
 
-The build is in `~/git/robertblust/mental-model/.obsidian/plugins/companygraph/`. Reload Obsidian
-with Cmd+P, "Reload app without saving". None of this has run inside Obsidian yet, so every step is
-a question. Undo your edits afterwards with `git checkout -- model/` and delete any new files with
-`git clean -n model/` first, then `git clean -f model/`.
+The build is in `~/git/robertblust/mental-model/.obsidian/plugins/companygraph/`. Reload Obsidian with Cmd+P, "Reload app without saving". None of this has run inside Obsidian yet, so every step is a question. Undo your edits afterwards with `git checkout -- model/` and delete any new files with `git clean -n model/` first, then `git clean -f model/`.
 
 ## Add a section
 

@@ -1,8 +1,6 @@
 # Names as links and the graph view — what to try
 
-The build is in `~/git/robertblust/mental-model/.obsidian/plugins/companygraph/`. Reload Obsidian
-with Cmd+P, "Reload app without saving". Nothing here has run inside Obsidian yet; every step is
-a question. On Windows or Linux read Ctrl for Cmd.
+The build is in `~/git/robertblust/mental-model/.obsidian/plugins/companygraph/`. Reload Obsidian with Cmd+P, "Reload app without saving". Nothing here has run inside Obsidian yet; every step is a question. On Windows or Linux read Ctrl for Cmd.
 
 ## Names look like links
 
