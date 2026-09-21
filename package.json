@@ -26,6 +26,7 @@
     "@types/node": "^26.6.1",
     "esbuild": "^0.28.2",
     "obsidian": "^1.13.1",
+    "obsidian-launcher": "3.2.1",
     "typescript": "^7.0.2"
   }
 }

@@ -90,7 +90,7 @@ describe("the entity commands", { skip }, () => {
     await command(ui, "rename-entity");
     await waitForModal(ui, `Rename skill "${name}"`);
     await intoField(ui, "New name");
-    await ui.press("a", { meta: true });
+    await ui.press("a", { mod: true });
     await ui.type(`${name} Renamed`);
     await pressButton(ui, "Review");
     const plan = await ui.waitFor("the review to list what changes", () => {

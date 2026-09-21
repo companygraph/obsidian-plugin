@@ -7,7 +7,9 @@
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type PageFn<T> = (...args: any[]) => T | Promise<T>;
 
-export interface Modifiers { alt?: boolean; ctrl?: boolean; meta?: boolean; shift?: boolean }
+// `mod` is the platform's own command key, Cmd on a Mac and Ctrl elsewhere, as Obsidian's `Mod`
+// is: a test says `mod` and runs on either, where `meta` would press a key Linux gives no meaning.
+export interface Modifiers { alt?: boolean; ctrl?: boolean; meta?: boolean; shift?: boolean; mod?: boolean }
 
 export interface Driver {
   // The function's result, which has to survive JSON.
