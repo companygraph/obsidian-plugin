@@ -9,11 +9,6 @@ on:
   # repository changing. A change to an Obsidian-facing module runs it on the author's machine,
   # which AGENTS.md asks for and a workflow cannot.
   workflow_dispatch:
-  # Temporary, and removed before this branch merges: GitHub dispatches a workflow only once it
-  # stands on the default branch, and whether a real click reaches Obsidian under a virtual
-  # screen is the one question the owner's machine cannot answer.
-  push:
-    branches: [the-suite-runs-in-ci]
   schedule:
     - cron: "17 5 * * 1"
 
