@@ -68,8 +68,12 @@ export type RenamePlan =
   | { refused: string }
   | { name: string; texts: Map<string, string>; moves: Move[]; mentions: Mention[] };
 
+// `paths` is every path the vault holds, text and pictures alike, for the two checks below that
+// ask whether a folder exists: `files` is text only (R9), so a folder that holds only a picture
+// has no key there, and a plan that read `files` alone would walk straight through it.
 export function renamePlan(
   files: Map<string, string>,
+  paths: Set<string>,
   vocabulary: Map<string, TypeVocabulary>,
   named: Named[],
   model: string,
@@ -105,13 +109,13 @@ export function renamePlan(
     const oldBase = dir.slice(dir.lastIndexOf("/") + 1);
     if (oldBase !== base) {
       const folder = `${parent}/${base}`;
-      if ([...files.keys()].some((p) => p.startsWith(`${folder}/`))) return { refused: `${folder}/ exists already.` };
+      if ([...paths].some((p) => p.startsWith(`${folder}/`))) return { refused: `${folder}/ exists already.` };
       moves.push({ from: dir, to: folder }, { from: `${folder}/${oldBase}.md`, to: `${folder}/${base}.md` });
     }
   } else if (kind === "derived") {
     const to = `${dir}/${base}.md`;
     if (to !== target.path) {
-      if (files.has(to)) return { refused: `${to} exists already.` };
+      if (paths.has(to)) return { refused: `${to} exists already.` };
       moves.push({ from: target.path, to });
     }
   }
@@ -126,6 +130,7 @@ export type DeletePlan = { refused: string } | { remove: string; removed: string
 
 export function deletePlan(
   files: Map<string, string>,
+  paths: Set<string>,
   vocabulary: Map<string, TypeVocabulary>,
   named: Named[],
   model: string,
@@ -135,7 +140,7 @@ export function deletePlan(
   if (kind === "singular") return { refused: `The model holds exactly one ${target.type}; its file cannot be deleted.` };
   const owner = kind === "owner";
   const remove = owner ? target.path.slice(0, target.path.lastIndexOf("/")) : target.path;
-  const removed = owner ? [...files.keys()].filter((p) => p.startsWith(`${remove}/`)).sort() : [target.path];
+  const removed = owner ? [...paths].filter((p) => p.startsWith(`${remove}/`)).sort() : [target.path];
   const gone = named.filter((n) => removed.includes(n.path));
   const mentions = gone
     .flatMap((n) => referencesTo(files, vocabulary, named, model, n))
