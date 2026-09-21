@@ -39,6 +39,16 @@ describe("a profile's picture is read as bytes", { skip }, () => {
     await command(ui, "check-now");
     await waitForChecks(ui, "the checks to pass with a picture in the vault", "none");
 
+    // The editor draws it where the name stands: the file's own bytes, arrived, with the name
+    // as its text.
+    const drawn = await ui.waitFor("the picture to be drawn at the H1", () => {
+      const img = document.querySelector<HTMLImageElement>(".cm-content .companygraph-picture");
+      return img && img.complete && img.naturalWidth > 0
+        ? { natural: img.naturalWidth, width: img.getBoundingClientRect().width, alt: img.alt, inHeading: !!img.closest(".HyperMD-header-1") }
+        : null;
+    });
+    assert.deepEqual(drawn, { natural: 256, width: 48, alt: "Robert Blust", inHeading: true });
+    if (process.env.E2E_SHOT) await ui.screenshot(process.env.E2E_SHOT);
 
     await ui.evaluate(async (note: string, folder: string) => {
       const picture = app.vault.getAbstractFileByPath(`${folder}/picture.png`);

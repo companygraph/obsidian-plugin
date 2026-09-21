@@ -39,6 +39,7 @@ import { absentFields } from "./candidates.ts";
 import { AddField } from "./addfield.ts";
 import { BRIEF_VIEW, BriefPane } from "./briefpane.ts";
 import { headingLock, headingMarks, removeSection } from "./headingmarks.ts";
+import { pictureMark } from "./picturemark.ts";
 import { AddSection } from "./addsection.ts";
 import { addableSections } from "./headings.ts";
 import { PickType } from "./newentity.ts";
@@ -151,6 +152,7 @@ export default class CompanyGraphPlugin extends Plugin {
     this.registerEditorExtension(nameLinks(this));
     this.registerEditorExtension(headingMarks(this));
     this.registerEditorExtension(headingLock(this));
+    this.registerEditorExtension(pictureMark(this));
     // Every editor extension is registered before the first await of this method. Obsidian reads
     // them when it builds an editor, and the editors of the notes already open are built before a
     // plugin's own `loadData` comes back: registered after it, the marks, the lock and the names

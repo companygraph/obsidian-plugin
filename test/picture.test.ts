@@ -6,6 +6,8 @@ import assert from "node:assert/strict";
 import { EXAMPLE, example, whole } from "./helpers.ts";
 import { buildModel, textOf } from "../src/model.ts";
 import { locate } from "../src/locate.ts";
+import { pictureOf } from "../src/picture.ts";
+import { vocabularyOf } from "../src/vocabulary.ts";
 
 const AGENT = "example/model/profiles/ai-agent/ai-agent.md";
 const PICTURE = "example/model/profiles/ai-agent/ai-agent.png";
@@ -37,4 +39,24 @@ test("a failure about the field lands on the field's line in the note", () => {
   const at = locate(failure, files);
   assert.equal(at.path, AGENT);
   assert.equal((files.get(AGENT) as string).split("\n")[at.line], "image: ai-agent.png");
+});
+
+const PROFILE = vocabularyOf(buildModel(whole(example()), EXAMPLE).schemas).get("profile")!;
+
+test("the schema's image field is read as one, and nothing is offered for it", () => {
+  assert.deepEqual(PROFILE.fields.find((f) => f.name === "image")?.offer, { kind: "image" });
+});
+
+test("pictureOf names the file beside the note, the H1's line and the name", () => {
+  const text = example().get(AGENT)!;
+  assert.deepEqual(pictureOf(text, AGENT, PROFILE), { file: PICTURE, line: text.split("\n").indexOf("# AI Agent"), name: "AI Agent" });
+});
+
+test("pictureOf draws nothing for a note without the field, a value with a path, another format, or no H1", () => {
+  const text = example().get(AGENT)!;
+  assert.equal(pictureOf(text.replace("image: ai-agent.png\n", ""), AGENT, PROFILE), null);
+  assert.equal(pictureOf(text.replace("image: ai-agent.png", "image: ../tomas/t.png"), AGENT, PROFILE), null);
+  assert.equal(pictureOf(text.replace("image: ai-agent.png", "image: ai-agent.gif"), AGENT, PROFILE), null);
+  assert.equal(pictureOf(text.replace("# AI Agent", "AI Agent"), AGENT, PROFILE), null);
+  assert.equal(pictureOf("# No frontmatter\n", AGENT, PROFILE), null);
 });
