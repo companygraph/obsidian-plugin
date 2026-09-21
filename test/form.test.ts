@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { RULE_PATHS, changesOf, channelFor, columnAfter, excludesOf, formOf, formed, inForm, spanOf } from "../src/form.ts";
-import { reference } from "./helpers.ts";
+import { reference, referencePin } from "./helpers.ts";
 
 // The rule set this repository vendored, the file a vault that took the form carries.
 const RULE_SET = fs.readFileSync(path.join(import.meta.dirname, "..", ".markdownlint-cli2.jsonc"), "utf8");
@@ -68,8 +68,18 @@ test("a note already in the form is left byte for byte", () => {
   assert.equal(inForm(COMPACT, config!), COMPACT);
 });
 
+// What the instance holds to the form is the instance's own answer, and it is the answer the
+// plugin already gives: an instance vendors core under meta/ and names it in format-exclude,
+// because a vendored copy is the upstream's to format and rewriting it would break the hash its
+// manifest keeps. So these two read the fixture's own pin through the gate src/form.ts uses,
+// rather than walking every note and holding files to a form nobody applies to them.
+const formedNotes = () => {
+  const excludes = excludesOf(referencePin());
+  return [...reference()].filter(([p]) => formed(p, excludes));
+};
+
 test("every note of the reference instance is already in the form, so leaving one changes nothing", () => {
-  const changed = [...reference()].filter(([p, text]) => p.endsWith(".md") && inForm(text, config!) !== text).map(([p]) => p);
+  const changed = formedNotes().filter(([, text]) => inForm(text, config!) !== text).map(([p]) => p);
   assert.deepEqual(changed, []);
 });
 
@@ -88,8 +98,7 @@ test("every note of the reference instance survives a round trip through Obsidia
     return [row(rows[0]), "|" + marks.map((m, i) => mark(m, widths[i])).join("|") + "|", ...rows.slice(1).map(row)].join("\n") + "\n";
   });
   let tables = 0;
-  for (const [p, text] of reference()) {
-    if (!p.endsWith(".md")) continue;
+  for (const [p, text] of formedNotes()) {
     const aligned = align(text);
     if (aligned === text) continue;
     tables++;

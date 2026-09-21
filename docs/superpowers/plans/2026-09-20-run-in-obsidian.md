@@ -102,8 +102,7 @@ describe("the harness", { skip }, () => {
 
 - [ ] **Step 2: Run it and see it fail**
 
-Run: `node --test --test-concurrency=1 'e2e/*.e2e.ts'`
-Expected: FAIL, `Cannot find module … e2e/obsidian.ts`.
+Run: `node --test --test-concurrency=1 'e2e/*.e2e.ts'` Expected: FAIL, `Cannot find module … e2e/obsidian.ts`.
 
 - [ ] **Step 3: Write the driver's interface**
 
@@ -512,8 +511,7 @@ In `tsconfig.json`: `"include": ["src", "test", "e2e"]`. In `.gitignore`, a line
 
 - [ ] **Step 7: Run it and see it pass**
 
-Run: `npm run e2e`
-Expected: an Obsidian window opens and closes; four tests pass. Then `npm run typecheck`, `npm test`, `sh conventions/conventions-check`, `sh conventions/conventions-format`: all exit 0. With `OBSIDIAN_BIN=/nowhere npm run e2e` the suite reports itself skipped and exits 0.
+Run: `npm run e2e` Expected: an Obsidian window opens and closes; four tests pass. Then `npm run typecheck`, `npm test`, `sh conventions/conventions-check`, `sh conventions/conventions-format`: all exit 0. With `OBSIDIAN_BIN=/nowhere npm run e2e` the suite reports itself skipped and exits 0.
 
 ---
 
@@ -609,8 +607,7 @@ export function editorText() {
 
 - [ ] **Step 2: Type check**
 
-Run: `npm run typecheck`
-Expected: exit 0. The file has no test of its own; Tasks 3 to 6 are its tests.
+Run: `npm run typecheck` Expected: exit 0. The file has no test of its own; Tasks 3 to 6 are its tests.
 
 ---
 
@@ -706,13 +703,11 @@ describe("a mention in the references pane", { skip }, () => {
 
 - [ ] **Step 2: Run it on the working tree and see it pass**
 
-Run: `npm run e2e`
-Expected: PASS.
+Run: `npm run e2e` Expected: PASS.
 
 - [ ] **Step 3: See it fail on the release that had the defect**
 
-Run: `gh release download 0.5.1 --repo companygraph/obsidian-plugin --dir /tmp/companygraph-0.5.1 --clobber`, then `E2E_PLUGIN_DIR=/tmp/companygraph-0.5.1 node --test --test-concurrency=1 e2e/mention.e2e.ts`
-Expected: FAIL on the column, since 0.5.1 opens the row's first cell. A test that passes here guards nothing and is rewritten.
+Run: `gh release download 0.5.1 --repo companygraph/obsidian-plugin --dir /tmp/companygraph-0.5.1 --clobber`, then `E2E_PLUGIN_DIR=/tmp/companygraph-0.5.1 node --test --test-concurrency=1 e2e/mention.e2e.ts` Expected: FAIL on the column, since 0.5.1 opens the row's first cell. A test that passes here guards nothing and is rewritten.
 
 ---
 
@@ -787,8 +782,7 @@ describe("a name in a cell being edited", { skip }, () => {
 
 - [ ] **Step 2: Run it and see it pass; then see it fail on 0.5.1**
 
-Run: `npm run e2e`, then `E2E_PLUGIN_DIR=/tmp/companygraph-0.5.1 node --test --test-concurrency=1 e2e/editing-mark.e2e.ts`
-Expected: PASS, then FAIL waiting for the cell being edited to carry its name's path.
+Run: `npm run e2e`, then `E2E_PLUGIN_DIR=/tmp/companygraph-0.5.1 node --test --test-concurrency=1 e2e/editing-mark.e2e.ts` Expected: PASS, then FAIL waiting for the cell being edited to carry its name's path.
 
 ---
 
@@ -856,8 +850,7 @@ describe("the cell that holds the focus", { skip }, () => {
 
 - [ ] **Step 2: Run it and see it pass; then see it fail on 0.5.1**
 
-Run: `npm run e2e`, then `E2E_PLUGIN_DIR=/tmp/companygraph-0.5.1 node --test --test-concurrency=1 e2e/ring.e2e.ts`
-Expected: PASS, then the two theme tests FAIL waiting for the ring; the range test passes on both, since it holds what is not drawn.
+Run: `npm run e2e`, then `E2E_PLUGIN_DIR=/tmp/companygraph-0.5.1 node --test --test-concurrency=1 e2e/ring.e2e.ts` Expected: PASS, then the two theme tests FAIL waiting for the ring; the range test passes on both, since it holds what is not drawn.
 
 ---
 
@@ -1000,8 +993,7 @@ describe("the Markdown form, saved from a cell", { skip }, () => {
 
 - [ ] **Step 2: Run it and see it pass; then see it fail on 0.5.1**
 
-Run: `npm run e2e`, then `E2E_PLUGIN_DIR=/tmp/companygraph-0.5.1 node --test --test-concurrency=1 e2e/form.e2e.ts`
-Expected: PASS, then FAIL waiting for the editor to be in the form again with the same cell open.
+Run: `npm run e2e`, then `E2E_PLUGIN_DIR=/tmp/companygraph-0.5.1 node --test --test-concurrency=1 e2e/form.e2e.ts` Expected: PASS, then FAIL waiting for the editor to be in the form again with the same cell open.
 
 ---
 
@@ -1036,8 +1028,7 @@ The paragraph opening "The vault-facing layer is proven by hand on the reference
 
 - [ ] **Step 3: Check the prose**
 
-Run: `sh conventions/conventions-check && sh conventions/conventions-format`
-Expected: both pass.
+Run: `sh conventions/conventions-check && sh conventions/conventions-format` Expected: both pass.
 
 ---
 
@@ -1045,49 +1036,24 @@ Expected: both pass.
 
 - [ ] **Step 1: Run the suite ten times and keep the count**
 
-Run: `for i in 1 2 3 4 5 6 7 8 9 10; do npm run -s e2e > /tmp/e2e-$i.log 2>&1; echo "run $i exit $?"; done`
-Expected: ten times `exit 0`. A run that fails is a finding: read `e2e/failures/`, find the cause, fix it under systematic debugging, and start the ten again. The spec's §7 ends the first step here and not before.
+Run: `for i in 1 2 3 4 5 6 7 8 9 10; do npm run -s e2e > /tmp/e2e-$i.log 2>&1; echo "run $i exit $?"; done` Expected: ten times `exit 0`. A run that fails is a finding: read `e2e/failures/`, find the cause, fix it under systematic debugging, and start the ten again. The spec's §7 ends the first step here and not before.
 
 ---
 
 ## What the first runs found, 2026-09-20
 
-Recorded here because a plan that reads as if it went as written is a plan nobody can learn from.
-The code blocks above are as they ended, not as they were first written.
+Recorded here because a plan that reads as if it went as written is a plan nobody can learn from. The code blocks above are as they ended, not as they were first written.
 
-A fifth defect, which nobody had reported. The references pane, opened by its command while an
-entity's note is in front, stayed on "Put the cursor in an entity's note.": opening the pane
-makes it the active view, and `refreshReferences` stood down for an active pane. It has its own
-test, `e2e/references-pane.e2e.ts`, written first and seen to fail, and `openReferencesPane` now
-draws whatever is active. The mention test opens the pane before the note, so it does not lean
-on this.
+A fifth defect, which nobody had reported. The references pane, opened by its command while an entity's note is in front, stayed on "Put the cursor in an entity's note.": opening the pane makes it the active view, and `refreshReferences` stood down for an active pane. It has its own test, `e2e/references-pane.e2e.ts`, written first and seen to fail, and `openReferencesPane` now draws whatever is active. The mention test opens the pane before the note, so it does not lean on this.
 
-`click` aims only at what has come to rest. The first click of the mention test was aimed while
-the sidebar was still sliding open and landed where the row had been; two looks in a row now
-have to agree on the element's middle.
+`click` aims only at what has come to rest. The first click of the mention test was aimed while the sidebar was still sliding open and landed where the row had been; two looks in a row now have to agree on the element's middle.
 
-The form test uses the table's last column. Tried on release 0.5.1, the defect does not show
-from a cell of the first column and does from a later one, and the first version of the test
-passed on the release it was meant to guard against.
+The form test uses the table's last column. Tried on release 0.5.1, the defect does not show from a cell of the first column and does from a later one, and the first version of the test passed on the release it was meant to guard against.
 
-The driver is `ui`, never `app`. The first version called the driver `app`, which inside a page
-function is Obsidian's own untyped global, so `openNote(app, …)` passed the type check and failed
-at run time. `AGENTS.md` carries the rule.
+The driver is `ui`, never `app`. The first version called the driver `app`, which inside a page function is Obsidian's own untyped global, so `openNote(app, …)` passed the type check and failed at run time. `AGENTS.md` carries the rule.
 
-Early in the page's life Obsidian's global is not defined at all, and a bare `app` in the first
-wait threw before it could wait; that one read goes through `window`.
+Early in the page's life Obsidian's global is not defined at all, and a bare `app` in the first wait threw before it could wait; that one read goes through `window`.
 
-Coverage, on the owner's question of what the suite covers. `npm run e2e:coverage` runs the suite
-with `E2E_COVERAGE` set: the transport switches the protocol's precise coverage on, loads the
-page again so that what the plugin does as it loads is counted, and each test file writes what
-ran of the plugin's script under `e2e/coverage/`; `scripts/e2e-coverage.mjs` merges them and
-reads the result against the markers esbuild writes above each module it bundles. It reports
-bytes of the bundle and the functions never entered, module by module, and its head says what
-that does and does not show. The first report is the map for part two: what ran least is what
-has no test yet, the entity commands, the pickers, the two other panes, completion and the
-settings tab.
+Coverage, on the owner's question of what the suite covers. `npm run e2e:coverage` runs the suite with `E2E_COVERAGE` set: the transport switches the protocol's precise coverage on, loads the page again so that what the plugin does as it loads is counted, and each test file writes what ran of the plugin's script under `e2e/coverage/`; `scripts/e2e-coverage.mjs` merges them and reads the result against the markers esbuild writes above each module it bundles. It reports bytes of the bundle and the functions never entered, module by module, and its head says what that does and does not show. The first report is the map for part two: what ran least is what has no test yet, the entity commands, the pickers, the two other panes, completion and the settings tab.
 
-Each of the four tests of the spec's §6 was then seen to fail on release 0.5.1 for its own
-reason: the mention landed in the last row's first cell, the cell being edited never carried its
-name's path, no ring was drawn in either theme, and the table was padded again four tenths of a
-second into the watched window.
+Each of the four tests of the spec's §6 was then seen to fail on release 0.5.1 for its own reason: the mention landed in the last row's first cell, the cell being edited never carried its name's path, no ring was drawn in either theme, and the table was padded again four tenths of a second into the watched window.

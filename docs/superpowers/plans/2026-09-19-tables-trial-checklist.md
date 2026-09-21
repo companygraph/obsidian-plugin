@@ -1,10 +1,6 @@
 # Tables in Live Preview — what to try
 
-The build is already in `~/git/robertblust/mental-model/.obsidian/plugins/companygraph/`. Reload
-Obsidian with Cmd+P, "Reload app without saving". Work in your normal view, Live Preview, in
-`model/profiles/robert-blust/robert-blust.md`, whose `## Skills` table has the columns Skill,
-Level and Evidence. None of this has run inside Obsidian; every step is a question. Undo your
-edits afterwards with `git checkout -- model/profiles/robert-blust/robert-blust.md`.
+The build is already in `~/git/robertblust/mental-model/.obsidian/plugins/companygraph/`. Reload Obsidian with Cmd+P, "Reload app without saving". Work in your normal view, Live Preview, in `model/profiles/robert-blust/robert-blust.md`, whose `## Skills` table has the columns Skill, Level and Evidence. None of this has run inside Obsidian; every step is a question. Undo your edits afterwards with `git checkout -- model/profiles/robert-blust/robert-blust.md`.
 
 ## Completion in a cell
 

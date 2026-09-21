@@ -1,16 +1,8 @@
 # The by-hand trial — checklist
 
-The plan's Task 10, with what three reviews asked a person to settle. The build is already in
-`~/git/robertblust/mental-model/.obsidian/plugins/companygraph/`. Open that folder as a vault,
-turn restricted mode off under Settings → Community plugins, enable CompanyGraph, and run the
-command `CompanyGraph: Open the checks pane`. Work in Source mode first. Write down what happens
-at each step, including "as expected"; the answers go into the design's open questions.
+The plan's Task 10, with what three reviews asked a person to settle. The build is already in `~/git/robertblust/mental-model/.obsidian/plugins/companygraph/`. Open that folder as a vault, turn restricted mode off under Settings → Community plugins, enable CompanyGraph, and run the command `CompanyGraph: Open the checks pane`. Work in Source mode first. Write down what happens at each step, including "as expected"; the answers go into the design's open questions.
 
-Two things are known before the trial starts. The status bar is empty until the first check
-lands, where it should say `CompanyGraph: checking`; one line fixes it and it goes in with the
-trial's findings. And the status bar will say `pin differs`, because the instance's manifest
-names the checker release before the one this build bundles; that is the report working, and
-moving the instance's pin is an editorial change of its own.
+Two things are known before the trial starts. The status bar is empty until the first check lands, where it should say `CompanyGraph: checking`; one line fixes it and it goes in with the trial's findings. And the status bar will say `pin differs`, because the instance's manifest names the checker release before the one this build bundles; that is the report working, and moving the instance's pin is an editorial change of its own.
 
 ## Validation
 

@@ -1,9 +1,6 @@
 # Headings marked — what to try
 
-The build is in `~/git/robertblust/mental-model/.obsidian/plugins/companygraph/`. Reload Obsidian
-with Cmd+P, "Reload app without saving". Try each step in Live Preview first, then in Source mode.
-None of this has run inside Obsidian yet, so every step is a question. Undo your edits afterwards
-with `git checkout -- model/`.
+The build is in `~/git/robertblust/mental-model/.obsidian/plugins/companygraph/`. Reload Obsidian with Cmd+P, "Reload app without saving". Try each step in Live Preview first, then in Source mode. None of this has run inside Obsidian yet, so every step is a question. Undo your edits afterwards with `git checkout -- model/`.
 
 ## The marks
 
