@@ -13,7 +13,10 @@ const NAMED: Record<string, number> = {
   ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, Delete: 46,
 };
 
-const bits = (m: Modifiers = {}) => (m.alt ? 1 : 0) | (m.ctrl ? 2 : 0) | (m.meta ? 4 : 0) | (m.shift ? 8 : 0);
+// The application runs on the machine the test runs on, so its platform is this process's.
+const MAC = process.platform === "darwin";
+const bits = (m: Modifiers = {}) =>
+  (m.alt ? 1 : 0) | (m.ctrl || (m.mod && !MAC) ? 2 : 0) | (m.meta || (m.mod && MAC) ? 4 : 0) | (m.shift ? 8 : 0);
 
 // A page function and its arguments as one expression the page can run.
 const call = (fn: PageFn<unknown>, args: unknown[] = []) => `(${fn.toString()})(...${JSON.stringify(args)})`;
@@ -107,7 +110,7 @@ export async function connect(port: number, record = false): Promise<Connection>
       // and a bare key event never reaches them: Cmd+A typed into a modal's field selected
       // nothing and the next typing landed mid-word. The protocol carries the editing command
       // beside the key for exactly this.
-      const editing = modifiers?.meta && !modifiers.shift ? { a: "selectAll", c: "copy", v: "paste", x: "cut", z: "undo" }[key.toLowerCase()] : undefined;
+      const editing = MAC && (modifiers?.meta || modifiers?.mod) && !modifiers.shift ? { a: "selectAll", c: "copy", v: "paste", x: "cut", z: "undo" }[key.toLowerCase()] : undefined;
       const event = {
         key, code: named === undefined ? `Key${letter}` : key,
         windowsVirtualKeyCode: named ?? letter.charCodeAt(0), modifiers: bits(modifiers),

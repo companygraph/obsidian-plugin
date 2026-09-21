@@ -1,0 +1,49 @@
+# The suite of e2e/ against Obsidian releases other than the one the owner has installed. Not a
+# required check and named by no ruleset: it is minutes rather than seconds, it drives a real
+# application, and what it is for is a warning before an upgrade, not a gate on a merge. See
+# docs/superpowers/specs/2026-09-20-run-in-obsidian-design.md §7.
+name: e2e
+
+on:
+  # By hand, and once a week, because what it watches is Obsidian moving rather than this
+  # repository changing. A change to an Obsidian-facing module runs it on the author's machine,
+  # which AGENTS.md asks for and a workflow cannot.
+  workflow_dispatch:
+  schedule:
+    - cron: "17 5 * * 1"
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The newest release, and the oldest the manifest promises to run on. 1.5.3 and not
+        # 1.5.0, because 1.5.0 was an Insiders build and downloading one needs an account.
+        obsidian: ["latest", "1.5.3"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      # Obsidian is a desktop application: it is downloaded by obsidian-launcher and drawn on a
+      # virtual screen, since a runner has none.
+      - run: sudo apt-get update && sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2t64
+      - uses: actions/cache@v4
+        with:
+          path: ~/.obsidian-cache
+          key: obsidian-${{ matrix.obsidian }}
+      - run: npm ci
+      - run: npm run build
+      - run: xvfb-run -a npm run e2e
+        env:
+          E2E_OBSIDIAN_VERSION: ${{ matrix.obsidian }}
+          E2E_OBSIDIAN_INSTALLER: ${{ matrix.obsidian == 'latest' && 'latest' || 'earliest' }}
+      # What a test left behind where it failed, which is the only way to see a screen nobody
+      # was watching.
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: failures-${{ matrix.obsidian }}
+          path: e2e/failures/
+          if-no-files-found: ignore

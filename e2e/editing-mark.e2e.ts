@@ -36,7 +36,7 @@ describe("a name in a cell being edited", { skip }, () => {
     assert.match(resting.path!, /proficiency-levels\//);
 
     const retype = async (word: string) => {
-      await ui.press("a", { meta: true });
+      await ui.press("a", { mod: true });
       await ui.type(word);
     };
     await retype("Nonesuch");

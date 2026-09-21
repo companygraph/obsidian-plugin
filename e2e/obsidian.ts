@@ -36,10 +36,21 @@ export interface Session {
   stop(): Promise<void>;
 }
 
-// The binary, or null where there is none; a suite asks before it starts and skips on null.
+// Which Obsidian to run. With E2E_OBSIDIAN_VERSION set, "latest" or a version's number, the
+// application is downloaded and started by obsidian-launcher, which is how the suite runs where
+// Obsidian is not installed, a CI runner, and against a release other than the installed one;
+// E2E_OBSIDIAN_INSTALLER picks the installer, "latest" or "earliest", the oldest that release
+// runs on. Without it the installed application is used, at OBSIDIAN_BIN or where macOS puts it.
+const VERSION = process.env.E2E_OBSIDIAN_VERSION ?? "";
+const INSTALLER = process.env.E2E_OBSIDIAN_INSTALLER ?? "latest";
+
+// What will be run, or null where there is nothing to run; a suite asks before it starts and
+// skips on null.
 export function available(): string | null {
+  if (!fs.existsSync(path.join(FIXTURE, ".companygraph"))) return null;
+  if (VERSION) return `Obsidian ${VERSION} from obsidian-launcher`;
   const bin = process.env.OBSIDIAN_BIN ?? DEFAULT_BIN;
-  return fs.existsSync(bin) && fs.existsSync(path.join(FIXTURE, ".companygraph")) ? bin : null;
+  return fs.existsSync(bin) ? bin : null;
 }
 
 const freePort = () => new Promise<number>((done, fail) => {
@@ -67,7 +78,19 @@ export async function start(): Promise<Session> {
   fs.writeFileSync(path.join(userData, "obsidian.json"), JSON.stringify({ vaults: { e2e0000000000000: { path: vault, ts: Date.now(), open: true } } }));
 
   const port = await freePort();
-  const child: ChildProcess = spawn(bin, [`--user-data-dir=${userData}`, `--remote-debugging-port=${port}`], { stdio: "ignore" });
+  let child: ChildProcess;
+  if (VERSION) {
+    // The launcher makes a user-data folder of its own, with the vault named in it and trusted,
+    // and starts the release asked for; the vault's copy and the plugin in it stay this file's.
+    const { default: ObsidianLauncher } = await import("obsidian-launcher");
+    const launched = await new ObsidianLauncher().launch({
+      appVersion: VERSION, installerVersion: INSTALLER, vault, copy: false,
+      args: [`--remote-debugging-port=${port}`], spawnOptions: { stdio: "ignore" },
+    });
+    child = launched.proc;
+  } else {
+    child = spawn(bin, [`--user-data-dir=${userData}`, `--remote-debugging-port=${port}`], { stdio: "ignore" });
+  }
   const ended = new Promise<void>((done) => child.once("exit", () => done()));
   // What ran before each reload a test asked for: a window loaded again evaluates the plugin's
   // script anew, and what the evaluation before it ran is not always still there to be asked for
@@ -82,7 +105,12 @@ export async function start(): Promise<Session> {
     }
     await ui?.close().catch(() => {});
     child.kill();
+    // And harder if it will not go. A release old enough sits through a polite signal, and the
+    // wait for it to end never returned: one test file's failure hung the whole run, and the
+    // temporary folder outlived it. Measured against Obsidian 1.5.3.
+    const forced = setTimeout(() => child.kill("SIGKILL"), 5000);
     await ended;
+    clearTimeout(forced);
     fs.rmSync(home, { recursive: true, force: true });
   };
 

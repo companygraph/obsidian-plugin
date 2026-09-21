@@ -59,7 +59,7 @@ describe("names, offered and followed", { skip }, () => {
     await openNote(ui, PROFILE);
     await ui.click(() => document.querySelector(".cm-table-widget table")?.querySelectorAll("tr")[1]?.children[1]);
     await ui.waitFor("the Level cell to be open", focusedCell);
-    await ui.press("a", { meta: true });
+    await ui.press("a", { mod: true });
     await ui.type("Ex");
     const narrowed = await ui.waitFor("the list to be narrowed to what was typed", () => {
       const items = Array.from(document.querySelectorAll<HTMLElement>(".suggestion-container .suggestion-item")).map((el) => el.innerText.trim());
@@ -105,19 +105,19 @@ describe("names, offered and followed", { skip }, () => {
     await openNote(ui, PROFILE);
     const cell = await ui.waitFor("a cell to carry a name's path", () =>
       document.querySelector(".cm-table-widget td.companygraph-ref[data-companygraph-path]")?.getAttribute("data-companygraph-path") ?? null);
-    await ui.click(".cm-table-widget td.companygraph-ref[data-companygraph-path] .table-cell-wrapper", [], { meta: true });
+    await ui.click(".cm-table-widget td.companygraph-ref[data-companygraph-path] .table-cell-wrapper", [], { mod: true });
     await ui.waitFor("the named entity to be in front", (at: string) => app.workspace.getActiveFile()?.path === at, [cell]);
 
     const experience = await entityOf(ui, "experience", "\nskills:\n");
     await openNote(ui, experience);
     const pill = await ui.waitFor("a Properties pill to carry a name's path", () =>
       document.querySelector(".multi-select-pill.companygraph-ref[data-companygraph-path]")?.getAttribute("data-companygraph-path") ?? null);
-    await ui.click(".multi-select-pill.companygraph-ref[data-companygraph-path] .multi-select-pill-content", [], { meta: true });
+    await ui.click(".multi-select-pill.companygraph-ref[data-companygraph-path] .multi-select-pill-content", [], { mod: true });
     await ui.waitFor("the pill's entity to be in front", (at: string) => app.workspace.getActiveFile()?.path === at, [pill]);
 
     await openNote(ui, experience);
     await sourceMode(ui, true);
-    await ui.click(".cm-line .companygraph-ref", [], { meta: true });
+    await ui.click(".cm-line .companygraph-ref", [], { mod: true });
     await ui.waitFor("the entity named in Source mode to be in front", (from: string) => {
       const at = app.workspace.getActiveFile()?.path as string | undefined;
       return at && at !== from ? at : null;

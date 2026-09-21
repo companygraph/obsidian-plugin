@@ -51,7 +51,7 @@ describe("the Markdown form, saved from a cell", { skip }, () => {
     await ui.waitFor("Obsidian to have padded the table under the edit", () =>
       (app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor.getValue() as string).split("\n").some((l) => l.startsWith("|") && / {2,}\|/.test(l)));
 
-    await ui.press("s", { meta: true });
+    await ui.press("s", { mod: true });
     const formed = (wantRow: number, wantCol: number) => {
       const text = app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor.getValue() as string;
       const td = document.activeElement?.closest?.(".cm-table-widget td") as HTMLTableCellElement | null;
