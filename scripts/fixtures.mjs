@@ -13,7 +13,7 @@ const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"))
 const [, metaRepo, tag] = pkg.dependencies["companygraph-meta-model"].match(/^github:([^#]+)#(.+)$/);
 
 // The instance commit is test data and lives here.
-const INSTANCE_COMMIT = "d9bc4a73a9a49ae29988c43d71f51f5278ce71f7";
+const INSTANCE_COMMIT = "7d3df730af2745b9b67f616962c0faa6a353394f";
 
 const FIXTURES = [
   { repo: metaRepo, ref: tag, url: `https://codeload.github.com/${metaRepo}/tar.gz/refs/tags/${tag}`, dir: "meta-model" },
