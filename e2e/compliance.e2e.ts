@@ -4,12 +4,22 @@
 // and the Properties row of the field.
 import { after, afterEach, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import { available, start } from "./obsidian.ts";
 import type { Session } from "./obsidian.ts";
 import { PROFILE, focusedCell, openNote, tablesOf } from "./notes.ts";
 import { clearNotices, command, entityOf, onDisk, waitForChecks, waitForNotice } from "./ui.ts";
 
 const skip = available() ? false : "Obsidian is not installed here; set OBSIDIAN_BIN to run this suite";
+
+// The status bar adds "pin differs" whenever the fixture's manifest names another release than
+// the one this build bundles, which it does for as long as the plugin has taken a release the
+// reference instance has not. That is the guard's own fact, held in test/manifest.test.ts; here it
+// is read from the two files rather than assumed away.
+const read = (file: string) => JSON.parse(fs.readFileSync(path.join(import.meta.dirname, "..", file), "utf8"));
+const PIN = read("test/fixtures/mental-model/.companygraph/manifest.json").tooling ===
+  read("node_modules/companygraph-meta-model/package.json").version ? "" : ", pin differs";
 
 describe("the compliance pane and what a failure marks", { skip }, () => {
   let session: Session;
@@ -29,7 +39,7 @@ describe("the compliance pane and what a failure marks", { skip }, () => {
     });
     assert.match(said, /meta-model \d/);
     const bar = await ui.evaluate(() => Array.from(document.querySelectorAll<HTMLElement>(".status-bar-item")).map((el) => el.innerText).find((t) => t.startsWith("CompanyGraph")) ?? "");
-    assert.equal(bar, "CompanyGraph: complies");
+    assert.equal(bar, `CompanyGraph: complies${PIN}`);
     await clearNotices(ui);
     await ui.click(".companygraph-copy");
     await waitForNotice(ui, "report copied");
@@ -59,7 +69,7 @@ describe("the compliance pane and what a failure marks", { skip }, () => {
     assert.equal(listed.line, String(line + 1));
     assert.match(listed.message!, /Nonesuch/);
     assert.match(listed.file!, /^robert-blust/);
-    assert.equal(await ui.evaluate(() => Array.from(document.querySelectorAll<HTMLElement>(".status-bar-item")).map((el) => el.innerText).find((t) => t.startsWith("CompanyGraph"))), "CompanyGraph: 1 failure");
+    assert.equal(await ui.evaluate(() => Array.from(document.querySelectorAll<HTMLElement>(".status-bar-item")).map((el) => el.innerText).find((t) => t.startsWith("CompanyGraph"))), `CompanyGraph: 1 failure${PIN}`);
 
     const row = await ui.waitFor("the failing row to be tinted and to say why", (at: number) => {
       const tr = document.querySelector(".cm-table-widget table")?.querySelectorAll("tr")[at] as HTMLElement | undefined;
