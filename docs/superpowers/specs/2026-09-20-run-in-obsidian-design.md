@@ -77,41 +77,19 @@ Only with those answers does the owner decide whether the suite becomes a requir
 
 ## 7a. The second step as it was taken
 
-Measured on 2026-09-21, and it changed the plan of §7. `wdio-obsidian-service` is built on a
-package of its own by the same author, `obsidian-launcher`, and that package holds the part this
-suite lacked: it downloads any Obsidian release, starts it sandboxed on Windows, Linux and macOS,
-and passes arguments through to it, `--remote-debugging-port` among them. What the service adds
-beyond that is WebdriverIO, its test runner, Mocha, and Appium for Android.
+Measured on 2026-09-21, and it changed the plan of §7. `wdio-obsidian-service` is built on a package of its own by the same author, `obsidian-launcher`, and that package holds the part this suite lacked: it downloads any Obsidian release, starts it sandboxed on Windows, Linux and macOS, and passes arguments through to it, `--remote-debugging-port` among them. What the service adds beyond that is WebdriverIO, its test runner, Mocha, and Appium for Android.
 
-So the launcher is taken and the framework is not. `E2E_OBSIDIAN_VERSION` names a release, and
-the session starts that one through the launcher instead of the application the owner has
-installed; without it nothing changes. The driver, the tests, the runner and the coverage report
-are untouched, and one dev dependency is added where a framework would have brought a second test
-runner and a few dozen packages. A test says `mod` where it meant the command key, so that a
-chord is Cmd on a Mac and Ctrl on Linux, as Obsidian's own `Mod` is.
+So the launcher is taken and the framework is not. `E2E_OBSIDIAN_VERSION` names a release, and the session starts that one through the launcher instead of the application the owner has installed; without it nothing changes. The driver, the tests, the runner and the coverage report are untouched, and one dev dependency is added where a framework would have brought a second test runner and a few dozen packages. A test says `mod` where it meant the command key, so that a chord is Cmd on a Mac and Ctrl on Linux, as Obsidian's own `Mod` is.
 
-The version matrix is what this was for, and it paid for itself on the day it was built: against
-Obsidian 1.5.3, the oldest release the manifest promises, **no note could be opened at all**. The
-plugin reads `editorInfoField.editor` to tell a table cell's own small editor from the note's,
-and on that release the getter throws while the view is still being built. It is a getter of
-Obsidian's, so the optional chaining that reads it does not help; the read is now inside a `try`,
-and where it cannot answer the file alone decides, as it did before the field was read.
+The version matrix is what this was for, and the first thing it did was measure a promise nobody had ever tested. The manifest said the plugin runs on Obsidian 1.5.0. Against 1.5.3, the oldest release that can be downloaded at all, no note could be opened, because the plugin reads `editorInfoField.editor` and on that release the getter throws while the view is still being built; a getter that throws is not something optional chaining saves, and the read is now inside a `try`. With that fixed, fourteen of the suite's tests still failed there, in the table and the Properties widget above all.
 
-Obsidian 1.5.0 itself cannot be tested: it was an Insiders build, and downloading one needs an
-Obsidian account, the credentials in the environment and two-factor authentication switched off.
-The same holds for `latest-beta`, which is why the matrix watches the newest public release and
-not the one before it reaches everyone. That is the one benefit of the framework this does not
-buy, and it is not the framework's to give either.
+**So the floor is the release of the day, and the suite is what holds it.** The manifest names `minAppVersion` and the workflow runs that version beside `latest`; `test/manifest.test.ts` fails if the two part company, so the oldest Obsidian the plugin promises is always the oldest it is run against. Today they are one release. The plugin leans on names Obsidian does not document and a person editing a model keeps their editor current; carrying releases from two years back would mean holding features that release cannot draw, and the honest thing is to promise what is measured rather than to promise more and quietly do less.
 
-A workflow runs the suite on a runner under a virtual screen, by hand and once a week, against
-the newest release and the oldest the manifest promises. It is required by no ruleset and named
-by no branch rule: what it watches is Obsidian moving, not this repository changing, and a
-weekly warning is worth more than a gate. The `test` and `conventions` jobs stay the ones a merge
-waits for.
+Obsidian 1.5.0 could not have been tested in any case: it was an Insiders build, and downloading one needs an Obsidian account, the credentials in the environment and two-factor authentication switched off. The same holds for `latest-beta`, which is why the matrix watches the newest public release and not the one before it reaches everyone. That is the one benefit of the framework this does not buy, and it is not the framework's to give either.
 
-What is still not bought: a phone. The service emulates Android through Appium, this does not,
-and the manifest says the plugin is not desktop-only. If that day comes, the driver is the seam
-it was built to be, and the framework is what it is for.
+A workflow runs the suite on a runner under a virtual screen, by hand and once a week, against the newest release and the oldest the manifest promises. It was measured there, which was this step's last open question: under a virtual screen on Linux the suite passes as it does on a machine with a screen, which says that real clicks and the table widget need no framework to reach Obsidian. It is required by no ruleset and named by no branch rule: what it watches is Obsidian moving, not this repository changing, and a weekly warning is worth more than a gate. The `test` and `conventions` jobs stay the ones a merge waits for.
+
+What is still not bought: a phone. The service emulates Android through Appium, this does not, and the manifest says the plugin is not desktop-only. If that day comes, the driver is the seam it was built to be, and the framework is what it is for.
 
 ## 8. What changes in the repository's own rules
 

@@ -1,5 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import { readManifest, guard } from "../src/manifest.ts";
 import { referenceManifest } from "./helpers.ts";
 
@@ -27,4 +29,16 @@ test("a tooling pin naming another release is reported and does not refuse", () 
 
 test("a core behind the checker with a matching pin is fine", () => {
   assert.deepEqual(guard({ tooling: "0.28.0", coreVersion: "0.27.0", units: "meta" }, "0.28.0"), { kind: "ok" });
+});
+
+// The plugin's own manifest, and the workflow that holds it to its word. The oldest Obsidian the
+// plugin promises is the oldest the suite is run against, and a floor moved in one place and not
+// the other is a promise nobody tests.
+test("the e2e workflow runs against the oldest Obsidian the manifest promises", () => {
+  const root = path.join(import.meta.dirname, "..");
+  const floor = JSON.parse(fs.readFileSync(path.join(root, "manifest.json"), "utf8")).minAppVersion;
+  assert.match(floor, /^\d+\.\d+\.\d+$/);
+  const workflow = fs.readFileSync(path.join(root, ".github", "workflows", "e2e.yml"), "utf8");
+  const matrix = workflow.match(/^\s*obsidian: \[(.*)\]$/m)?.[1] ?? "";
+  assert.ok(matrix.includes(`"${floor}"`), `${matrix} names ${floor}`);
 });

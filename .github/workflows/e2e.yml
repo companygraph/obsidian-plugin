@@ -23,9 +23,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # The newest release, and the oldest the manifest promises to run on. 1.5.3 and not
-        # 1.5.0, because 1.5.0 was an Insiders build and downloading one needs an account.
-        obsidian: ["latest", "1.5.3"]
+        # The newest release, and the oldest the manifest promises to run on. The two are one
+        # release today, and the second leg is what tells us the day they part. test/manifest.test.ts
+        # holds this line to `minAppVersion`, so the floor cannot move without it.
+        obsidian: ["latest", "1.13.7"]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -43,7 +44,7 @@ jobs:
       - run: xvfb-run -a npm run e2e
         env:
           E2E_OBSIDIAN_VERSION: ${{ matrix.obsidian }}
-          E2E_OBSIDIAN_INSTALLER: ${{ matrix.obsidian == 'latest' && 'latest' || 'earliest' }}
+          E2E_OBSIDIAN_INSTALLER: latest
       # What a test left behind where it failed, which is the only way to see a screen nobody
       # was watching.
       - if: failure()
