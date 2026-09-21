@@ -29,6 +29,10 @@ export const reference = () => readTree(path.join(FIXTURES, "mental-model"), [RE
 export const referenceManifest = () =>
   fs.readFileSync(path.join(FIXTURES, "mental-model", ".companygraph", "manifest.json"), "utf8");
 
+// The instance's own pin, for the folders it keeps out of the form. An instance vendors core and
+// does not format it, so a test that holds every note to the form reads this first.
+export const referencePin = () => fs.readFileSync(path.join(FIXTURES, "mental-model", "conventions.json"), "utf8");
+
 // One edit to one file of a map, returned as a new map.
 export function edited(files: Map<string, string>, file: string, change: (text: string) => string) {
   const next = new Map(files);
