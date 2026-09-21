@@ -3,6 +3,7 @@
 // under them, since nothing held it.
 import { ItemView, Notice, setIcon } from "obsidian";
 import type { WorkspaceLeaf } from "obsidian";
+import { IMAGE_FILE } from "companygraph-meta-model/instance";
 import type CompanyGraphPlugin from "./main.ts";
 import { IDLE_TEXT, groupsOf, headline, noSchemaFor, reportText } from "./report.ts";
 import { openAt } from "./open.ts";
@@ -71,7 +72,8 @@ export class Pane extends ItemView {
       const list = file.createEl("ul");
       for (const found of group.entries) {
         const item = list.createEl("li");
-        if (found.path) item.createSpan({ cls: "companygraph-line", text: `${found.line + 1}` });
+        // A picture has no line to point to (R9).
+        if (found.path && !IMAGE_FILE.test(found.path)) item.createSpan({ cls: "companygraph-line", text: `${found.line + 1}` });
         item.createSpan({ cls: "companygraph-message", text: found.message });
         // Only an entry with a file opens anything, and only that one reads as something to press.
         if (found.path) {

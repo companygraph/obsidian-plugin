@@ -1,6 +1,7 @@
 // What a report of the instance's compliance with the meta-model says, once: the pane draws it
 // and Copy report writes it as text, and both read
 // it from here so that what is pasted elsewhere is what was on the screen. Pure.
+import { IMAGE_FILE } from "companygraph-meta-model/instance";
 import type { Located } from "./locate.ts";
 
 export interface Report {
@@ -52,7 +53,9 @@ export function reportText(report: Report): string {
   if (report.status === "checked") {
     for (const group of groupsOf(report.located)) {
       out.push("", group.title);
-      for (const found of group.entries) out.push(group.path ? `- line ${found.line + 1}: ${found.message}` : `- ${found.message}`);
+      // A picture has no line to point to (R9): its own failure names the file and stops there.
+      const withLine = group.path !== null && !IMAGE_FILE.test(group.path);
+      for (const found of group.entries) out.push(withLine ? `- line ${found.line + 1}: ${found.message}` : `- ${found.message}`);
     }
     const missing = noSchemaFor(report.skipped);
     if (missing) out.push("", missing);
