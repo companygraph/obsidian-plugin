@@ -7,6 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
+import { place, readLocal } from "companygraph-meta-model/obsidian";
 import { connect } from "./cdp.ts";
 import type { Connection } from "./cdp.ts";
 import type { Driver } from "./driver.ts";
@@ -70,10 +71,9 @@ export async function start(): Promise<Session> {
   const vault = path.join(home, "vault");
   const userData = path.join(home, "user-data");
   fs.cpSync(FIXTURE, vault, { recursive: true });
-  const plugin = path.join(vault, ".obsidian", "plugins", "companygraph");
-  fs.mkdirSync(plugin, { recursive: true });
-  for (const file of ["main.js", "manifest.json", "styles.css"]) fs.copyFileSync(path.join(PLUGIN, file), path.join(plugin, file));
-  fs.writeFileSync(path.join(vault, ".obsidian", "community-plugins.json"), '["companygraph"]\n');
+  // Put in as the tooling's `obsidian --from` puts a build in, so the plugin loading below is also
+  // the proof that what that command writes is what Obsidian switches on.
+  place(vault, readLocal(PLUGIN));
   fs.mkdirSync(userData, { recursive: true });
   fs.writeFileSync(path.join(userData, "obsidian.json"), JSON.stringify({ vaults: { e2e0000000000000: { path: vault, ts: Date.now(), open: true } } }));
 

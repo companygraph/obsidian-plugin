@@ -59,3 +59,11 @@ declare module "companygraph-meta-model/plan" {
     | { refused: string }
     | { refused?: undefined; writes: Map<string, string>; removes: string[]; edited: string[]; missing: string[]; from: string; to: string };
 }
+
+// Not bundled: the e2e harness installs the build into its vault through the same code the
+// tooling's `obsidian` command runs, so every e2e run proves what that command writes.
+declare module "companygraph-meta-model/obsidian" {
+  export type Files = Map<string, Buffer>;
+  export function readLocal(dir: string): Files;
+  export function place(vault: string, files: Files): { folder: string; from: string | null; to: string; enabled: boolean };
+}
