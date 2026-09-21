@@ -23,6 +23,8 @@ class PictureWidget extends WidgetType {
     img.src = this.src;
     img.alt = this.name;
     img.width = 48; img.height = 48;
+    // An accidental drag would drop the app:// address into the note as a link.
+    img.draggable = false;
     return img;
   }
   ignoreEvent() { return true; }
@@ -45,7 +47,11 @@ function draw(plugin: CompanyGraphPlugin, state: EditorState): Drawn {
   if (!picture || !file) return NONE(path);
   const at = state.doc.line(picture.line + 1).from;
   const builder = new RangeSetBuilder<Decoration>();
-  builder.add(at, at, Decoration.widget({ widget: new PictureWidget(plugin.app.vault.getResourcePath(file), picture.name), side: -1 }));
+  // The mobile adapter's URL carries no timestamp of its own, so a picture replaced under the
+  // same name keeps the old `src` and the old image stays; a desktop URL already carries one.
+  const url = plugin.app.vault.getResourcePath(file);
+  const src = url.includes("?") ? url : `${url}?${file.stat.mtime}`;
+  builder.add(at, at, Decoration.widget({ widget: new PictureWidget(src, picture.name), side: -1 }));
   return { path, marks: builder.finish() };
 }
 
