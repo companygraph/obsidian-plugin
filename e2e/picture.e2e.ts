@@ -66,5 +66,13 @@ describe("a profile's picture is read as bytes", { skip }, () => {
     });
     assert.match(said, /is a PNG named as a JPEG/);
     assert.doesNotMatch(said, /read as text/);
+
+    // README says a click on a picture's failure opens the picture.
+    await ui.click(() => {
+      const rows = Array.from(document.querySelectorAll<HTMLElement>("li.companygraph-open"));
+      return rows.find((r) => r.innerText.includes("picture.jpg")) ?? rows[0];
+    });
+    await ui.waitFor("the picture to be the active file", (want: string) =>
+      app.workspace.getActiveFile()?.path === want ? true : null, [`${FOLDER}/picture.jpg`]);
   });
 });
