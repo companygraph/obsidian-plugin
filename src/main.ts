@@ -12,6 +12,7 @@ import { namedOf } from "./scope.ts";
 import { linksOf, merge, mergePath, rename } from "./links.ts";
 import type { Added, Links } from "./links.ts";
 import { markNames, nameLinks, namedPath, refreshNames } from "./namelinks.ts";
+import { attachPropertySuggests, watchPropertyInputs } from "./propertysuggest.ts";
 import type { Named } from "./scope.ts";
 import type { Layout } from "./model.ts";
 import { locate } from "./locate.ts";
@@ -166,6 +167,7 @@ export default class CompanyGraphPlugin extends Plugin {
     this.addSettingTab(new CompanyGraphSettingTab(this.app, this));
     const suggest = new Suggest(this.app, this);
     this.registerEditorSuggest(suggest);
+    watchPropertyInputs(this);
     this.addCommand({
       id: "add-field",
       name: "Add a field",
@@ -804,6 +806,7 @@ export default class CompanyGraphPlugin extends Plugin {
       tintRows(leaf.view, cm, marks);
       markNames(this, leaf.view, cm);
     });
+    attachPropertySuggests(this);
   }
 
   // The brief for the cursor of an editor, if the pane is open. A table cell in Live Preview is
