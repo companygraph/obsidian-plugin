@@ -18,8 +18,9 @@ const tabs = (types: string[], ghosts: boolean) => {
   return found.length === types.length && found.every((tab) => tab.includes("ghost") === ghosts) ? found : null;
 };
 
-// The layout as the tooling writes it into a vault it makes: the plugin's three panes on the
-// right, each leaf as Obsidian keeps one, before Obsidian has ever run there.
+// The plugin's three panes on the right, as the tooling writes them into a vault it makes, each
+// leaf as Obsidian keeps one, before Obsidian has ever run there; the tooling's Outline, Search
+// and Bookmarks beside them are left out, since none of them is the plugin's to draw.
 const leaf = (id: string, type: string, icon: string, title: string) => ({ id, type: "leaf", state: { type, state: {}, icon, title } });
 const WORKSPACE = JSON.stringify({
   main: { id: "1000000000000000", type: "split", direction: "vertical", children: [{ id: "1000000000000001", type: "tabs", children: [
@@ -46,7 +47,9 @@ describe("a vault whose layout came before its plugins", { skip }, () => {
   test("the plugin's three tabs come up drawn by the plugin on the vault's first open, unclicked", async () => {
     const { ui } = session;
     // start() has clicked the trust dialog and seen the plugin read the vault; the tabs were
-    // restored before that, and nothing here clicks one.
+    // restored before that, and nothing here clicks one. Under E2E_OBSIDIAN_VERSION the vault is
+    // trusted before Obsidian starts and this passes with or without the fix; the stand-in below
+    // carries the defect there.
     const drawn = await ui.waitFor("the three tabs to be the plugin's own", tabs, [PANES, false], 4000);
     assert.deepEqual(drawn.map((tab) => tab.split(":")[0]), PANES);
   });

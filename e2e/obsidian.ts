@@ -65,7 +65,9 @@ const freePort = () => new Promise<number>((done, fail) => {
 
 // `workspace` is a `.obsidian/workspace.json` put into the copy before Obsidian starts, as the
 // tooling puts one into a vault it makes: the one way to open a vault whose layout came before
-// its plugins, which is where a tab restored before its view is registered shows.
+// its plugins, which is where a tab restored before its view is registered shows. That needs the
+// trust dialog, which the installed Obsidian shows; the launcher of another release trusts the
+// vault before it starts, and there the plugins come before the layout.
 export async function start({ workspace }: { workspace?: string } = {}): Promise<Session> {
   const bin = available();
   if (!bin) throw new Error("Obsidian or the fixture is missing; ask available() first");
