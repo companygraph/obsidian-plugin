@@ -63,7 +63,12 @@ const freePort = () => new Promise<number>((done, fail) => {
   });
 });
 
-export async function start(): Promise<Session> {
+// `workspace` is a `.obsidian/workspace.json` put into the copy before Obsidian starts, as the
+// tooling puts one into a vault it makes: the one way to open a vault whose layout came before
+// its plugins, which is where a tab restored before its view is registered shows. That needs the
+// trust dialog, which the installed Obsidian shows; the launcher of another release trusts the
+// vault before it starts, and there the plugins come before the layout.
+export async function start({ workspace }: { workspace?: string } = {}): Promise<Session> {
   const bin = available();
   if (!bin) throw new Error("Obsidian or the fixture is missing; ask available() first");
   // realpath: macOS hands out /var/… and Obsidian reports /private/var/….
@@ -74,6 +79,7 @@ export async function start(): Promise<Session> {
   // Put in as the tooling's `obsidian --from` puts a build in, so the plugin loading below is also
   // the proof that what that command writes is what Obsidian switches on.
   place(vault, readLocal(PLUGIN));
+  if (workspace !== undefined) fs.writeFileSync(path.join(vault, ".obsidian", "workspace.json"), workspace);
   fs.mkdirSync(userData, { recursive: true });
   fs.writeFileSync(path.join(userData, "obsidian.json"), JSON.stringify({ vaults: { e2e0000000000000: { path: vault, ts: Date.now(), open: true } } }));
 
