@@ -7,7 +7,7 @@ import { MarkdownView, Modal, Notice, Setting, TFile } from "obsidian";
 import type { App } from "obsidian";
 import type CompanyGraphPlugin from "./main.ts";
 import { readInstance } from "./vault.ts";
-import { buildModel } from "./model.ts";
+import { buildModel, textOf } from "./model.ts";
 import { namedOf } from "./scope.ts";
 import { deletePlan, renamePlan } from "./refactor.ts";
 import type { Mention } from "./refactor.ts";
@@ -26,7 +26,13 @@ async function saveOpenNotes(app: App) {
 // behind; and the entity is found again by its file, so a name typed into its H1 since is seen.
 type Current =
   | { refused: string }
-  | { layout: NonNullable<CompanyGraphPlugin["layout"]>; files: Map<string, string>; named: Named[]; now: Named };
+  | {
+      layout: NonNullable<CompanyGraphPlugin["layout"]>;
+      files: Map<string, string>;
+      paths: Set<string>;
+      named: Named[];
+      now: Named;
+    };
 
 async function current(plugin: CompanyGraphPlugin, target: Named): Promise<Current> {
   const layout = plugin.layout;
@@ -38,7 +44,9 @@ async function current(plugin: CompanyGraphPlugin, target: Named): Promise<Curre
   const named = namedOf(graph);
   const now = named.find((n) => n.path === target.path);
   if (!now) return { refused: `${target.path} is no longer an entity the model holds.` };
-  return { layout, files, named, now };
+  // `paths` is every file the vault holds, pictures included, since a folder that holds only a
+  // picture is still a folder in the vault's own eyes even though `textOf` leaves it out.
+  return { layout, files: textOf(files), paths: new Set(files.keys()), named, now };
 }
 
 // Mentions counted per file, for a plan's list.
@@ -95,7 +103,7 @@ export class RenameEntity extends Modal {
       el.createEl("p", { text: state.refused, cls: "companygraph-notice" });
       return;
     }
-    const plan = renamePlan(state.files, this.plugin.vocabulary, state.named, state.layout.model, state.now, this.name);
+    const plan = renamePlan(state.files, state.paths, this.plugin.vocabulary, state.named, state.layout.model, state.now, this.name);
     if ("refused" in plan) {
       el.createEl("p", { text: plan.refused, cls: "companygraph-notice" });
       return;
@@ -111,7 +119,7 @@ export class RenameEntity extends Modal {
     try {
       const state = await current(this.plugin, this.target);
       if ("refused" in state) return void new Notice(state.refused);
-      const plan = renamePlan(state.files, this.plugin.vocabulary, state.named, state.layout.model, state.now, this.name);
+      const plan = renamePlan(state.files, state.paths, this.plugin.vocabulary, state.named, state.layout.model, state.now, this.name);
       if ("refused" in plan) return void new Notice(plan.refused);
       const vault = this.app.vault;
       // Every move is checked before anything is written, so a rename is refused whole rather
@@ -168,7 +176,7 @@ export class DeleteEntity extends Modal {
       this.contentEl.createEl("p", { text: state.refused, cls: "companygraph-notice" });
       return;
     }
-    const plan = deletePlan(state.files, this.plugin.vocabulary, state.named, state.layout.model, state.now);
+    const plan = deletePlan(state.files, state.paths, this.plugin.vocabulary, state.named, state.layout.model, state.now);
     if ("refused" in plan) {
       this.contentEl.createEl("p", { text: plan.refused, cls: "companygraph-notice" });
       return;

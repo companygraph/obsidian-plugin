@@ -8,6 +8,18 @@ export interface Layout {
   model: string;  // the container, e.g. "model"
 }
 
+// The vault as the checks take it: a path to its text, or to its bytes where the file is an
+// image (R9). Only the checks and `locate` read this; everything that edits a note reads `textOf`.
+export type Files = Map<string, string | Uint8Array>;
+
+// The text of a map: every file but the images, which nothing that edits a note may meet as
+// a string it could split, search or rewrite.
+export function textOf(files: Files): Map<string, string> {
+  const text = new Map<string, string>();
+  for (const [path, held] of files) if (typeof held === "string") text.set(path, held);
+  return text;
+}
+
 export interface Model {
   failures: string[];
   skipped: string[];
@@ -15,21 +27,21 @@ export interface Model {
   schemas: Map<string, string>;
 }
 
-export function schemasOf(files: Map<string, string>, layout: Layout): Map<string, string> {
+export function schemasOf(files: Files, layout: Layout): Map<string, string> {
   const schemas = new Map<string, string>();
   const prefix = layout.core + "/";
   for (const [path, text] of files)
-    if (path.startsWith(prefix) && path.endsWith("-schema.md")) schemas.set(path.slice(prefix.length), text);
+    if (typeof text === "string" && path.startsWith(prefix) && path.endsWith("-schema.md")) schemas.set(path.slice(prefix.length), text);
   return schemas;
 }
 
-export function buildModel(files: Map<string, string>, layout: Layout): Model {
+export function buildModel(files: Files, layout: Layout): Model {
   const { failures, skipped } = checkInstance(files, layout);
   const schemas = schemasOf(files, layout);
   const content = new Map<string, string>();
   const prefix = layout.model + "/";
   for (const [path, text] of files)
-    if (path.startsWith(prefix) && path.endsWith(".md")) content.set(path.slice(prefix.length), text);
+    if (typeof text === "string" && path.startsWith(prefix) && path.endsWith(".md")) content.set(path.slice(prefix.length), text);
   let graph: Graph | null = null;
   try {
     graph = parseInstance(content, { sub: prefix, schemas });

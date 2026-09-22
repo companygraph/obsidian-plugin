@@ -2,8 +2,14 @@
 // fixture's root. scripts/fixtures.mjs fetches them; `npm test` runs it first.
 import fs from "node:fs";
 import path from "node:path";
+import { IMAGE_FILE } from "companygraph-meta-model/instance";
+import type { Files } from "../src/model.ts";
 
 const FIXTURES = path.join(import.meta.dirname, "fixtures");
+
+// A fixture's pictures, kept beside its notes and not among them: the tests edit text, and a
+// map of text is what every module but the checks takes. `whole` puts them back for the checks.
+const PICTURES = new Map<string, Uint8Array>();
 
 function readTree(root: string, folders: string[]): Map<string, string> {
   const files = new Map<string, string>();
@@ -11,12 +17,18 @@ function readTree(root: string, folders: string[]): Map<string, string> {
     for (const entry of fs.readdirSync(path.join(root, rel))) {
       const child = `${rel}/${entry}`;
       if (fs.statSync(path.join(root, child)).isDirectory()) walk(child);
+      else if (IMAGE_FILE.test(child)) PICTURES.set(child, new Uint8Array(fs.readFileSync(path.join(root, child))));
       else files.set(child, fs.readFileSync(path.join(root, child), "utf8"));
     }
   };
   folders.forEach(walk);
   return files;
 }
+
+// A map of notes as the vault's reader hands it to the checks: the text, and each picture the
+// fixtures hold as bytes (R9). What asserts that no check fails reads this, since a profile
+// that names a picture fails without the file.
+export const whole = (text: Map<string, string>): Files => new Map<string, string | Uint8Array>([...text, ...PICTURES]);
 
 // Where a fixture keeps its schemas and its container: the shape src/model.ts calls a Layout.
 // The meta-model's worked example: a valid instance, core at the repository root.

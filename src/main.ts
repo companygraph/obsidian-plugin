@@ -7,7 +7,7 @@ import type { Debouncer } from "obsidian";
 import { EditorView as EditorViewClass } from "@codemirror/view";
 import type { EditorView } from "@codemirror/view";
 import { guard } from "./manifest.ts";
-import { buildModel } from "./model.ts";
+import { buildModel, textOf } from "./model.ts";
 import { namedOf } from "./scope.ts";
 import { linksOf, merge, mergePath, rename } from "./links.ts";
 import type { Added, Links } from "./links.ts";
@@ -39,6 +39,7 @@ import { absentFields } from "./candidates.ts";
 import { AddField } from "./addfield.ts";
 import { BRIEF_VIEW, BriefPane } from "./briefpane.ts";
 import { headingLock, headingMarks, removeSection } from "./headingmarks.ts";
+import { pictureMark } from "./picturemark.ts";
 import { AddSection } from "./addsection.ts";
 import { addableSections } from "./headings.ts";
 import { PickType } from "./newentity.ts";
@@ -151,6 +152,7 @@ export default class CompanyGraphPlugin extends Plugin {
     this.registerEditorExtension(nameLinks(this));
     this.registerEditorExtension(headingMarks(this));
     this.registerEditorExtension(headingLock(this));
+    this.registerEditorExtension(pictureMark(this));
     // Every editor extension is registered before the first await of this method. Obsidian reads
     // them when it builds an editor, and the editors of the notes already open are built before a
     // plugin's own `loadData` comes back: registered after it, the marks, the lock and the names
@@ -613,7 +615,7 @@ export default class CompanyGraphPlugin extends Plugin {
     try {
       const files = await readInstance(this.app, this.layout);
       if (generation !== this.generation) return;
-      this.files = files;
+      this.files = textOf(files);
       const model = buildModel(files, this.layout);
       if (generation !== this.generation) return;
       let schemas: string | null = null;

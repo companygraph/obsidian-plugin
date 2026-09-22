@@ -10,6 +10,8 @@ export type Offer =
   // names nothing is then a fact and not an error, and nothing marks it.
   | { kind: "names"; target: string; optional?: true }
   | { kind: "values"; values: string[] } // an enum's permitted values
+  // R9's `image`: a file beside the note. Nothing is offered for it; the editor draws it.
+  | { kind: "image" }
   | { kind: "none" };
 
 export interface Field { name: string; required: boolean; list: boolean; offer: Offer }
@@ -24,6 +26,7 @@ function offerOf(type: string | undefined, description: string | undefined): Off
   const decl = declarationOf(type);
   if (decl) return decl.form === "ref?" ? { kind: "names", target: decl.target, optional: true } : { kind: "names", target: decl.target };
   if (bare(type) === "enum") return { kind: "values", values: enumTokensOf(description ?? "") };
+  if (bare(type) === "image") return { kind: "image" };
   return { kind: "none" };
 }
 

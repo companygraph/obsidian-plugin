@@ -29,6 +29,15 @@ test("the report as text says what the pane says, with lines a person counts fro
   assert.ok(!/not checked/i.test(text));
 });
 
+test("a picture's failure has no line, since a picture has none to point to", () => {
+  const withPicture = [
+    { path: "model/profiles/robert-blust/picture.jpg", line: 0, message: "is a PNG named as a JPEG (R9)" },
+  ];
+  const text = reportText({ status: "checked", notice: null, located: withPicture, skipped: [] });
+  assert.ok(text.includes("\nmodel/profiles/robert-blust/picture.jpg\n- is a PNG named as a JPEG (R9)\n"), text);
+  assert.ok(!text.includes("- line"), text);
+});
+
 test("a type with no schema is named in the copied report, after the failures", () => {
   const text = reportText({ status: "checked", notice: null, located: [], skipped: ["skill"] });
   assert.ok(text.trimEnd().endsWith("so nothing holds that type."));

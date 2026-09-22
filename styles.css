@@ -518,3 +518,15 @@
   color: var(--text-faint);
   font-size: var(--font-ui-smaller);
 }
+
+/* The picture an entity carries, at the start of its H1: round, as every page that draws it
+   draws it, and sized in the heading's own line so the name does not move when it arrives. */
+.companygraph-picture {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  vertical-align: middle;
+  margin-right: 0.45em;
+  box-shadow: 0 0 0 1px var(--background-modifier-border);
+}
