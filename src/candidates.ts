@@ -2,6 +2,7 @@
 // which names exist, the file says what is already there. Nothing is offered that would not
 // resolve, and nothing is wrapped: a name is inserted plain (R3).
 import { sectionsOf } from "companygraph-meta-model/checks";
+import { IMAGE_FILE } from "companygraph-meta-model/instance";
 import type { Context } from "./context.ts";
 import { frontmatterEnd } from "./context.ts";
 import type { Field, Offer, TypeVocabulary } from "./vocabulary.ts";
@@ -126,4 +127,25 @@ function offers(
     const section = absent.find((s) => s.heading === heading)!;
     return { label: section.required ? `${heading} (required)` : heading, insert: heading };
   });
+}
+
+// What a field's input in the Properties widget may still take. Live Preview draws the
+// frontmatter as that widget, whose own suggestions are the values the vault's files happen to
+// hold: a role no file names any more is gone from them the moment it is removed, which is the
+// one moment it is wanted back. So a declared field takes its list from the schema instead: the
+// names of the declared type, less those the list already holds; an enum's values; and for an
+// image, the pictures beside the note. A plain string field declares nothing and is left to
+// Obsidian, which is what `null` says to whoever attaches.
+export function propertyCandidates(
+  field: Field,
+  typed: string,
+  names: Map<string, string[]>,
+  held: string[],
+  beside: string[],
+): string[] | null {
+  const offer = field.offer;
+  if (offer.kind === "none") return null;
+  const pool = offer.kind === "image" ? beside.filter((f) => IMAGE_FILE.test(f)) : offered(offer, names);
+  const taken = new Set(held.map((h) => h.trim()));
+  return matching(pool.filter((v) => !taken.has(v)), typed);
 }

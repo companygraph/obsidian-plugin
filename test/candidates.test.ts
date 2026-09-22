@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { buildModel, namesByType, schemasOf } from "../src/model.ts";
 import { vocabularyOf } from "../src/vocabulary.ts";
-import { absentFields, candidatesFor, cursorAfter, entersThrough } from "../src/candidates.ts";
+import { absentFields, candidatesFor, cursorAfter, entersThrough, propertyCandidates } from "../src/candidates.ts";
 import { example, EXAMPLE } from "./helpers.ts";
 
 const files = example();
@@ -183,4 +183,19 @@ test("a grouped heading typed in full is complete, and nothing replaces it on En
   const kinds = names.get("achievement-kind")!;
   const lines = ["# A", "", "## Achievements", "", `### ${kinds[0]}`];
   assert.deepEqual(candidatesFor({ kind: "grouped", section: "Achievements", typed: kinds[0], start: 4 }, experience, names, lines), []);
+});
+
+// The Properties widget in Live Preview: a declared field offers from the schema, less what the
+// list holds, and a plain field is left to Obsidian.
+test("a widget input offers the type's names less the pills it holds, an enum its values, an image the pictures beside the note", () => {
+  const roles = profile.fields.find((f) => f.name === "roles")!;
+  assert.deepEqual(propertyCandidates(roles, "", names, ["Reviewer"], []), ["Backend Engineer"]);
+  assert.deepEqual(propertyCandidates(roles, "rev", names, [], []), ["Reviewer"]);
+  assert.deepEqual(propertyCandidates(roles, "", names, ["Backend Engineer", "Reviewer"], []), []);
+  const nature = profile.fields.find((f) => f.name === "nature")!;
+  assert.deepEqual(propertyCandidates(nature, "", names, [], []), ["human", "agent"]);
+  const image = profile.fields.find((f) => f.name === "image")!;
+  assert.deepEqual(propertyCandidates(image, "", names, [], ["ai-agent.md", "ai-agent.png", "notes.txt", "photo.jpg"]), ["ai-agent.png", "photo.jpg"]);
+  const location = profile.fields.find((f) => f.name === "location")!;
+  assert.equal(propertyCandidates(location, "", names, [], []), null);
 });
