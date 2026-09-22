@@ -17,6 +17,12 @@ import { namesIn } from "./scope.ts";
 import type { Field } from "./vocabulary.ts";
 
 const attached = new WeakSet<HTMLElement>();
+// Every stop function a view's own Component lifetime already owns: an observer's disconnect, a
+// suggest's close. Kept here too, so the one cleanup watchPropertyInputs registers on the plugin
+// can sweep whatever a view never got the chance to stop itself, without a closure of its own
+// per view or per instance outliving the plugin unload that would otherwise be the only thing
+// keeping it in memory.
+const live = new Set<() => void>();
 
 class PropertySuggest extends AbstractInputSuggest<string> {
   readonly plugin: CompanyGraphPlugin;
@@ -53,9 +59,6 @@ class PropertySuggest extends AbstractInputSuggest<string> {
       const suggest = this as unknown as { suggestions?: { useSelectedItem?: (e: KeyboardEvent) => boolean } };
       if (!event.isComposing && suggest.suggestions?.useSelectedItem?.(event)) return false;
     });
-    // An open popup is this suggest's own state, on the plugin's schedule: unloading the plugin
-    // closes it, the way an event handler still open on a dead instance would not.
-    plugin.register(() => this.close());
     // Says on the element that this suggest is on it, for a test to wait on before it types.
     input.dataset.companygraphSuggest = field.name;
   }
@@ -124,7 +127,13 @@ function attachIn(plugin: CompanyGraphPlugin, view: MarkdownView) {
       : row.querySelector<HTMLElement>(".metadata-input-longtext");
     if (!input || attached.has(input)) continue;
     attached.add(input);
-    new PropertySuggest(plugin, field, path, row, input);
+    const suggest = new PropertySuggest(plugin, field, path, row, input);
+    // An open popup is this instance's own state, closed with the view it is drawn in: a row
+    // rebuilt or a leaf closed is a popup that has to go with it, and attachIn makes one instance
+    // per redrawn input, so this cannot be a single closure the plugin keeps for its own lifetime.
+    const stop = () => { suggest.close(); live.delete(stop); };
+    live.add(stop);
+    view.register(stop);
   }
 }
 
@@ -142,6 +151,10 @@ export function attachPropertySuggests(plugin: CompanyGraphPlugin) {
 // takes the same way.
 export function watchPropertyInputs(plugin: CompanyGraphPlugin) {
   const watched = new WeakSet<Element>();
+  // The one plugin-level cleanup, registered once here rather than once per view or per suggest:
+  // whatever is still live when the plugin unloads is stopped and dropped, and a view that closed
+  // first already stopped and removed its own through view.register below.
+  plugin.register(() => { for (const stop of live) stop(); live.clear(); });
   // Anything added inside the widget, or the widget itself: a redraw may replace one input in a
   // row that stays, and that input is what has to be taken. A popout window is a realm of its
   // own, with its own HTMLElement constructor, so a node from it fails `instanceof HTMLElement`
@@ -160,12 +173,14 @@ export function watchPropertyInputs(plugin: CompanyGraphPlugin) {
     watched.add(view.containerEl);
     const observer = new MutationObserver((records) => { if (rowsIn(records)) attachIn(plugin, view); });
     observer.observe(view.containerEl, { childList: true, subtree: true });
-    // Disconnected with the plugin, in case it unloads first, and with the view, a Component of
-    // its own: a leaf the owner closes is a leaf whose observer has to go with it, or it keeps
-    // running over a container no longer in the document and keeps the view it was built for
-    // reachable for as long as the plugin runs.
-    plugin.register(() => observer.disconnect());
-    view.register(() => observer.disconnect());
+    // Disconnected with the view, a Component of its own: a leaf the owner closes is a leaf whose
+    // observer has to go with it, or it keeps running over a container no longer in the document
+    // and keeps the view it was built for reachable. Left in `live` too, for the one plugin-level
+    // sweep above, rather than a closure of its own registered on the plugin for every view ever
+    // seen, which would keep every one of them reachable until the plugin unloads.
+    const stop = () => { observer.disconnect(); live.delete(stop); };
+    live.add(stop);
+    view.register(stop);
   });
   plugin.registerEvent(plugin.app.workspace.on("file-open", scan));
   plugin.registerEvent(plugin.app.workspace.on("layout-change", scan));
