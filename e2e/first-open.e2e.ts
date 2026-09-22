@@ -18,6 +18,40 @@ const tabs = (types: string[], ghosts: boolean) => {
   return found.length === types.length && found.every((tab) => tab.includes("ghost") === ghosts) ? found : null;
 };
 
+// The layout as the tooling writes it into a vault it makes: the plugin's three panes on the
+// right, each leaf as Obsidian keeps one, before Obsidian has ever run there.
+const leaf = (id: string, type: string, icon: string, title: string) => ({ id, type: "leaf", state: { type, state: {}, icon, title } });
+const WORKSPACE = JSON.stringify({
+  main: { id: "1000000000000000", type: "split", direction: "vertical", children: [{ id: "1000000000000001", type: "tabs", children: [
+    { id: "1000000000000002", type: "leaf", state: { type: "markdown", state: { file: "model/identity.md", mode: "source", source: false, backlinks: false }, icon: "lucide-file", title: "identity" } },
+  ] }] },
+  left: { id: "1000000000000003", type: "split", direction: "horizontal", width: 300, children: [{ id: "1000000000000004", type: "tabs", children: [
+    leaf("1000000000000005", "file-explorer", "lucide-folder-closed", "Files"),
+  ] }] },
+  right: { id: "1000000000000006", type: "split", direction: "horizontal", width: 450, children: [{ id: "1000000000000007", type: "tabs", children: [
+    leaf("1000000000000008", "companygraph-references", "links-going-out", "References"),
+    leaf("1000000000000009", "companygraph-checks", "list-checks", "Meta-model compliance"),
+    leaf("100000000000000a", "companygraph-brief", "notebook-pen", "CompanyGraph brief"),
+  ] }] },
+  active: "1000000000000002",
+  lastOpenFiles: ["model/identity.md"],
+});
+
+describe("a vault whose layout came before its plugins", { skip }, () => {
+  let session: Session;
+  before(async () => { session = await start({ workspace: WORKSPACE }); });
+  afterEach(async (t) => { if (!(t as { passed?: boolean }).passed) await session.record((t as { name: string }).name); });
+  after(async () => { await session?.stop(); });
+
+  test("the plugin's three tabs come up drawn by the plugin on the vault's first open, unclicked", async () => {
+    const { ui } = session;
+    // start() has clicked the trust dialog and seen the plugin read the vault; the tabs were
+    // restored before that, and nothing here clicks one.
+    const drawn = await ui.waitFor("the three tabs to be the plugin's own", tabs, [PANES, false], 4000);
+    assert.deepEqual(drawn.map((tab) => tab.split(":")[0]), PANES);
+  });
+});
+
 describe("the plugin's tabs when the plugin comes after them", { skip }, () => {
   let session: Session;
   before(async () => { session = await start(); });
