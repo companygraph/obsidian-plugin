@@ -410,6 +410,12 @@ export default class CompanyGraphPlugin extends Plugin {
     // registered only once the workspace is ready, as the API's own note on `create` asks.
     this.app.workspace.onLayoutReady(() => {
       if (this.unloaded) return;
+      // A tab of the plugin's restored before its view was registered, a vault's first open with
+      // the plugins switched on after the layout, or the plugin switched on with its tabs already
+      // there, is deferred and drawn as Obsidian's ghost until it is clicked. Loading it now gives
+      // it its own icon and title; Obsidian runs this at once where the layout is ready already.
+      for (const type of [VIEW_TYPE, BRIEF_VIEW, REFERENCES_VIEW])
+        for (const leaf of this.app.workspace.getLeavesOfType(type)) if (leaf.isDeferred) void leaf.loadIfDeferred();
       this.registerEvent(this.app.vault.on("modify", (file) => changed(file.path)));
       this.registerEvent(this.app.vault.on("create", (file) => changed(file.path)));
       this.registerEvent(this.app.vault.on("delete", (file) => changed(file.path)));
