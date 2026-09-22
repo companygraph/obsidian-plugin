@@ -4,7 +4,10 @@
 // plugin's instead, through Obsidian's public AbstractInputSuggest, offering what
 // propertyCandidates decides. The widget's rows and inputs are found by the markup themes style
 // them by, the footing the pill styling already stands on: if it changes, completion stops here
-// and nothing else does. Attached once per input, before any focus lands in it.
+// and nothing else does. Attached once per input, before any focus lands in it. Stopping the
+// input event also starves Obsidian's own sanitizer of the contenteditable, which is what
+// flattens a pasted line break; for a name, a value or a file name a line break is never wanted,
+// so nothing is lost today.
 import { AbstractInputSuggest, MarkdownView } from "obsidian";
 import { IMAGE_FILE } from "companygraph-meta-model/instance";
 import { typeOfPath } from "companygraph-meta-model/checks";
@@ -32,14 +35,27 @@ class PropertySuggest extends AbstractInputSuggest<string> {
     // handle to it. This listener is added later and in the capture phase, so it runs first: it
     // stops the event there and drives this suggest itself, through the method the class runs on
     // an input, read from the installed application. Where that method is not there the event
-    // passes and both lists show, a failure left visible rather than made silent.
+    // passes and both lists show, a failure left visible rather than made silent. It is
+    // registered on the plugin, not the input, so it is removed with everything else the plugin
+    // unregisters on unload: a dead instance's own capture listener would otherwise outlive it
+    // and starve the next one every time the plugin reloads.
     const own = this as unknown as { onInputChange?: () => void; onInputFocus?: () => void };
     const first = (name: "input" | "focus", run: (() => void) | undefined) => {
       if (typeof run !== "function") return;
-      input.addEventListener(name, (event) => { event.stopImmediatePropagation(); run.call(this); }, true);
+      plugin.registerDomEvent(input, name, (event) => { event.stopImmediatePropagation(); run.call(this); }, true);
     };
     first("input", own.onInputChange);
     first("focus", own.onInputFocus);
+    // Obsidian's own property suggest binds Tab the same way: with the popup open, Tab commits
+    // the selected entry instead of moving the focus on with half-typed text. Read the same way
+    // as onInputChange and onInputFocus above, and just as optional.
+    this.scope.register([], "Tab", (event) => {
+      const suggest = this as unknown as { suggestions?: { useSelectedItem?: (e: KeyboardEvent) => boolean } };
+      if (!event.isComposing && suggest.suggestions?.useSelectedItem?.(event)) return false;
+    });
+    // An open popup is this suggest's own state, on the plugin's schedule: unloading the plugin
+    // closes it, the way an event handler still open on a dead instance would not.
+    plugin.register(() => this.close());
     // Says on the element that this suggest is on it, for a test to wait on before it types.
     input.dataset.companygraphSuggest = field.name;
   }
@@ -52,11 +68,29 @@ class PropertySuggest extends AbstractInputSuggest<string> {
     // attaching would be the one before the edit.
     const row = this.input.closest(".metadata-property") ?? this.row;
     const held = Array.from(row.querySelectorAll(".multi-select-pill-content")).map((p) => p.textContent ?? "");
+    // Every vault file, filtered on every keystroke, is only ever the answer for an image field;
+    // any other kind takes nothing beside the note.
     const folder = this.path.slice(0, this.path.lastIndexOf("/"));
-    const beside = this.plugin.app.vault.getFiles()
-      .filter((f) => f.path.startsWith(folder + "/") && !f.path.slice(folder.length + 1).includes("/") && IMAGE_FILE.test(f.path))
-      .map((f) => f.name);
+    const beside = this.field.offer.kind === "image"
+      ? this.plugin.app.vault.getFiles()
+          .filter((f) => f.path.startsWith(folder + "/") && !f.path.slice(folder.length + 1).includes("/") && IMAGE_FILE.test(f.path))
+          .map((f) => f.name)
+      : [];
     return propertyCandidates(this.field, typed, names, held, beside) ?? [];
+  }
+  // Obsidian selects the popup's first entry the moment showSuggestions draws it, so Enter on an
+  // empty query would write that entry though nothing was ever chosen; the stock widget
+  // deselects when the text is empty and this suggest does too, once the list Obsidian just
+  // built exists to deselect. showSuggestions is internal and undocumented, so this reaches the
+  // base class's own through the prototype rather than `super`, and only where it is there: an
+  // Obsidian that lacks it draws through whatever it has instead, and the failure of a missed
+  // deselect stays visible rather than made silent.
+  showSuggestions(values: string[]) {
+    const base = (AbstractInputSuggest.prototype as unknown as { showSuggestions?: (this: PropertySuggest, v: string[]) => void }).showSuggestions;
+    if (typeof base === "function") base.call(this, values);
+    if (this.getValue().trim() !== "") return;
+    const suggest = this as unknown as { suggestions?: { forceSetSelectedItem?: (i: number, e: null) => void } };
+    suggest.suggestions?.forceSetSelectedItem?.(-1, null);
   }
   renderSuggestion(value: string, el: HTMLElement) {
     el.setText(value);
