@@ -116,7 +116,12 @@ function attachIn(plugin: CompanyGraphPlugin, view: MarkdownView) {
     // Obsidian writes the key lower-cased into the markup.
     const field = vocabulary.fields.find((f) => f.name.toLowerCase() === row.dataset.propertyKey);
     if (!field || field.offer.kind === "none") continue;
-    const input = row.querySelector<HTMLElement>(field.list ? ".multi-select-input" : ".metadata-input-longtext");
+    // A double-click on a pill makes Obsidian draw a second, small edit input ahead of the row's
+    // main one, focused synchronously with Obsidian's own suggest already on it; the main input,
+    // the one this suggest belongs on, is always the row's last `.multi-select-input`.
+    const input = field.list
+      ? Array.from(row.querySelectorAll<HTMLElement>(".multi-select-input")).pop()
+      : row.querySelector<HTMLElement>(".metadata-input-longtext");
     if (!input || attached.has(input)) continue;
     attached.add(input);
     new PropertySuggest(plugin, field, path, row, input);
@@ -138,9 +143,15 @@ export function attachPropertySuggests(plugin: CompanyGraphPlugin) {
 export function watchPropertyInputs(plugin: CompanyGraphPlugin) {
   const watched = new WeakSet<Element>();
   // Anything added inside the widget, or the widget itself: a redraw may replace one input in a
-  // row that stays, and that input is what has to be taken.
+  // row that stays, and that input is what has to be taken. A popout window is a realm of its
+  // own, with its own HTMLElement constructor, so a node from it fails `instanceof HTMLElement`
+  // though it is one; `nodeType` holds across realms.
   const rowsIn = (records: MutationRecord[]) =>
-    records.some((r) => Array.from(r.addedNodes).some((n) => n instanceof HTMLElement && (n.closest(".metadata-container") !== null || n.querySelector(".metadata-container") !== null)));
+    records.some((r) => Array.from(r.addedNodes).some((n) => {
+      if (n.nodeType !== Node.ELEMENT_NODE) return false;
+      const el = n as Element;
+      return el.closest(".metadata-container") !== null || el.querySelector(".metadata-container") !== null;
+    }));
   const scan = () => plugin.app.workspace.iterateAllLeaves((leaf) => {
     if (!(leaf.view instanceof MarkdownView)) return;
     const view = leaf.view;
@@ -149,7 +160,12 @@ export function watchPropertyInputs(plugin: CompanyGraphPlugin) {
     watched.add(view.containerEl);
     const observer = new MutationObserver((records) => { if (rowsIn(records)) attachIn(plugin, view); });
     observer.observe(view.containerEl, { childList: true, subtree: true });
+    // Disconnected with the plugin, in case it unloads first, and with the view, a Component of
+    // its own: a leaf the owner closes is a leaf whose observer has to go with it, or it keeps
+    // running over a container no longer in the document and keeps the view it was built for
+    // reachable for as long as the plugin runs.
     plugin.register(() => observer.disconnect());
+    view.register(() => observer.disconnect());
   });
   plugin.registerEvent(plugin.app.workspace.on("file-open", scan));
   plugin.registerEvent(plugin.app.workspace.on("layout-change", scan));
