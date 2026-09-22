@@ -27,7 +27,7 @@ Every code block on the branch was run in a throwaway clone first: the unit suit
 ## Tasks
 
 1. `propertyCandidates` in `src/candidates.ts`, with its test in `test/candidates.test.ts`.
-2. `src/propertysuggest.ts`, wired in `src/main.ts` at load and at the end of `paint()`, held by `e2e/propertysuggest.e2e.ts`.
+2. `src/propertysuggest.ts`, wired in `src/main.ts` at load and at the end of `tintTables()`, which `paint()` calls, held by `e2e/propertysuggest.e2e.ts`.
 3. README paragraph and version 0.9.0.
 
 ## What this plan does not do
