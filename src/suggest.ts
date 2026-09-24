@@ -99,7 +99,7 @@ export class Suggest extends EditorSuggest<Candidate> {
       const context = cellContextOf({ ...cell, lines: editor.lineCount(), line: editor.getLine(cursor.line), ch: cursor.ch });
       if (!context) return null;
       if (entersThrough(context) && !this.enterFirst && !asked) return null;
-      const candidates = candidatesFor(context, vocabulary, namesIn(this.plugin.named, file.path, layout.model), []);
+      const candidates = candidatesFor(context, vocabulary, namesIn(this.plugin.named, file.path, layout.model), [], this.plugin.named);
       return candidates.length ? { context, candidates } : null;
     }
 
@@ -116,7 +116,7 @@ export class Suggest extends EditorSuggest<Candidate> {
     // An empty entry shows its names only where its Enter can be let through.
     if (entersThrough(context) && !this.enterFirst && !asked) return null;
     // The names this file may use: an owned type's are its owner's own, as core 0.30.1 holds.
-    const candidates = candidatesFor(context, vocabulary, namesIn(this.plugin.named, file.path, layout.model), lines);
+    const candidates = candidatesFor(context, vocabulary, namesIn(this.plugin.named, file.path, layout.model), lines, this.plugin.named);
     return candidates.length ? { context, candidates } : null;
   }
 
