@@ -6,11 +6,16 @@
 import { TYPES } from "companygraph-meta-model/checks";
 import type { Graph } from "companygraph-meta-model/instance";
 
-export interface Named { type: string; name: string; path: string }
+// `id` is the parser's own id for the entity (every graph entity carries one), passed through so
+// the package's `rowScope`/`resolveRow` can check a folder-form reading of an owner's path against
+// it: without an id, a plain-file owner whose own name happens to equal its containing folder's —
+// `profiles/profiles.md`, a profile named "profiles" filed directly under `profiles/` — reads as
+// if it owned that folder, which puts everyone else's owned entities in its scope too.
+export interface Named { type: string; name: string; path: string; id: string }
 
-// The entities of a graph that parsed, as completion needs them: type, canonical name, where.
+// The entities of a graph that parsed, as completion needs them: type, canonical name, where, id.
 export function namedOf(graph: Graph): Named[] {
-  return graph.entities.filter((e) => e.name !== "").map((e) => ({ type: e.type, name: e.name, path: e.path }));
+  return graph.entities.filter((e) => e.name !== "").map((e) => ({ type: e.type, name: e.name, path: e.path, id: e.id }));
 }
 
 const sorted = (names: Iterable<string>) => [...new Set(names)].sort((a, b) => a.localeCompare(b));

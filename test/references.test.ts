@@ -190,6 +190,30 @@ test("a question row's name resolves within the owner its row names, never withi
   assert.equal(resolveIn(named, inTomas, EXAMPLE.model, "experience", "Splitting the billing domain"), null);
 });
 
+// The owner's trial: a plain-file profile whose own name happens to equal its containing
+// folder's — `profiles/profiles.md`, a profile named "profiles" filed directly under
+// `profiles/` — reads exactly like folder form's last two path segments to a check that reads
+// only the path. The package's `ownedDirOf` catches that coincidence by requiring the folder it
+// would return to be the owner's own id, where the owner carries one (core 0.46.0); `named` here
+// carries the parser's id on every entity, so the plain file's row names nothing, not every
+// profile's experiences.
+test("a plain-file profile named after its own folder owns nothing, however its path reads", () => {
+  const withPlain = new Map(files);
+  withPlain.set(
+    "example/model/profiles/profiles.md",
+    ["---", "source: Local", "nature: human", "---", "", "# profiles", "", "> A profile filed directly under its own folder, sharing its name."].join("\n"),
+  );
+  const graph = buildModel(withPlain, EXAMPLE).graph!;
+  assert.ok(graph, "the pathological vault still parses");
+  const namedWithPlain = namedOf(graph);
+  const schemas = schemasOf(withPlain, EXAMPLE);
+  assert.equal(
+    resolveIn(namedWithPlain, WHO, EXAMPLE.model, "experience", "Splitting the billing domain", { owner: "profiles", schemas }),
+    null,
+    "the plain file has no folder of its own, so its row names no experience",
+  );
+});
+
 test("backticks around a Type, Entity or Owner cell are not part of what it names, as the parser reads the row", () => {
   const row = "| `experience` | `Splitting the billing domain` | `Mira Halvorsen` | the period |";
   const text = files.get(WHO)!.replace(/^\| experience \|.*$/m, row);
