@@ -159,7 +159,6 @@ test("a failure that quotes two cells of one row lands on that row, not on the f
   assert.equal(locate(failure, files).line, 11);
 });
 
-
 // Core 0.40.0: a failure about a question's row quotes the cell it is about, and lands on its row.
 test("a failure about a question row lands on that row", () => {
   const WHO = "example/model/questions/who-split-billing-out-of-the-monolith.md";
