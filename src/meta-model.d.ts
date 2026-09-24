@@ -92,6 +92,8 @@ declare module "companygraph-meta-model/plan" {
 // tooling's `obsidian` command runs, so every e2e run proves what that command writes.
 declare module "companygraph-meta-model/obsidian" {
   export type Files = Map<string, Buffer>;
+  export interface CommunityPlugin { id: string; name: string; repo: string }
+  export const PLUGINS: CommunityPlugin[];
   export function readLocal(dir: string): Files;
-  export function place(vault: string, files: Files): { folder: string; from: string | null; to: string; enabled: boolean };
+  export function place(vault: string, files: Files, plugin?: CommunityPlugin): { folder: string; from: string | null; to: string; enabled: boolean };
 }
