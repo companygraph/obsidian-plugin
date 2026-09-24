@@ -82,3 +82,19 @@ test("a heading only the frontmatter holds is no section, for the checks as for 
     `${LEVEL}: no \`## What it means\`, which proficiency-level-schema.md requires`,
   ]);
 });
+
+// Core 0.40.0: the checks the re-pin brings hold a question's row cell by cell (R4, R9), and the
+// plugin reports what they say; the parser's own throw on the same row is dropped, as for any row.
+const WHO = "example/model/questions/who-split-billing-out-of-the-monolith.md";
+
+test("a question row naming an owner that is not there fails by name, and the graph does not parse", () => {
+  const m = buildModel(whole(edited(example(), WHO, (t) => t.replace("| Mira Halvorsen |", "| Mira Nobody |"))), EXAMPLE);
+  assert.equal(m.graph, null);
+  assert.deepEqual(m.failures, [`${WHO}: \`Entity\` in "## Rests on" names "Mira Nobody" as its owner, which names no profile in example/model/ (R4)`]);
+});
+
+test("a question row whose type is owned and whose owner is blank fails by name", () => {
+  const m = buildModel(whole(edited(example(), WHO, (t) => t.replace("| Mira Halvorsen |", "| |"))), EXAMPLE);
+  assert.equal(m.failures.length, 1);
+  assert.match(m.failures[0], /which a profile owns, and the row names no profile \(R4\)$/);
+});
