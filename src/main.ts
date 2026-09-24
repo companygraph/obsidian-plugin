@@ -1,6 +1,6 @@
 // The wiring: when to rebuild, and the three places a rebuild shows — the pane, the open file's
 // lines and the status bar. Everything that decides anything is in the pure modules.
-import { Keymap, MarkdownView, Notice, Plugin, TFile, debounce, editorInfoField } from "obsidian";
+import { FileSystemAdapter, Keymap, MarkdownView, Notice, Platform, Plugin, TFile, debounce, editorInfoField } from "obsidian";
 import type { Menu } from "obsidian";
 import type { WorkspaceLeaf } from "obsidian";
 import type { Debouncer } from "obsidian";
@@ -48,12 +48,16 @@ import { targetsFor } from "./scaffold.ts";
 import { DeleteEntity, RenameEntity } from "./entitycommands.ts";
 import { MakeInstance, MoveCore } from "./instancecommands.ts";
 import type { Release } from "./instantiate.ts";
+import { cliProfile } from "./cli.ts";
+import type { Profile } from "./cli.ts";
 import { PIN, RULES, RULE_PATHS, changesOf, channelFor, columnAfter, excludesOf, formOf, formed, inForm } from "./form.ts";
 
 // The release of companygraph-meta-model this build bundles; esbuild.config.mjs defines it.
 declare const __CHECKER_VERSION__: string;
 // That release's core and Claude's skills, which the two instance commands write.
 declare const __RELEASE__: Release;
+// The Terminal plugin's view of a shell.
+const TERMINAL_VIEW = "terminal:terminal";
 
 export interface State {
   // "checking" until the first rebuild lands: a pane restored at startup would otherwise say
@@ -351,6 +355,20 @@ export default class CompanyGraphPlugin extends Plugin {
       id: "move-core",
       name: "Move this vault's core",
       callback: () => new MoveCore(this.app, __RELEASE__, () => void this.rebuild()).open(),
+    });
+    // The meta-model's command line, in a terminal of the Terminal plugin at the vault's root.
+    // Offered only where that plugin is switched on and the vault is a folder on this machine.
+    this.addCommand({
+      id: "open-cli",
+      name: "Open the command line",
+      checkCallback: (checking) => {
+        const plugins = (this.app as unknown as { plugins: { enabledPlugins: Set<string>; plugins: Record<string, Plugin> } }).plugins;
+        const terminal = plugins.enabledPlugins.has("terminal") ? plugins.plugins.terminal : undefined;
+        const adapter = this.app.vault.adapter;
+        if (!Platform.isDesktopApp || !terminal || !(adapter instanceof FileSystemAdapter)) return false;
+        if (!checking) void this.openCli(terminal, adapter.getBasePath());
+        return true;
+      },
     });
     this.addCommand({ id: "open-brief", name: "Open the writing brief", callback: () => void this.openBrief() });
     this.addCommand({ id: "open-checks", name: "Open the compliance pane", callback: () => void this.openPane() });
@@ -845,6 +863,27 @@ export default class CompanyGraphPlugin extends Plugin {
     if (!open) await leaf.setViewState({ type: BRIEF_VIEW, active: false });
     await this.app.workspace.revealLeaf(leaf);
     this.refreshBrief();
+  }
+
+  // Terminal has no API for this. It opens a shell from the state of its own view, a profile and
+  // the folder to start in, kept under the view's type as its key, and that state is what is
+  // handed it here: the type, the key and the fields are Terminal's, and the e2e test holds them
+  // against the release it pins. A state it cannot read it replaces with one that starts nothing.
+  async openCli(terminal: Plugin, root: string) {
+    const settings = ((await terminal.loadData()) ?? {}) as { profiles?: Record<string, Profile>; defaultProfile?: string | null };
+    const platform = Platform.isWin ? "win32" : Platform.isMacOS ? "darwin" : "linux";
+    const profile = cliProfile(settings.profiles ?? {}, settings.defaultProfile ?? null, platform, __RELEASE__.version);
+    if (!profile) {
+      new Notice("Terminal has no integrated shell for this platform. Its settings add one under Profiles.");
+      return;
+    }
+    const leaf = this.app.workspace.getLeaf("tab");
+    await leaf.setViewState({
+      type: TERMINAL_VIEW,
+      active: true,
+      state: { [TERMINAL_VIEW]: { cwd: root, focus: true, profile, profileSourceId: null, serial: null, userTitle: "CompanyGraph" } },
+    });
+    await this.app.workspace.revealLeaf(leaf);
   }
 
   async openPane() {

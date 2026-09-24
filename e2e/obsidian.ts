@@ -7,13 +7,14 @@ import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
-import { place, readLocal } from "companygraph-meta-model/obsidian";
+import { PLUGINS, place, readLocal } from "companygraph-meta-model/obsidian";
 import { connect } from "./cdp.ts";
 import type { Connection } from "./cdp.ts";
 import type { Driver } from "./driver.ts";
 
 const ROOT = path.join(import.meta.dirname, "..");
 const FIXTURE = path.join(ROOT, "test", "fixtures", "mental-model");
+const TERMINAL = path.join(ROOT, "test", "fixtures", "terminal");
 const DEFAULT_BIN = "/Applications/Obsidian.app/Contents/MacOS/Obsidian";
 // Where the plugin's three files are taken from: the working tree, or a folder holding a
 // release's assets, which is how a test is shown to fail on the release it guards against.
@@ -68,7 +69,9 @@ const freePort = () => new Promise<number>((done, fail) => {
 // its plugins, which is where a tab restored before its view is registered shows. That needs the
 // trust dialog, which the installed Obsidian shows; the launcher of another release trusts the
 // vault before it starts, and there the plugins come before the layout.
-export async function start({ workspace }: { workspace?: string } = {}): Promise<Session> {
+// `terminal` puts the pinned release of the Terminal plugin into the copy and switches it on, as
+// the tooling's `obsidian` does when it is asked for.
+export async function start({ workspace, terminal = false }: { workspace?: string; terminal?: boolean } = {}): Promise<Session> {
   const bin = available();
   if (!bin) throw new Error("Obsidian or the fixture is missing; ask available() first");
   // realpath: macOS hands out /var/… and Obsidian reports /private/var/….
@@ -79,6 +82,7 @@ export async function start({ workspace }: { workspace?: string } = {}): Promise
   // Put in as the tooling's `obsidian --from` puts a build in, so the plugin loading below is also
   // the proof that what that command writes is what Obsidian switches on.
   place(vault, readLocal(PLUGIN));
+  if (terminal) place(vault, new Map(["main.js", "manifest.json", "styles.css"].map((name) => [name, fs.readFileSync(path.join(TERMINAL, name))])), PLUGINS.find((p) => p.id === "terminal")!);
   if (workspace !== undefined) fs.writeFileSync(path.join(vault, ".obsidian", "workspace.json"), workspace);
   fs.mkdirSync(userData, { recursive: true });
   fs.writeFileSync(path.join(userData, "obsidian.json"), JSON.stringify({ vaults: { e2e0000000000000: { path: vault, ts: Date.now(), open: true } } }));
