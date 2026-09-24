@@ -4,7 +4,9 @@
 // Obsidian-facing modules' business. A qualifier counts as much as a reference, since both name
 // an entity; what differs is only whether the model draws an edge, which is links.ts's concern.
 import { tableOf } from "companygraph-meta-model/checks";
+import { resolveRow } from "companygraph-meta-model/instance";
 import { frontmatterEnd } from "./context.ts";
+import { bare } from "./vocabulary.ts";
 import type { TypeVocabulary } from "./vocabulary.ts";
 import { visibleIn } from "./scope.ts";
 import type { Named } from "./scope.ts";
@@ -14,11 +16,18 @@ export interface Reference {
   from: number;   // the name's first character on that line
   to: number;     // one past its last
   name: string;
-  target: string; // the type the declaration names
+  // The type the declaration names; for a cell of a `ref → by` column, the type its row's `by`
+  // cell names, "" where that cell is blank; for the owner cell of such a row, the type that owns it.
+  target: string;
   optional: boolean; // declared `ref?`: a value that names nothing is a fact, not a broken name
   // What declares it, in the schema's words: a field's name, `## Section · Column` for a cell,
   // `## Section` for the heading of a grouped section. A references list says it beside the name.
   declared: string;
+  // Set on a cell of a `ref → by <Column> in <Owner>` column only (R4, R9): the owner its row's
+  // `in` cell names, "" where it is blank or the form has no `in`, and the schemas the row is
+  // read against. Such a name resolves by the package's `resolveRow`, within that owner and never
+  // within the page's own place, as the parser resolves it.
+  row?: { owner: string; schemas: Map<string, string> };
 }
 
 type Offer = TypeVocabulary["fields"][number]["offer"];
@@ -27,8 +36,9 @@ const optionalOf = (offer: Offer) => offer.kind === "names" && offer.optional ==
 
 // The span of a value as written, with surrounding quotes and spaces left out of it. In
 // frontmatter a YAML comment after it is left out as well: a `#` after a space, outside quotes.
-// A table cell has no comments, so a name there may hold one.
-function span(line: number, text: string, start: number, target: string, optional: boolean, declared: string, yaml = false): Reference | null {
+// A table cell has no comments, so a name there may hold one. `ticks`: a pair of backticks around
+// the value is not part of the name either, as the parser reads a `by` row's cells.
+function span(line: number, text: string, start: number, target: string, optional: boolean, declared: string, yaml = false, ticks = false): Reference | null {
   let from = start, to = text.length;
   const value = text.slice(start).trimStart();
   if (yaml && !/^["']/.test(value)) {
@@ -38,6 +48,7 @@ function span(line: number, text: string, start: number, target: string, optiona
   while (from < to && /\s/.test(text[from])) from++;
   while (to > from && /\s/.test(text[to - 1])) to--;
   if (to - from >= 2 && /^["']$/.test(text[from]) && text[to - 1] === text[from]) { from++; to--; }
+  if (ticks && to - from >= 2 && text[from] === "`" && text[to - 1] === "`") { from++; to--; }
   return to > from ? { line, from, to, name: text.slice(from, to), target, optional, declared } : null;
 }
 
@@ -126,20 +137,42 @@ export function referencesIn(lines: string[], vocabulary: TypeVocabulary): Refer
     // not read as a table holds no references.
     const header = columns ? tableOf(lines.slice(line, last + 1).join("\n"))?.columns : undefined;
     if (columns && header)
-      for (let row = line + 2; row <= last; row++)
-        cells(lines[row]).forEach((cell, i) => {
+      for (let row = line + 2; row <= last; row++) {
+        const split = cells(lines[row]);
+        // Another cell of this row by its column's name, as the parser reads a `by` row's type
+        // and owner: backticks off, trimmed; "" where the row has no such cell.
+        const cellOf = (name: string | null) => {
+          const cell = name === null ? undefined : split[header.indexOf(name)];
+          return cell ? bare(lines[row].slice(cell.from, cell.to)) : "";
+        };
+        split.forEach((cell, i) => {
           const column = columns.find((c) => c.name === header[i]);
-          const target = column ? targetOf(column.offer) : null;
-          const ref = target ? span(row, lines[row].slice(0, cell.to), cell.from, target, optionalOf(column!.offer), `## ${section} · ${column!.name}`) : null;
+          if (!column) return;
+          const offer = column.offer;
+          const declared = `## ${section} · ${column.name}`;
+          const text = lines[row].slice(0, cell.to);
+          if (offer.kind === "by") {
+            const ref = span(row, text, cell.from, cellOf(offer.by), false, declared, false, true);
+            if (ref) out.push({ ...ref, row: { owner: cellOf(offer.in), schemas: offer.schemas } });
+            return;
+          }
+          // The owner cell of a `by … in` row names an entity of the type that owns the row's
+          // type, as a qualifier names one: listed, marked and renamed, drawing no edge.
+          const target = offer.kind === "owner" ? offer.owners.get(cellOf(offer.by)) ?? null : targetOf(offer);
+          const ref = target ? span(row, text, cell.from, target, optionalOf(offer), declared, false, offer.kind === "owner") : null;
           if (ref) out.push(ref);
         });
+      }
     line = last;
   }
   return out;
 }
 
 // The file of the entity a name names, from the file at `path`, as the checks resolve it: by
-// the declared type, and for an owned type within the owner the file is in. null: it names none.
-export function resolveIn(named: Named[], path: string, model: string, target: string, name: string): string | null {
+// the declared type, and for an owned type within the owner the file is in; or, given a `by`
+// reference's `row`, by the package's `resolveRow`, within the owner its row names and never
+// the file's own place (R4, R9). null: it names none.
+export function resolveIn(named: Named[], path: string, model: string, target: string, name: string, row?: Reference["row"]): string | null {
+  if (row) return resolveRow(named, row.schemas, { type: target, name, owner: row.owner }).entity?.path ?? null;
   return visibleIn(named, path, model).find((n) => n.type === target && n.name === name)?.path ?? null;
 }

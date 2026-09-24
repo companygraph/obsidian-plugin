@@ -148,3 +148,68 @@ test("a cursor in a cell is a place on its row: past the pipe and the space afte
   assert.equal(chOfCell(row, 2, 0), null);
   assert.equal(chOfCell("source: Local", 0, 0), null);
 });
+
+// A question's Rests on (core 0.40.0): the Entity cell names an entity of the type its row's
+// Type cell names, within the owner its Owner cell names where that type is owned, and the page's
+// own place is never consulted (R4, R9). The Owner cell names that owner, as a qualifier names an
+// entity: a reference with no edge of its own.
+const WHO = "example/model/questions/who-split-billing-out-of-the-monolith.md";
+const HOW = "example/model/questions/how-do-i-find-out-why-a-line-is-on-my-invoice.md";
+const question = vocabulary.get("question")!;
+const rowsOf = (text: string) => {
+  const found = text.split("\n");
+  return referencesIn(found, question).map((r) => [r.name, r.target, r.row?.owner, r.declared, found[r.line].slice(r.from, r.to)]);
+};
+
+test("a question row is a reference to the entity it names, carrying the owner its row names", () => {
+  assert.deepEqual(rowsOf(files.get(WHO)!).slice(1), [
+    ["Splitting the billing domain", "experience", "Mira Halvorsen", "## Rests on · Entity", "Splitting the billing domain"],
+    ["Mira Halvorsen", "profile", undefined, "## Rests on · Owner", "Mira Halvorsen"],
+  ]);
+  assert.deepEqual(rowsOf(files.get(HOW)!).slice(1).map((r) => r.slice(0, 3)), [
+    ["Charge explanation", "feature", ""],
+    ["Pricing rules", "feature", ""],
+  ]);
+});
+
+test("a question row's name resolves within the owner its row names, never within the page's place", () => {
+  const schemas = schemasOf(files, EXAMPLE);
+  const within = (name: string, type: string, owner: string) => resolveIn(named, WHO, EXAMPLE.model, type, name, { owner, schemas });
+  assert.match(within("Splitting the billing domain", "experience", "Mira Halvorsen")!, /mira-halvorsen\/experiences\//);
+  assert.equal(within("Splitting the billing domain", "experience", "Tomas Reyes"), null, "another owner's row");
+  assert.equal(within("Splitting the billing domain", "experience", ""), null, "an owned type with no owner named");
+  assert.equal(within("Charge explanation", "feature", ""), "example/model/features/charge-explanation.md");
+  assert.equal(within("Charge explanation", "feature", "Mira Halvorsen"), null, "an unowned type with an owner named");
+  assert.equal(within("Charge explanation", "", ""), null, "a blank Type cell names no type");
+  assert.equal(within("Splitting the billing domain", "Experience", "Mira Halvorsen"), null, "a type is its schema's name, as written");
+  assert.equal(within("Splitting the billing domain", "experience", "Nobody"), null, "an owner that is not there");
+  // Written inside Tomas's own folder, a name of an owned type is his by the page's place; a row
+  // that names Mira still resolves within Mira.
+  const inTomas = "example/model/profiles/tomas-reyes/tomas-reyes.md";
+  assert.match(resolveIn(named, inTomas, EXAMPLE.model, "experience", "Splitting the billing domain", { owner: "Mira Halvorsen", schemas })!, /mira-halvorsen\//);
+  assert.equal(resolveIn(named, inTomas, EXAMPLE.model, "experience", "Splitting the billing domain"), null);
+});
+
+test("backticks around a Type, Entity or Owner cell are not part of what it names, as the parser reads the row", () => {
+  const row = "| `experience` | `Splitting the billing domain` | `Mira Halvorsen` | the period |";
+  const text = files.get(WHO)!.replace(/^\| experience \|.*$/m, row);
+  assert.deepEqual(rowsOf(text).slice(1).map((r) => [r[0], r[1], r[2], r[4]]), [
+    ["Splitting the billing domain", "experience", "Mira Halvorsen", "Splitting the billing domain"],
+    ["Mira Halvorsen", "profile", undefined, "Mira Halvorsen"],
+  ]);
+});
+
+test("an empty Entity cell is no reference, a blank Type cell leaves no type, and an unowned type's Owner cell is no reference", () => {
+  const text = [
+    "---", "source: Local", "---", "", "# Q?", "", "> A.", "", "## Rests on", "",
+    "| Type | Entity | Owner | For |", "| --- | --- | --- | --- |",
+    "| experience |  | Mira Halvorsen | |",
+    "|  | Charge explanation | | |",
+    "| feature | Charge explanation | Mira Halvorsen | |",
+  ].join("\n");
+  assert.deepEqual(rowsOf(text).slice(1).map((r) => r.slice(0, 3)), [
+    ["Mira Halvorsen", "profile", undefined],
+    ["Charge explanation", "", ""],
+    ["Charge explanation", "feature", "Mira Halvorsen"],
+  ]);
+});
