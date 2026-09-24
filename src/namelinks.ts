@@ -11,6 +11,7 @@ import type { DecorationSet, EditorView, ViewUpdate } from "@codemirror/view";
 import { typeOfPath } from "companygraph-meta-model/checks";
 import type CompanyGraphPlugin from "./main.ts";
 import { cellAt, referencesIn, resolveIn } from "./references.ts";
+import type { Reference } from "./references.ts";
 import { visibleIn } from "./scope.ts";
 
 // Sent after a rebuild, since what a name resolves to can change without the text changing.
@@ -28,7 +29,10 @@ function resolverFor(plugin: CompanyGraphPlugin, path: string | undefined) {
   if (!vocabulary) return null;
   // What the file may name is worked out once per pass, not once per name.
   const visible = visibleIn(plugin.named, path, layout.model);
-  return { vocabulary, resolve: (target: string, name: string) => resolveIn(visible, path, layout.model, target, name) };
+  // A `by` reference names its owner in its own row, so it is resolved among every entity.
+  const resolve = (target: string, name: string, row?: Reference["row"]) =>
+    resolveIn(row ? plugin.named : visible, path, layout.model, target, name, row);
+  return { vocabulary, resolve };
 }
 
 export function nameLinks(plugin: CompanyGraphPlugin) {
@@ -52,7 +56,7 @@ export function nameLinks(plugin: CompanyGraphPlugin) {
           .map((r) => ({ ...r, at: doc.line(r.line + 1).from }))
           .sort((a, b) => a.at + a.from - (b.at + b.from));
         for (const ref of refs) {
-          const path = resolver.resolve(ref.target, ref.name);
+          const path = resolver.resolve(ref.target, ref.name, ref.row);
           // An optional reference that names nothing is a fact, and drawn as the text it is.
           if (!path && ref.optional) continue;
           builder.add(
@@ -81,10 +85,10 @@ export function markNames(plugin: CompanyGraphPlugin, view: MarkdownView, cm: Ed
   }
   const resolver = resolverFor(plugin, view.file?.path);
   if (!resolver) return;
-  const mark = (el: Element | null, target: string, name: string | null | undefined, optional = false) => {
+  const mark = (el: Element | null, target: string, name: string | null | undefined, optional = false, row?: Reference["row"]) => {
     const text = (name ?? "").trim();
     if (!el || !text) return;
-    const path = resolver.resolve(target, text);
+    const path = resolver.resolve(target, text, row);
     // An optional reference that names nothing is a fact, and drawn as the text it is.
     if (!path && optional) return;
     el.setAttribute(MARK, "");
@@ -131,7 +135,7 @@ export function markNames(plugin: CompanyGraphPlugin, view: MarkdownView, cm: Ed
       const line = first + 2 + body;
       for (const ref of byLine.get(line) ?? []) {
         const cell = cellAt(lines[line], ref.from);
-        if (cell !== null) mark(tr.children[cell] ?? null, ref.target, ref.name, ref.optional);
+        if (cell !== null) mark(tr.children[cell] ?? null, ref.target, ref.name, ref.optional, ref.row);
       }
     });
   }

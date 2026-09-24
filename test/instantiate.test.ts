@@ -46,11 +46,13 @@ function memoryDisk(files: Record<string, string> = {}): Disk & { files: Map<str
   };
 }
 
-test("the release the build carries is the one installed: its version, its core and Claude's three skills", () => {
+test("the release the build carries is the one installed: its version, its core and Claude's skills", () => {
   assert.match(release.version, /^\d+\.\d+\.\d+$/);
   assert.ok(release.core["CONVENTIONS.md"] && release.core["manifest.json"]);
+  assert.ok(release.core["question-schema.md"], "core 0.40.0 carries the question");
+  // The skills are the tooling's and move with it; meta-model v0.44.0 added the profile's.
   const skills = new Set(Object.keys(release.skills).map((p) => p.split("/")[0]));
-  assert.deepEqual([...skills].sort(), ["companygraph-export", "companygraph-surface", "companygraph-validate"]);
+  assert.deepEqual([...skills].sort(), ["companygraph-export", "companygraph-profile", "companygraph-surface", "companygraph-validate"]);
 });
 
 test("a vault made an instance passes the checks, and holds what init writes", async () => {

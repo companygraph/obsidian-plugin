@@ -2,10 +2,12 @@
 // which names exist, the file says what is already there. Nothing is offered that would not
 // resolve, and nothing is wrapped: a name is inserted plain (R3).
 import { sectionsOf } from "companygraph-meta-model/checks";
-import { IMAGE_FILE } from "companygraph-meta-model/instance";
+import { IMAGE_FILE, rowScope } from "companygraph-meta-model/instance";
 import type { Context } from "./context.ts";
 import { frontmatterEnd } from "./context.ts";
+import { bare } from "./vocabulary.ts";
 import type { Field, Offer, TypeVocabulary } from "./vocabulary.ts";
+import type { Named } from "./scope.ts";
 
 export interface Candidate { label: string; insert: string }
 
@@ -24,9 +26,23 @@ export function cursorAfter(start: Position, insert: string): Position {
 const requiredFirst = <T extends { required: boolean }>(items: T[]) =>
   [...items.filter((i) => i.required), ...items.filter((i) => !i.required)];
 
-function offered(offer: Offer, names: Map<string, string[]>): string[] {
+const sortedNames = (named: Named[]) => [...new Set(named.map((n) => n.name))].sort((a, b) => a.localeCompare(b));
+
+// `row` is the cell's row by column, and `named` every entity the model holds: a `by` row says
+// itself where its name is (R4, R9), so its offers are drawn from the whole model, whatever the
+// page's own place. The Entity column asks the package's `rowScope` once per completion request.
+function offered(offer: Offer, names: Map<string, string[]>, row: Record<string, string> = {}, named: Named[] = []): string[] {
   if (offer.kind === "names") return names.get(offer.target) ?? [];
   if (offer.kind === "values") return offer.values;
+  if (offer.kind === "types") return offer.types;
+  if (offer.kind === "by") {
+    const scope = rowScope(named, offer.schemas, { type: bare(row[offer.by]), owner: offer.in ? bare(row[offer.in]) : "" });
+    return sortedNames(scope.within ?? []);
+  }
+  if (offer.kind === "owner") {
+    const owner = offer.owners.get(bare(row[offer.by]));
+    return owner ? sortedNames(named.filter((n) => n.type === owner)) : [];
+  }
   return [];
 }
 
@@ -60,8 +76,9 @@ export function candidatesFor(
   vocabulary: TypeVocabulary,
   names: Map<string, string[]>,
   lines: string[],
+  named: Named[] = [],
 ): Candidate[] {
-  const candidates = offers(context, vocabulary, names, lines);
+  const candidates = offers(context, vocabulary, names, lines, named);
   // What is typed is already one of the things on offer: there is nothing left to complete, and
   // a popup still open over it captures the Enter that belongs to the editor. One candidate is
   // not the test — `Java` typed in full still matches `JavaScript` — what is typed is.
@@ -84,6 +101,7 @@ function offers(
   vocabulary: TypeVocabulary,
   names: Map<string, string[]>,
   lines: string[],
+  named: Named[],
 ): Candidate[] {
   if (context.kind === "key") {
     const absent = absentFields(vocabulary, lines);
@@ -106,7 +124,7 @@ function offers(
       .find((s) => s.heading === context.section)
       ?.columns?.find((c) => c.name === context.column);
     if (!column) return [];
-    return matching(offered(column.offer, names), context.typed).map((v) => ({ label: v, insert: v }));
+    return matching(offered(column.offer, names, context.row, named), context.typed).map((v) => ({ label: v, insert: v }));
   }
   if (context.kind === "grouped") {
     const section = vocabulary.sections.find((s) => s.heading === context.section);

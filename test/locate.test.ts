@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { buildModel } from "../src/model.ts";
 import { locate } from "../src/locate.ts";
-import { example, EXAMPLE, edited } from "./helpers.ts";
+import { example, EXAMPLE, edited, whole } from "./helpers.ts";
 
 const ROLE = "example/model/roles/backend-engineer.md";
 const lineOf = (files: Map<string, string>, file: string, text: string) =>
@@ -159,3 +159,13 @@ test("a failure that quotes two cells of one row lands on that row, not on the f
   assert.equal(locate(failure, files).line, 11);
 });
 
+// Core 0.40.0: a failure about a question's row quotes the cell it is about, and lands on its row.
+test("a failure about a question row lands on that row", () => {
+  const WHO = "example/model/questions/who-split-billing-out-of-the-monolith.md";
+  const files = edited(example(), WHO, (t) => t.replace("| Mira Halvorsen |", "| Mira Nobody |"));
+  const failures = buildModel(whole(files), EXAMPLE).failures;
+  assert.equal(failures.length, 1);
+  const at = locate(failures[0], files);
+  assert.equal(at.path, WHO);
+  assert.equal(files.get(WHO)!.split("\n")[at.line], "| experience | Splitting the billing domain | Mira Nobody | the period |");
+});

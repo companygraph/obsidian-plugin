@@ -47,8 +47,28 @@ declare module "companygraph-meta-model/instance" {
   export interface Graph { entities: Entity[]; edges: unknown[]; types: unknown[]; root: string; rootId: string | null }
   export function parseInstance(files: Map<string, string>, options: { sub?: string; schemas: Map<string, string> }): Graph;
   export function parseSchemas(files: Map<string, string>, options?: { sub?: string }): Graph;
-  export interface Declaration { form: "ref" | "ref?" | "qualifier"; target: string }
+  // A declaration names its type, or, in the form `ref → by <Column> in <Owner>` (R4, R9), reads
+  // it from its row: `target` is then null, and `by` and `in` name the columns of the same table
+  // that carry the type and the owner, `in` null where the form has none.
+  export type Declaration =
+    | { form: "ref" | "ref?" | "qualifier"; target: string; by?: undefined; in?: undefined }
+    | { form: "ref"; target: null; by: string; in: string | null };
   export function declarationOf(cell: string | undefined): Declaration | null;
+  // A `ref → by <Column> in <Owner>` row (R4, R9), resolved by the rule the parser resolves it
+  // by. `schemas` is keyed `<type>-schema.md`; an entity needs only `{ type, name, path }`; the
+  // row's cells are passed bare. Each call reads the schemas again and keeps nothing.
+  export interface RowEntity { type: string; name: string; path: string }
+  export type RowError = { error: string; subject: "value" | "owner" };
+  // Every owned type mapped to its owner type, from the schemas' `**Owner:**` lines (R10).
+  export function ownerTypesOf(schemas: Map<string, string>): Map<string, string>;
+  // What a row's Type and Owner cells narrow the entities down to.
+  export function rowScope<E extends RowEntity>(entities: E[], schemas: Map<string, string>, row: { type: string; owner?: string }):
+    | { within: E[]; error?: undefined }
+    | (RowError & { within?: undefined });
+  // The one entity a row's name names within that scope.
+  export function resolveRow<E extends RowEntity>(entities: E[], schemas: Map<string, string>, row: { type: string; name: string; owner?: string }):
+    | { entity: E; error?: undefined }
+    | (RowError & { entity?: undefined });
 }
 
 declare module "companygraph-meta-model/plan" {

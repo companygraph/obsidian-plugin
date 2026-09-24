@@ -119,3 +119,18 @@ test("every type scaffolded into the reference instance owes only what its notic
   }
   assert.ok(seen.has("phase") && seen.has("track") && seen.has("experience") && seen.has("process"));
 });
+
+// Core 0.40.0: `question` is a type of the package's own list and has a schema, so New entity
+// offers it from anywhere, as a concept is, and its scaffold is what the schema requires.
+test("a question is offered from anywhere, named by the slug of its question, and its scaffold passes the checks", () => {
+  const question = byType(targetsFor(MODEL, null, none)).get("question")!;
+  assert.equal(question.where, "model/questions/");
+  assert.equal(question.pathFor("Who split billing out of the monolith?"), "model/questions/who-split-billing-out-of-the-monolith.md");
+  assert.ok(byType(targetsFor(MODEL, "model/profiles/robert-blust/robert-blust.md", none)).has("question"));
+  const { text } = scaffoldOf(vocabulary.get("question")!, "Who wrote the pricing rules?", { source: "Local" });
+  assert.ok(!text.includes("## Rests on"), "an optional section is the author's to add");
+  const files = example();
+  const path = "example/model/questions/who-wrote-the-pricing-rules.md";
+  files.set(path, text.replace("> \n", "> The pricing rules say who owns them.\n"));
+  assert.deepEqual(checkInstance(files, EXAMPLE).failures.filter((f) => f.startsWith(path)), []);
+});

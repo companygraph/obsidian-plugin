@@ -7,7 +7,7 @@ import { vocabularyOf } from "../src/vocabulary.ts";
 import { namedOf } from "../src/scope.ts";
 import { deletePlan, referencesTo, renamePlan } from "../src/refactor.ts";
 import type { RenamePlan } from "../src/refactor.ts";
-import { example, EXAMPLE, reference, REFERENCE, whole } from "./helpers.ts";
+import { edited, example, EXAMPLE, reference, REFERENCE, whole } from "./helpers.ts";
 
 const setup = (files: Map<string, string>, layout: typeof EXAMPLE) => {
   const named = namedOf(buildModel(whole(files), layout).graph!);
@@ -230,4 +230,71 @@ test("a track renamed in the table alone is a failure naming the row, which is w
   const failures = checkInstance(whole(files), REFERENCE).failures;
   assert.ok(failures.some((f) => f.startsWith(`${path}: `) && f.includes('"Code2"') && f.includes("ref → track")), failures.join("\n"));
   assert.ok(failures.some((f) => f.includes('does not list "Code"')), failures.join("\n"));
+});
+
+// A question's Rests on (core 0.40.0): the Entity cell names what its row's Type and Owner say,
+// and the Owner cell names the owner, so a rename of either reaches the row, and a delete of
+// either leaves the row naming nothing.
+const WHO = "example/model/questions/who-split-billing-out-of-the-monolith.md";
+const HOW = "example/model/questions/how-do-i-find-out-why-a-line-is-on-my-invoice.md";
+
+test("renaming an experience a question rests on rewrites the row's Entity cell, and the checks pass after", () => {
+  const { files, paths, named, vocabulary, model } = setup(example(), EXAMPLE);
+  const plan = renamePlan(files, paths, vocabulary, named, model, entity(named, "experience", "Splitting the billing domain"), "Splitting billing");
+  assert.ok(!("refused" in plan));
+  assert.match(plan.texts.get(WHO)!, /^\| experience \| Splitting billing \| Mira Halvorsen \| the period \|$/m);
+  assert.deepEqual(checkInstance(carried(whole(files), plan), EXAMPLE).failures, []);
+});
+
+test("renaming an owner rewrites every Owner cell that names it, and the rows still resolve", () => {
+  const { files, paths, named, vocabulary, model } = setup(example(), EXAMPLE);
+  const plan = renamePlan(files, paths, vocabulary, named, model, entity(named, "profile", "Mira Halvorsen"), "Mira Hale");
+  assert.ok(!("refused" in plan));
+  assert.match(plan.texts.get(WHO)!, /^\| experience \| Splitting the billing domain \| Mira Hale \| the period \|$/m);
+  assert.deepEqual(checkInstance(carried(whole(files), plan), EXAMPLE).failures, []);
+});
+
+test("renaming a feature a question rests on rewrites its cell, and leaves a row of another feature alone", () => {
+  const { files, paths, named, vocabulary, model } = setup(example(), EXAMPLE);
+  const plan = renamePlan(files, paths, vocabulary, named, model, entity(named, "feature", "Pricing rules"), "Price rules");
+  assert.ok(!("refused" in plan));
+  const text = plan.texts.get(HOW)!;
+  assert.match(text, /^\| feature \| Price rules \| \| what it costs \|$/m);
+  assert.match(text, /^\| feature \| Charge explanation \| \| where a line comes from \|$/m);
+});
+
+test("a row naming the same name under another owner is not the renamed entity's", () => {
+  // Tomas has no experience of this name; a row saying he has is a broken row, not a mention.
+  const files = edited(example(), WHO, (t) => t.replace("| Mira Halvorsen |", "| Tomas Reyes |"));
+  const { named, vocabulary, model } = setup(example(), EXAMPLE);
+  const found = referencesTo(files, vocabulary, named, model, entity(named, "experience", "Splitting the billing domain"));
+  assert.ok(!found.some((m) => m.path === WHO));
+});
+
+test("renaming any entity of the example, questions among them, leaves the checks clean", () => {
+  const { files, paths, named, vocabulary, model } = setup(example(), EXAMPLE);
+  assert.ok(named.some((n) => n.type === "question"));
+  const broken: string[] = [];
+  for (const target of named) {
+    const plan = renamePlan(files, paths, vocabulary, named, model, target, `${target.name} X`);
+    if ("refused" in plan) {
+      broken.push(`${target.type} ${target.name}: refused, ${plan.refused}`);
+      continue;
+    }
+    const failures = checkInstance(carried(whole(files), plan), EXAMPLE).failures;
+    if (failures.length) broken.push(`${target.type} ${target.name}: ${failures[0]}`);
+  }
+  assert.deepEqual(broken, []);
+});
+
+test("deleting what a question rests on lists the question's row among what would name nothing", () => {
+  const { files, paths, named, vocabulary, model } = setup(example(), EXAMPLE);
+  const experience = deletePlan(files, paths, vocabulary, named, model, entity(named, "experience", "Splitting the billing domain"));
+  assert.ok(!("refused" in experience));
+  const row = files.get(WHO)!.split("\n").findIndex((l) => l.startsWith("| experience |"));
+  assert.ok(experience.mentions.some((m) => m.path === WHO && m.line === row));
+  // An owner goes with what it owns: its row's Entity cell and its Owner cell both name nothing.
+  const owner = deletePlan(files, paths, vocabulary, named, model, entity(named, "profile", "Mira Halvorsen"));
+  assert.ok(!("refused" in owner));
+  assert.equal(owner.mentions.filter((m) => m.path === WHO && m.line === row).length, 2);
 });

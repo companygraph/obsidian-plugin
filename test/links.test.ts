@@ -74,3 +74,12 @@ test("a rename moves what was added, and the model's links, to the new path", ()
   assert.deepEqual(resolved, { "n.md": { "x.md": 1 } });
   assert.deepEqual(links, { "n.md": { "b.md": 1 }, "c.md": { "n.md": 1 } });
 });
+
+// Core 0.40.0: a question's row draws its edge, `Rests on.Entity`, so the graph view links the
+// question to what it rests on; the Owner cell draws none, as a qualifier draws none.
+test("a question links to each entity it rests on, and not to the owner its row names", () => {
+  const links = linksOf(graph);
+  const who = links["example/model/questions/who-split-billing-out-of-the-monolith.md"];
+  assert.deepEqual(Object.keys(who).filter((p) => !p.includes("/sources/")), ["example/model/profiles/mira-halvorsen/experiences/2022-beacon-systems.md"]);
+  assert.equal(links["example/model/questions/does-beacon-systems-publish-its-revenue.md"]?.["example/model/sources/local.md"], 1, "a question resting on nothing names its source alone");
+});

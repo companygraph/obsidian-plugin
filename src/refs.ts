@@ -34,7 +34,7 @@ function mentionsIn(world: World, path: string, text: string): Mention[] {
   if (!vocabulary) return [];
   const out: Mention[] = [];
   for (const ref of referencesIn(text.split("\n"), vocabulary)) {
-    const target = resolveIn(world.named, path, world.model, ref.target, ref.name);
+    const target = resolveIn(world.named, path, world.model, ref.target, ref.name, ref.row);
     if (target) out.push({ path, line: ref.line, name: ref.name, declared: ref.declared, target });
   }
   return out;

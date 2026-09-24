@@ -2,7 +2,7 @@
 // context or null out. `start` is the column the typed text begins at, which is what a
 // candidate replaces.
 import { tableOf } from "companygraph-meta-model/checks";
-import { sectionAbove } from "./tables.ts";
+import { rowOf, sectionAbove } from "./tables.ts";
 
 export type Context =
   | { kind: "key"; typed: string; start: number }
@@ -11,7 +11,9 @@ export type Context =
   // `glued` says no space stands between the colon and where the value begins, so whoever
   // inserts there brings one: `source:Local` is one bare word to YAML and no field at all.
   | { kind: "value"; field: string; typed: string; start: number; item: boolean; glued: boolean }
-  | { kind: "cell"; section: string; column: string; typed: string; start: number }
+  // `row`: every cell of the row by its column's name, as the package's table reader reads it,
+  // for a `by` column, whose type and owner are the row's; absent where no row was read.
+  | { kind: "cell"; section: string; column: string; typed: string; start: number; row?: Record<string, string> }
   | { kind: "heading"; typed: string; start: number }
   // A `###` heading under a `##` section, which names an entity where the schema declares the
   // section grouped; whether it does is the vocabulary's to say.
@@ -96,7 +98,7 @@ export function contextAt(lines: string[], line: number, ch: number): Context | 
     const rest = next === -1 ? after : after.slice(0, next);
     if (rest.trim() !== "") return null;
     const typed = before.slice(before.lastIndexOf("|") + 1).trimStart();
-    return { kind: "cell", section, column, typed, start: ch - typed.length };
+    return { kind: "cell", section, column, typed, start: ch - typed.length, row: rowOf(table, line - first - 2) };
   }
   return null;
 }
