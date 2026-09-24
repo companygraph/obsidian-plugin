@@ -2,24 +2,24 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** The plugin bundles meta-model v0.45.0 and supports its new reference form, `ref → by <Column> in <Owner>`, where a question is written: completion, links, marks, the references pane, Rename entity and Delete entity all read a question's `## Rests on` row as the parser reads it, and the plugin is released as 0.10.0.
+**Goal:** The plugin bundles meta-model v0.46.0 and supports its new reference form, `ref → by <Column> in <Owner>`, where a question is written: completion, links, marks, the references pane, Rename entity and Delete entity all read a question's `## Rests on` row as the parser reads it, and the plugin is released as 0.10.0.
 
-**Architecture:** Every place the plugin reads a reference today assumes the schema names one type and that an owned name resolves within the page's own place, through `visibleIn`; a question row does neither. The vocabulary learns three offers, `by` for the column whose type comes from its row, and `types` and `owner` for the two `string` columns that declaration reads, so a question's own columns say what they hold. `referencesIn` yields a row's `Entity` cell as a reference whose `target` is the row's `Type` cell and which carries the row's `Owner` cell as `owner`, and yields the `Owner` cell as a reference to the owning type, as a qualifier names an entity without drawing an edge. `resolveIn` takes that `owner` and resolves within it through a new `withinOwner` in `scope.ts`, never through `visibleIn`, and because the pane, the marks, rename and delete all go through `referencesIn` and `resolveIn`, each of them follows the row once it passes the `owner` along. Completion reads the row from the cell's context, which now carries every cell of its row, and a `Pool` of the core's types and every entity the model holds.
+**Architecture:** Every place the plugin reads a reference today assumes the schema names one type and that an owned name resolves within the page's own place, through `visibleIn`; a question row does neither. The vocabulary learns three offers, `by` for the column whose type comes from its row, and `types` and `owner` for the two `string` columns that declaration reads, so a question's own columns say what they hold. `referencesIn` yields a row's `Entity` cell as a reference whose `target` is the row's `Type` cell and which carries the row's `Owner` cell and the schemas as `row`, and yields the `Owner` cell as a reference to the owning type, as a qualifier names an entity without drawing an edge. `resolveIn` hands that row to the package's `resolveRow`, which resolves within the row's owner and never through `visibleIn`, and because the pane, the marks, rename and delete all go through `referencesIn` and `resolveIn`, each of them follows the row once it passes the row along. Completion reads the row from the cell's context, which now carries every cell of its row, and every entity the model holds: the `Entity` cell offers what the package's `rowScope` narrows the row to. The rule for a row is the package's, exported in v0.46.0 as `ownerTypesOf`, `rowScope` and `resolveRow`; the plugin copies none of it.
 
 **Tech Stack:** TypeScript run by Node's type stripping, `node:test`, esbuild, CodeMirror 6 through Obsidian, the e2e suite under `e2e/` driving a real Obsidian over the DevTools protocol.
 
-**Spec:** `docs/superpowers/specs/2026-09-24-a-question-rests-on-the-model-design.md` in companygraph/meta-model (at `/Users/rob/git/companygraph/meta-model/`); the binding section is “The Obsidian plugin”, and “A reference whose type is read from its row” defines the form. The schema is `core/question-schema.md` at v0.45.0.
+**Spec:** `docs/superpowers/specs/2026-09-24-a-question-rests-on-the-model-design.md` in companygraph/meta-model (at `/Users/rob/git/companygraph/meta-model/`); the binding section is “The Obsidian plugin”, and “A reference whose type is read from its row” defines the form. The schema is `core/question-schema.md`, and the three exports the plugin resolves a row with are described in that repository's README, in the paragraph that opens “A `ref → by <Column> in <Owner>` row”.
 
-Every code block in Tasks 1 to 5 was run once in a throwaway copy of `main` at df1616d with meta-model v0.45.0 installed by name: `npm run typecheck` is clean, `npm test` passes whole, and each new test was seen to fail at its own task's boundary exactly as each task's Step 2 says. The e2e file in Task 6 was typechecked there but not run, because the suite takes the keyboard; Task 6 runs it, and says what to expect before and after its source change.
+Every code block in Tasks 1 to 5 was run once in a throwaway copy of `main` at df1616d with meta-model v0.46.0 installed by name and the lockfile seen to resolve its tag's commit: `npm run typecheck` is clean, `npm test` passes whole, and each new test was seen to fail at its own task's boundary exactly as each task's Step 2 says. The e2e file in Task 6 was typechecked there but not run, because the suite takes the keyboard; Task 6 runs it, and says what to expect before and after its source change.
 
 ## Global Constraints
 
 - **Branch and worktree:** `a-question-row-is-written-in-the-vault`, in `/Users/rob/git/companygraph/obsidian-plugin-a-question-row-is-written-in-the-vault`, which holds this plan. The clone stays on `main`. Never commit on `main`.
 - **`export PATH=/opt/homebrew/bin:$PATH`** before `node`, `npm` or `gh`. The remote is ssh, so a push goes to the https URL and names the credential helper: `git -c credential.helper='!/opt/homebrew/bin/gh auth git-credential' push -u https://github.com/companygraph/obsidian-plugin.git a-question-row-is-written-in-the-vault`.
-- **The pin is meta-model v0.45.0**, whose tag is commit `64f8ec3748c0ffd95f359caf11f0f32853b990fc` and whose core is 0.40.0. It also takes in v0.43.0, the CLI menu, and v0.44.0, core 0.39.0's duplicate-frontmatter-key check and the fourth skill `companygraph-profile`. Move it by installing the package by name, `npm install companygraph-meta-model@github:companygraph/meta-model#v0.45.0`, never by editing the line, and prove `package-lock.json` moved; `test/pin.test.ts` holds package.json's spec, the lockfile entry and the installed version together from Task 1 on. Never install `@codemirror/state` or `@codemirror/view` by name.
+- **The pin is meta-model v0.46.0**, whose tag is commit `c8d4f2b5d31c264a4d8cf26a0c1026b918122191` and whose core is 0.40.0. It also takes in v0.43.0, the CLI menu; v0.44.0, core 0.39.0's duplicate-frontmatter-key check and the fourth skill `companygraph-profile`; v0.45.0, core 0.40.0's `question` and the form; and v0.46.0, the row rule exported as `ownerTypesOf`, `rowScope` and `resolveRow`. Move it by installing the package by name, `npm install companygraph-meta-model@github:companygraph/meta-model#v0.46.0`, never by editing the line, and prove `package-lock.json` moved; `test/pin.test.ts` holds package.json's spec, the lockfile entry and the installed version together from Task 1 on. Never install `@codemirror/state` or `@codemirror/view` by name.
 - **This release goes before any instance takes core 0.40.0.** An older parser throws R4 on the first question row, and the plugin refuses a vault whose core is newer than the checker it bundles, so 0.10.0 is installed in the owner's vault before robertblust/mental-model or companygraph/mental-model upgrades its core. That order is the spec's.
 - **A `by` row resolves within the owner its row names and never within the page's own place** (R4, R9): the `Type` cell names a type by its schema's name without `-schema.md`; where that type is owned (R10) the `Owner` cell names the owner and the name resolves among what that owner owns; where it is not owned the `Owner` cell is blank. Backticks around a `Type`, `Entity` or `Owner` cell are not part of what it names, as the parser strips them. Anything else names nothing.
-- **No rule is implemented here that the package exports.** The parser's `resolveBy` is a closure the package does not export, so `scope.ts` resolves a row from the package's `TYPES` and the owner's folder, as `visibleIn` already does, and `AGENTS.md` says so in Task 3.
+- **No rule is implemented here that the package exports.** A row is resolved by the package's `resolveRow`, the `Entity` cell's completion is the package's `rowScope`, and the owner type of a row's type is the package's `ownerTypesOf`; the plugin only reads the row's cells, bare, and hands them over. Each of the three reads the schemas again on every call and keeps nothing, so the plugin calls `ownerTypesOf` once per vocabulary load, which is once per rebuild, and `rowScope` or `resolveRow` once per `by` cell it resolves or completes: per completion request in an `Entity` cell, and per `by` cell in a pass of the marks, the references pane or a rename or delete plan, never per drawn frame. `AGENTS.md` lists the three among the package readers the plugin calls, in Task 3.
 - **A module that imports `obsidian` or `@codemirror/` cannot be loaded by the unit suite.** `namelinks.ts` and `suggest.ts` change in Task 6 only, held by `e2e/question.e2e.ts`; everything else that decides lives in a pure module with its test beside it.
 - **The e2e fixture is the reference instance at the commit `scripts/fixtures.mjs` names, on core 0.37.0,** and no instance carries a question yet, so `scripts/fixtures.mjs` does not change: `e2e/question.e2e.ts` writes the bundled release's `question-schema.md` and one question into its own vault copy, as `e2e/picture.e2e.ts` writes the profile schema. The unit fixture `test/fixtures/meta-model` follows the pin by itself and brings the example's three questions.
 - **`npm run e2e` opens a window and takes the keyboard while it runs**, on a vault copy and a user-data folder of its own. Say so to the owner before starting it, and do not run it while he is typing.
@@ -35,12 +35,12 @@ Every code block in Tasks 1 to 5 was run once in a throwaway copy of `main` at d
 1. **Backticks around a row's cells**, `` `experience` ``, `` `Mira Halvorsen` ``, as the parser's own comment says a row is written: the name resolves and is spanned without them, and completion reads the type and owner through them. Pinned in Task 3 (“backticks around a Type, Entity or Owner cell are not part of what it names, as the parser reads the row”) and Task 5 (the Entity test's `` `Tomas Reyes` `` row).
 2. **A row naming a name its owner does not hold, while another owner, or the page's own place, holds it**: nothing resolves, so it is marked as naming nothing, listed under nobody and never rewritten by a rename. Pinned in Task 3 (the `inTomas` case), Task 4 (“a row naming another owner's name names nothing”, “a row naming the same name under another owner is not the renamed entity's”) and Task 6 (the unresolved mark in Obsidian).
 3. **An owned type with a blank `Owner` cell, or an unowned type with a filled one**: the name resolves to nothing, and completion offers nothing for the `Entity` cell until the owner is named rather than every profile's experiences. Pinned in Task 3 (`resolveIn` with `""` and with an owner on `feature`) and Task 5 (“an owned type waits for its owner”).
-4. **A `Type` cell that is blank, capitalized or names no declared type**: no crash, no resolution, nothing offered. Pinned in Task 3 (`names("Experience", "Mira Halvorsen")` and the blank `Type` row) and Task 5 (“no type, nothing to offer”).
+4. **A `Type` cell that is blank, capitalized or names no declared type**: no crash, no resolution, nothing offered. Pinned in Task 3 (the `Experience` case and the blank `Type` row) and Task 5 (“no type, nothing to offer”).
 5. **Renaming an owner, whose folder moves**: every `Owner` cell naming it is rewritten, and every row still resolves afterwards. Pinned in Task 4 (“renaming an owner rewrites every Owner cell that names it, and the rows still resolve” and “renaming any entity of the example, questions among them, leaves the checks clean”) and Task 6 (the owner renamed in Obsidian).
 
 ---
 
-### Task 1: The checker is meta-model v0.45.0
+### Task 1: The checker is meta-model v0.46.0
 
 The re-pin comes first and alone, because the checks for the form, the parser's edge and `question` in New entity all arrive with the package and need no code here; this task proves each of them. The skills test is the one thing v0.44.0 breaks: the release carries a fourth skill, and the README's “three skills” goes with it.
 
@@ -52,7 +52,7 @@ The re-pin comes first and alone, because the checks for the form, the parser's 
 **Interfaces:**
 
 - Consumes: nothing.
-- Produces: `test/fixtures/meta-model` at v0.45.0, whose `example/model/questions/` holds `who-split-billing-out-of-the-monolith.md` (one row, `experience` “Splitting the billing domain” owned by `profile` “Mira Halvorsen”), `how-do-i-find-out-why-a-line-is-on-my-invoice.md` (two rows of the unowned `feature`) and `does-beacon-systems-publish-its-revenue.md` (no rows); and `core/question-schema.md`. Every later task's tests read these.
+- Produces: `test/fixtures/meta-model` at v0.46.0, whose `example/model/questions/` holds `who-split-billing-out-of-the-monolith.md` (one row, `experience` “Splitting the billing domain” owned by `profile` “Mira Halvorsen”), `how-do-i-find-out-why-a-line-is-on-my-invoice.md` (two rows of the unowned `feature`) and `does-beacon-systems-publish-its-revenue.md` (no rows); and `core/question-schema.md`. Every later task's tests read these.
 
 - [ ] **Step 1: Install and see the suite green on v0.42.0**
 
@@ -92,17 +92,17 @@ Expected: `pass 4`, `fail 0`; then the message `package-lock.json installs anoth
 - [ ] **Step 3: Move the pin by name and prove the lockfile moved**
 
 ```bash
-npm install companygraph-meta-model@github:companygraph/meta-model#v0.45.0 > /dev/null 2>&1; echo "re-pin $?"
+npm install companygraph-meta-model@github:companygraph/meta-model#v0.46.0 > /dev/null 2>&1; echo "re-pin $?"
 grep '"companygraph-meta-model"' package.json
 node -e 'const p=require("./package-lock.json").packages["node_modules/companygraph-meta-model"];console.log(p.version,p.resolved)'
-gh api repos/companygraph/meta-model/commits/v0.45.0 --jq .sha
+gh api repos/companygraph/meta-model/commits/v0.46.0 --jq .sha
 node -e 'console.log(require("./node_modules/companygraph-meta-model/package.json").version)'
 npm run -s notices; git diff --stat
 ```
 
-Expected: `re-pin 0`; `"companygraph-meta-model": "github:companygraph/meta-model#v0.45.0",`; `0.45.0 git+ssh://git@github.com/companygraph/meta-model.git#64f8ec3748c0ffd95f359caf11f0f32853b990fc`; the same sha from `gh`; `0.45.0` installed; `NOTICE written: …`, and `NOTICE`, `package-lock.json` and `package.json` the only files moved besides `test/pin.test.ts`.
+Expected: `re-pin 0`; `"companygraph-meta-model": "github:companygraph/meta-model#v0.46.0",`; `0.46.0 git+ssh://git@github.com/companygraph/meta-model.git#c8d4f2b5d31c264a4d8cf26a0c1026b918122191`; the same sha from `gh`; `0.46.0` installed; `NOTICE written: …`, and `NOTICE`, `package-lock.json` and `package.json` the only files moved besides `test/pin.test.ts`.
 
-- [ ] **Step 4: See what the three releases break**
+- [ ] **Step 4: See what the four releases break**
 
 ```bash
 npm run -s typecheck; echo "typecheck $?"
@@ -110,6 +110,8 @@ npm test 2>&1 | grep -E "^✖ |^ℹ (pass|fail)" | sort -u
 ```
 
 `npm test` fetches the meta-model fixture at the new tag first. Expected: `typecheck 0`, and one failure, `the release the build carries is the one installed: its version, its core and Claude's three skills`, whose diff shows `'companygraph-profile'` among the skills. Nothing else fails: the example's three questions parse and pass the checks, and today the plugin reads a `by` column as a declaration of no type it knows, so it offers, marks and resolves nothing there rather than throwing.
+
+One thing v0.46.0 changes that the plugin could see: the parser's R4 text for a row whose `Type` cell is empty now reads `has no type in its row` where it read `is of type "", which no schema declares`. The plugin shows a parser message only when the checks found nothing and the parser threw all the same (`buildModel`), no test here quotes either text, and `grep -rn 'which no schema declares' src test/*.ts e2e` finds nothing, so nothing moves with it.
 
 - [ ] **Step 5: The skills are the release's, whatever their number**
 
@@ -216,9 +218,9 @@ sh conventions/conventions-format > /dev/null; echo "format $?"
 sh conventions/conventions-check > /dev/null; echo "prose $?"
 git add package.json package-lock.json NOTICE README.md test/pin.test.ts test/instantiate.test.ts test/model.test.ts test/locate.test.ts test/links.test.ts test/scaffold.test.ts
 git commit -F - <<'EOF'
-The checker is meta-model v0.45.0, which knows the question
+The checker is meta-model v0.46.0, which knows the question
 
-The pin moves from v0.42.0 to v0.45.0, installed by name, and takes three releases in: the CLI menu in v0.43.0, the duplicate frontmatter key check and the profile skill in v0.44.0, and core 0.40.0's question with its reference form `ref → by <Column> in <Owner>` in v0.45.0. The pin test now holds package.json's spec, the lockfile's entry and the installed package together, since a lockfile left behind builds green on the older release; it was seen failing on a lockfile set back by hand.
+The pin moves from v0.42.0 to v0.46.0, installed by name, and takes four releases in: the CLI menu in v0.43.0, the duplicate frontmatter key check and the profile skill in v0.44.0, core 0.40.0's question with its reference form `ref → by <Column> in <Owner>` in v0.45.0, and in v0.46.0 the rule that resolves such a row, exported for the plugin to call. The pin test now holds package.json's spec, the lockfile's entry and the installed package together, since a lockfile left behind builds green on the older release; it was seen failing on a lockfile set back by hand.
 
 The checks for the form, the edge a question row draws and `question` in New entity all arrive with the package, and new tests hold each of them here: a row naming an owner that is not there fails by name and lands on its row, the graph view links a question to what it rests on and not to its owner, and a question's scaffold passes the checks. The release carries a fourth skill, so the skills test and the README stop counting them.
 
@@ -229,7 +231,7 @@ EOF
 git log -1 --format='[%s]'
 ```
 
-Expected: `typecheck 0`, `fail 0`, `format 0`, `prose 0`, and `[The checker is meta-model v0.45.0, which knows the question]`.
+Expected: `typecheck 0`, `fail 0`, `format 0`, `prose 0`, and `[The checker is meta-model v0.46.0, which knows the question]`.
 
 ### Task 2: The vocabulary reads a type from the row
 
@@ -240,8 +242,8 @@ Expected: `typecheck 0`, `fail 0`, `format 0`, `prose 0`, and `[The checker is m
 
 **Interfaces:**
 
-- Consumes: `declarationOf` from `companygraph-meta-model/instance`, which at v0.45.0 returns `{ form: "ref", target: null, by: string, in: string | null }` for the form and `{ form, target }` otherwise.
-- Produces, in `src/vocabulary.ts`: the `Offer` kinds `{ kind: "by"; by: string; in: string | null }` for the column whose type comes from its row, `{ kind: "types" }` for the column its `by` names, and `{ kind: "owner"; by: string }` for the column its `in` names; a field or a grouped heading declared `by` offers `{ kind: "none" }`; and `export const bare: (cell: string | undefined) => string`, a cell with its backticks off and trimmed. A question's `## Rests on` columns read `Type` → `types`, `Entity` → `by`, `Owner` → `owner`, `For` → `none`.
+- Consumes: from `companygraph-meta-model/instance`, `declarationOf`, which returns `{ form: "ref", target: null, by: string, in: string | null }` for the form and `{ form, target }` otherwise, and `ownerTypesOf(schemas: Map<string, string>): Map<string, string>`, every owned type mapped to its owner type.
+- Produces, in `src/meta-model.d.ts`: the declaration's union, and the types of `ownerTypesOf`, `rowScope` and `resolveRow` with `RowEntity` (`{ type, name, path }`, which the plugin's `Named` fits) and `RowError` (`{ error: string; subject: "value" | "owner" }`); `rowScope` returns `{ within }` or a `RowError`, `resolveRow` `{ entity }` or a `RowError`. In `src/vocabulary.ts`: the `Offer` kinds `{ kind: "by"; by: string; in: string | null; schemas: Map<string, string> }` for the column whose type comes from its row, carrying the schemas the vocabulary was read from, which `rowScope` and `resolveRow` take; `{ kind: "types"; types: string[] }` for the column its `by` names, every type the schemas declare, sorted; and `{ kind: "owner"; by: string; owners: Map<string, string> }` for the column its `in` names, `owners` being `ownerTypesOf(schemas)`, read once per `vocabularyOf` call; a field or a grouped heading declared `by` offers `{ kind: "none" }`; and `export const bare: (cell: string | undefined) => string`, a cell with its backticks off and trimmed. A question's `## Rests on` columns read `Type` → `types`, `Entity` → `by`, `Owner` → `owner`, `For` → `none`. Task 3 is the first to call `rowScope` and `resolveRow`; they are declared here with `ownerTypesOf` so the three sit together.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -254,13 +256,16 @@ Append to `test/vocabulary.test.ts`:
 const REFERENCE_BY = "ref → by Type in Owner";
 
 test("a question's Rests on reads its entity's type and owner from the row", () => {
+  const schemas = schemasOf(example(), EXAMPLE);
   const rests = vocabulary.get("question")!.sections.find((s) => s.heading === "Rests on")!;
   assert.deepEqual(rests.columns, [
-    { name: "Type", offer: { kind: "types" } },
-    { name: "Entity", offer: { kind: "by", by: "Type", in: "Owner" } },
-    { name: "Owner", offer: { kind: "owner", by: "Type" } },
+    { name: "Type", offer: { kind: "types", types: [...vocabulary.keys()].sort((a, b) => a.localeCompare(b)) } },
+    { name: "Entity", offer: { kind: "by", by: "Type", in: "Owner", schemas } },
+    { name: "Owner", offer: { kind: "owner", by: "Type", owners: ownerTypesOf(schemas) } },
     { name: "For", offer: { kind: "none" } },
   ]);
+  const owner = rests.columns![2].offer;
+  assert.ok(owner.kind === "owner" && owner.owners.get("experience") === "profile" && !owner.owners.has("feature"));
 });
 
 test("a `by` with no `in` leaves the owner column a string, and a `by` on a field offers nothing", () => {
@@ -269,7 +274,8 @@ test("a `by` with no `in` leaves the owner column a string, and a `by` on a fiel
   assert.ok(question.includes(REFERENCE_BY) && question.includes("| `source-id` | No | string |"));
   const bare = vocabularyOf(new Map(schemas).set("question-schema.md", question.replace(REFERENCE_BY, "ref → by Type")));
   const rests = bare.get("question")!.sections.find((s) => s.heading === "Rests on")!;
-  assert.deepEqual(rests.columns!.map((c) => c.offer), [{ kind: "types" }, { kind: "by", by: "Type", in: null }, { kind: "none" }, { kind: "none" }]);
+  assert.deepEqual(rests.columns!.map((c) => c.offer.kind), ["types", "by", "none", "none"]);
+  assert.ok(rests.columns![1].offer.kind === "by" && rests.columns![1].offer.in === null);
   const field = vocabularyOf(new Map(schemas).set("question-schema.md", question.replace("| `source-id` | No | string |", "| `source-id` | No | ref → by Type |")));
   assert.deepEqual(field.get("question")!.fields.find((f) => f.name === "source-id")!.offer, { kind: "none" });
 });
@@ -293,10 +299,10 @@ Apply this diff (save it to a file and run `git apply` on it, or edit to match):
 
 ```diff
 diff --git a/src/meta-model.d.ts b/src/meta-model.d.ts
-index 8391853..38fd6ec 100644
+index 8391853..74ba9ba 100644
 --- a/src/meta-model.d.ts
 +++ b/src/meta-model.d.ts
-@@ -47,7 +47,12 @@ declare module "companygraph-meta-model/instance" {
+@@ -47,8 +47,28 @@ declare module "companygraph-meta-model/instance" {
    export interface Graph { entities: Entity[]; edges: unknown[]; types: unknown[]; root: string; rootId: string | null }
    export function parseInstance(files: Map<string, string>, options: { sub?: string; schemas: Map<string, string> }): Graph;
    export function parseSchemas(files: Map<string, string>, options?: { sub?: string }): Graph;
@@ -308,29 +314,55 @@ index 8391853..38fd6ec 100644
 +    | { form: "ref" | "ref?" | "qualifier"; target: string; by?: undefined; in?: undefined }
 +    | { form: "ref"; target: null; by: string; in: string | null };
    export function declarationOf(cell: string | undefined): Declaration | null;
++  // A `ref → by <Column> in <Owner>` row (R4, R9), resolved by the rule the parser resolves it
++  // by. `schemas` is keyed `<type>-schema.md`; an entity needs only `{ type, name, path }`; the
++  // row's cells are passed bare. Each call reads the schemas again and keeps nothing.
++  export interface RowEntity { type: string; name: string; path: string }
++  export type RowError = { error: string; subject: "value" | "owner" };
++  // Every owned type mapped to its owner type, from the schemas' `**Owner:**` lines (R10).
++  export function ownerTypesOf(schemas: Map<string, string>): Map<string, string>;
++  // What a row's Type and Owner cells narrow the entities down to.
++  export function rowScope<E extends RowEntity>(entities: E[], schemas: Map<string, string>, row: { type: string; owner?: string }):
++    | { within: E[]; error?: undefined }
++    | (RowError & { within?: undefined });
++  // The one entity a row's name names within that scope.
++  export function resolveRow<E extends RowEntity>(entities: E[], schemas: Map<string, string>, row: { type: string; name: string; owner?: string }):
++    | { entity: E; error?: undefined }
++    | (RowError & { entity?: undefined });
  }
  
+ declare module "companygraph-meta-model/plan" {
 diff --git a/src/vocabulary.ts b/src/vocabulary.ts
-index 9a7cfa4..7c9f893 100644
+index 9a7cfa4..b44cd0f 100644
 --- a/src/vocabulary.ts
 +++ b/src/vocabulary.ts
-@@ -12,6 +12,15 @@ export type Offer =
+@@ -1,7 +1,7 @@
+ // What each type's schema declares, in the shape completion asks for. Every Type cell goes
+ // through the package's one reader, declarationOf, and every enum's values through
+ // enumTokensOf; this file reads tables by their column names and interprets nothing.
+-import { parseSchemas, declarationOf } from "companygraph-meta-model/instance";
++import { parseSchemas, declarationOf, ownerTypesOf } from "companygraph-meta-model/instance";
+ import type { Table } from "companygraph-meta-model/instance";
+ import { enumTokensOf, COLUMN_CAPTION, HEADING_CAPTION } from "companygraph-meta-model/checks";
+ 
+@@ -12,6 +12,16 @@ export type Offer =
    | { kind: "values"; values: string[] } // an enum's permitted values
    // R9's `image`: a file beside the note. Nothing is offered for it; the editor draws it.
    | { kind: "image" }
 +  // `ref → by <Column> in <Owner>` (R4, R9): the names of the type the same row's `by` cell
-+  // names, within the owner its `in` cell names where that type is owned. Legal in a column
-+  // table only; a field declared so is the checks' finding, and offers nothing here.
-+  | { kind: "by"; by: string; in: string | null }
-+  // The column a `by` column reads its type from: the types the vault's core declares.
-+  | { kind: "types" }
++  // names, within the owner its `in` cell names where that type is owned, resolved by the
++  // package's `rowScope` and `resolveRow` against `schemas`, the map the vocabulary was read
++  // from. Legal in a column table only; a field declared so is the checks' finding.
++  | { kind: "by"; by: string; in: string | null; schemas: Map<string, string> }
++  // The column a `by` column reads its type from: every type the vault's core declares, sorted.
++  | { kind: "types"; types: string[] }
 +  // The column a `by … in` column reads its owner from: the names of the type that owns the type
-+  // the same row's `by` cell names.
-+  | { kind: "owner"; by: string }
++  // the same row's `by` cell names, looked up in `owners`, the package's `ownerTypesOf`.
++  | { kind: "owner"; by: string; owners: Map<string, string> }
    | { kind: "none" };
  
  export interface Field { name: string; required: boolean; list: boolean; offer: Offer }
-@@ -20,16 +29,35 @@ export interface Column { name: string; offer: Offer }
+@@ -20,30 +30,53 @@ export interface Column { name: string; offer: Offer }
  export interface SectionDecl { heading: string; required: boolean; columns: Column[] | null; grouped?: Offer | null }
  export interface TypeVocabulary { fields: Field[]; sections: SectionDecl[] }
  
@@ -338,9 +370,10 @@ index 9a7cfa4..7c9f893 100644
 +// A cell as the package reads a schema's cells and a `by` row's type and owner: backticks off, trimmed.
 +export const bare = (cell: string | undefined) => (cell ?? "").replace(/`/g, "").trim();
  
- function offerOf(type: string | undefined, description: string | undefined): Offer {
+-function offerOf(type: string | undefined, description: string | undefined): Offer {
++function offerOf(type: string | undefined, description: string | undefined, schemas: Map<string, string>): Offer {
    const decl = declarationOf(type);
-+  if (decl?.by !== undefined) return { kind: "by", by: decl.by, in: decl.in };
++  if (decl?.by !== undefined) return { kind: "by", by: decl.by, in: decl.in, schemas };
    if (decl) return decl.form === "ref?" ? { kind: "names", target: decl.target, optional: true } : { kind: "names", target: decl.target };
    if (bare(type) === "enum") return { kind: "values", values: enumTokensOf(description ?? "") };
    if (bare(type) === "image") return { kind: "image" };
@@ -354,12 +387,13 @@ index 9a7cfa4..7c9f893 100644
 +// The columns a `by` column reads are declared `string`, and what they hold is read from the
 +// `by` declaration: its `by` column holds a type, its `in` column the owner. A column the
 +// declaration names that declares an offer of its own keeps it; the checks fail that schema.
-+function rowRead(columns: Column[]): Column[] {
++// `types` and `owners` are read once per vocabulary, which is once per rebuild.
++function rowRead(columns: Column[], types: string[], owners: Map<string, string>): Column[] {
 +  const read = new Map<string, Offer>();
 +  for (const c of columns)
 +    if (c.offer.kind === "by") {
-+      read.set(c.offer.by, { kind: "types" });
-+      if (c.offer.in) read.set(c.offer.in, { kind: "owner", by: c.offer.by });
++      read.set(c.offer.by, { kind: "types", types });
++      if (c.offer.in) read.set(c.offer.in, { kind: "owner", by: c.offer.by, owners });
 +    }
 +  return columns.map((c) => (c.offer.kind === "none" && read.has(c.name) ? { ...c, offer: read.get(c.name)! } : c));
 +}
@@ -367,28 +401,38 @@ index 9a7cfa4..7c9f893 100644
  // One row of a schema table as an object keyed by the table's own column names.
  const rowsOf = (table: Table | undefined) =>
    (table?.rows ?? []).map((row) => Object.fromEntries(table!.columns.map((c, i) => [c, row[i]])));
-@@ -43,7 +71,7 @@ export function vocabularyOf(schemas: Map<string, string>): Map<string, TypeVoca
+ 
+ export function vocabularyOf(schemas: Map<string, string>): Map<string, TypeVocabulary> {
+   const vocabulary = new Map<string, TypeVocabulary>();
+-  for (const e of parseSchemas(schemas).entities) {
++  const entities = parseSchemas(schemas).entities;
++  const types = entities.map((e) => e.id.slice("core/".length)).sort((a, b) => a.localeCompare(b));
++  const owners = ownerTypesOf(schemas);
++  for (const e of entities) {
+     const type = e.id.slice("core/".length);
+     const frontmatter = e.sections.find((s) => s.heading === "Frontmatter");
+     const fields = rowsOf(frontmatter?.table).map((r) => ({
        name: bare(r.Field),
        required: bare(r.Required) === "Yes",
        list: bare(r.Type).startsWith("array of "),
 -      offer: offerOf(r.Type, r.Description),
-+      offer: rowless(offerOf(r.Type, r.Description)),
++      offer: rowless(offerOf(r.Type, r.Description, schemas)),
      }));
  
      const tables = e.sections.find((s) => s.heading === "Sections")?.tables ?? [];
-@@ -51,13 +79,13 @@ export function vocabularyOf(schemas: Map<string, string>): Map<string, TypeVoca
+@@ -51,13 +84,13 @@ export function vocabularyOf(schemas: Map<string, string>): Map<string, TypeVoca
      for (const t of tables) {
        const section = t.caption?.match(COLUMN_CAPTION)?.[1];
        if (!section) continue;
 -      columnsBySection.set(section.trim(), rowsOf(t).map((r) => ({ name: bare(r.Column), offer: offerOf(r.Type, r.Description) })));
-+      columnsBySection.set(section.trim(), rowRead(rowsOf(t).map((r) => ({ name: bare(r.Column), offer: offerOf(r.Type, r.Description) }))));
++      columnsBySection.set(section.trim(), rowRead(rowsOf(t).map((r) => ({ name: bare(r.Column), offer: offerOf(r.Type, r.Description, schemas) })), types, owners));
      }
      const groupedBySection = new Map<string, Offer>();
      for (const t of tables) {
        const section = t.caption?.match(HEADING_CAPTION)?.[1];
        const row = rowsOf(t)[0];
 -      if (section && row) groupedBySection.set(section.trim(), offerOf(row.Type, row.Description));
-+      if (section && row) groupedBySection.set(section.trim(), rowless(offerOf(row.Type, row.Description)));
++      if (section && row) groupedBySection.set(section.trim(), rowless(offerOf(row.Type, row.Description, schemas)));
      }
      const index = tables.find((t) => !t.caption);
      const sections = rowsOf(index)
@@ -411,9 +455,9 @@ git add src/meta-model.d.ts src/vocabulary.ts test/vocabulary.test.ts
 git commit -F - <<'EOF'
 The vocabulary reads a question row's type from the row
 
-A column declared `ref → by <Column> in <Owner>` names no type: its row does, in the column its `by` names, and where that type is owned, the owner in the column its `in` names. The vocabulary now reads it as an offer of its own, and reads the two columns it names, which the schema declares `string`, as the column of types and the column of owners, so a question's `## Rests on` says what each of its columns holds. A field or a grouped heading declared that way has no row to read from; the checks fail such a schema, and nothing is offered for it here.
+A column declared `ref → by <Column> in <Owner>` names no type: its row does, in the column its `by` names, and where that type is owned, the owner in the column its `in` names. The vocabulary now reads it as an offer of its own, carrying the schemas the package's row resolver takes, and reads the two columns it names, which the schema declares `string`, as the column of types and the column of owners, the latter with the package's `ownerTypesOf` read once per vocabulary, so a question's `## Rests on` says what each of its columns holds. A field or a grouped heading declared that way has no row to read from; the checks fail such a schema, and nothing is offered for it here.
 
-The package's declaration type moved with it: `target` is null for the form, and the type check found the one reader in the plugin that assumed a string.
+The package's declaration type moved with it: `target` is null for the form, and the type check found the one reader in the plugin that assumed a string. The types of the three row exports are declared beside it.
 
 Verified: npm run typecheck, npm test (all pass), the two new vocabulary tests seen failing first.
 
@@ -428,34 +472,15 @@ Expected: `[The vocabulary reads a question row's type from the row]`.
 
 **Files:**
 
-- Modify: `src/scope.ts`, `src/references.ts`, `AGENTS.md`
-- Test: `test/scope.test.ts`, `test/references.test.ts`
+- Modify: `src/references.ts`, `AGENTS.md`
+- Test: `test/references.test.ts`
 
 **Interfaces:**
 
-- Consumes: `bare` and the `Offer` kinds `by`, `owner` from Task 2.
-- Produces, in `src/scope.ts`: `ownerTypeOf(type: string): string | null` and `withinOwner(named: Named[], type: string, owner: string): Named[]`. In `src/references.ts`: `Reference` gains `owner?: string`, set on an `Entity` cell only, to the row's `Owner` cell (`""` where blank); its `target` is then the row's `Type` cell (`""` where blank); the row's `Owner` cell is a `Reference` of its own with `target` the owning type and no `owner`; `resolveIn(named, path, model, target, name, owner?: string): string | null` resolves within `owner` when it is given and through `visibleIn` otherwise.
+- Consumes: `bare` and the `Offer` kinds `by` (with `schemas`) and `owner` (with `owners`) from Task 2; `resolveRow(entities, schemas, { type, name, owner })` from `companygraph-meta-model/instance`, typed in Task 2.
+- Produces, in `src/references.ts`: `Reference` gains `row?: { owner: string; schemas: Map<string, string> }`, set on an `Entity` cell only, `owner` being the row's `Owner` cell bare (`""` where blank); its `target` is then the row's `Type` cell bare (`""` where blank); the row's `Owner` cell is a `Reference` of its own with `target` the owning type, `owners.get(type)`, and no `row`; `resolveIn(named, path, model, target, name, row?: Reference["row"]): string | null` resolves by `resolveRow` when `row` is given and through `visibleIn` otherwise. The plugin's own `scope.ts` does not change.
 
 - [ ] **Step 1: Write the failing tests**
-
-In `test/scope.test.ts`, change `import { namedOf, namesIn } from "../src/scope.ts";` to `import { namedOf, namesIn, ownerTypeOf, withinOwner } from "../src/scope.ts";` and append:
-
-```ts
-// A `by … in` row names its owner itself (R4, R9), so what it may name is read from the row and
-// never from the page it is written in.
-test("withinOwner: an owned type's names within the owner a row names, and every other type's whole", () => {
-  const names = (type: string, owner: string) => withinOwner(named, type, owner).map((n) => n.name).sort();
-  assert.deepEqual(names("experience", "Mira Halvorsen"), ["Rebuilding the order pipeline", "Splitting the billing domain"]);
-  assert.equal(names("experience", "Tomas Reyes").length, 3);
-  assert.deepEqual(names("experience", ""), [], "an owned type with no owner named");
-  assert.deepEqual(names("experience", "Nobody"), [], "an owner that is not there");
-  assert.deepEqual(names("feature", ""), namesIn(named, MIRA, M).get("feature"));
-  assert.deepEqual(names("feature", "Mira Halvorsen"), [], "an unowned type with an owner named");
-  assert.deepEqual(names("Experience", "Mira Halvorsen"), [], "a type cell is a type's schema name, as written");
-  assert.equal(ownerTypeOf("experience"), "profile");
-  assert.equal(ownerTypeOf("feature"), null);
-});
-```
 
 Append to `test/references.test.ts`:
 
@@ -469,7 +494,7 @@ const HOW = "example/model/questions/how-do-i-find-out-why-a-line-is-on-my-invoi
 const question = vocabulary.get("question")!;
 const rowsOf = (text: string) => {
   const found = text.split("\n");
-  return referencesIn(found, question).map((r) => [r.name, r.target, r.owner, r.declared, found[r.line].slice(r.from, r.to)]);
+  return referencesIn(found, question).map((r) => [r.name, r.target, r.row?.owner, r.declared, found[r.line].slice(r.from, r.to)]);
 };
 
 test("a question row is a reference to the entity it names, carrying the owner its row names", () => {
@@ -484,17 +509,20 @@ test("a question row is a reference to the entity it names, carrying the owner i
 });
 
 test("a question row's name resolves within the owner its row names, never within the page's place", () => {
-  const within = (name: string, type: string, owner: string) => resolveIn(named, WHO, EXAMPLE.model, type, name, owner);
+  const schemas = schemasOf(files, EXAMPLE);
+  const within = (name: string, type: string, owner: string) => resolveIn(named, WHO, EXAMPLE.model, type, name, { owner, schemas });
   assert.match(within("Splitting the billing domain", "experience", "Mira Halvorsen")!, /mira-halvorsen\/experiences\//);
   assert.equal(within("Splitting the billing domain", "experience", "Tomas Reyes"), null, "another owner's row");
   assert.equal(within("Splitting the billing domain", "experience", ""), null, "an owned type with no owner named");
   assert.equal(within("Charge explanation", "feature", ""), "example/model/features/charge-explanation.md");
   assert.equal(within("Charge explanation", "feature", "Mira Halvorsen"), null, "an unowned type with an owner named");
   assert.equal(within("Charge explanation", "", ""), null, "a blank Type cell names no type");
+  assert.equal(within("Splitting the billing domain", "Experience", "Mira Halvorsen"), null, "a type is its schema's name, as written");
+  assert.equal(within("Splitting the billing domain", "experience", "Nobody"), null, "an owner that is not there");
   // Written inside Tomas's own folder, a name of an owned type is his by the page's place; a row
   // that names Mira still resolves within Mira.
   const inTomas = "example/model/profiles/tomas-reyes/tomas-reyes.md";
-  assert.match(resolveIn(named, inTomas, EXAMPLE.model, "experience", "Splitting the billing domain", "Mira Halvorsen")!, /mira-halvorsen\//);
+  assert.match(resolveIn(named, inTomas, EXAMPLE.model, "experience", "Splitting the billing domain", { owner: "Mira Halvorsen", schemas })!, /mira-halvorsen\//);
   assert.equal(resolveIn(named, inTomas, EXAMPLE.model, "experience", "Splitting the billing domain"), null);
 });
 
@@ -525,31 +553,30 @@ test("an empty Entity cell is no reference, a blank Type cell leaves no type, an
 
 - [ ] **Step 2: Run them to see them fail**
 
-Run: `node --test test/scope.test.ts test/references.test.ts 2>&1 | grep -E "^✖ |^ℹ (pass|fail)|does not provide" | sort -u`
+Run: `node --test test/references.test.ts 2>&1 | grep -E "^✖ |^ℹ (pass|fail)" | sort -u`
 
-Expected: `test/scope.test.ts` does not load, `The requested module '../src/scope.ts' does not provide an export named 'ownerTypeOf'`; in `test/references.test.ts` the four new tests fail, since today no cell of the `by` column is read as a reference.
+Expected: the four new tests fail, since today no cell of the `by` column is read as a reference and `resolveIn` takes no row. (`npm run -s typecheck` also names the test's `row?.owner` and its object arguments to `resolveIn`, which Step 3 makes true.)
 
-- [ ] **Step 3: Resolve within the row's owner**
+- [ ] **Step 3: Resolve a row by the package's rule**
 
 Apply this diff:
 
 ```diff
 diff --git a/src/references.ts b/src/references.ts
-index 00d8760..6f433fb 100644
+index 00d8760..25b8730 100644
 --- a/src/references.ts
 +++ b/src/references.ts
-@@ -5,8 +5,9 @@
+@@ -4,7 +4,9 @@
+ // Obsidian-facing modules' business. A qualifier counts as much as a reference, since both name
  // an entity; what differs is only whether the model draws an edge, which is links.ts's concern.
  import { tableOf } from "companygraph-meta-model/checks";
++import { resolveRow } from "companygraph-meta-model/instance";
  import { frontmatterEnd } from "./context.ts";
 +import { bare } from "./vocabulary.ts";
  import type { TypeVocabulary } from "./vocabulary.ts";
--import { visibleIn } from "./scope.ts";
-+import { ownerTypeOf, visibleIn, withinOwner } from "./scope.ts";
+ import { visibleIn } from "./scope.ts";
  import type { Named } from "./scope.ts";
- 
- export interface Reference {
-@@ -14,11 +15,17 @@ export interface Reference {
+@@ -14,11 +16,18 @@ export interface Reference {
    from: number;   // the name's first character on that line
    to: number;     // one past its last
    name: string;
@@ -562,13 +589,14 @@ index 00d8760..6f433fb 100644
    // `## Section` for the heading of a grouped section. A references list says it beside the name.
    declared: string;
 +  // Set on a cell of a `ref → by <Column> in <Owner>` column only (R4, R9): the owner its row's
-+  // `in` cell names, "" where it is blank or the form has no `in`. Such a name resolves within
-+  // that owner and never within the page's own place, as the parser resolves it.
-+  owner?: string;
++  // `in` cell names, "" where it is blank or the form has no `in`, and the schemas the row is
++  // read against. Such a name resolves by the package's `resolveRow`, within that owner and never
++  // within the page's own place, as the parser resolves it.
++  row?: { owner: string; schemas: Map<string, string> };
  }
  
  type Offer = TypeVocabulary["fields"][number]["offer"];
-@@ -27,8 +34,9 @@ const optionalOf = (offer: Offer) => offer.kind === "names" && offer.optional ==
+@@ -27,8 +36,9 @@ const optionalOf = (offer: Offer) => offer.kind === "names" && offer.optional ==
  
  // The span of a value as written, with surrounding quotes and spaces left out of it. In
  // frontmatter a YAML comment after it is left out as well: a `#` after a space, outside quotes.
@@ -580,7 +608,7 @@ index 00d8760..6f433fb 100644
    let from = start, to = text.length;
    const value = text.slice(start).trimStart();
    if (yaml && !/^["']/.test(value)) {
-@@ -38,6 +46,7 @@ function span(line: number, text: string, start: number, target: string, optiona
+@@ -38,6 +48,7 @@ function span(line: number, text: string, start: number, target: string, optiona
    while (from < to && /\s/.test(text[from])) from++;
    while (to > from && /\s/.test(text[to - 1])) to--;
    if (to - from >= 2 && /^["']$/.test(text[from]) && text[to - 1] === text[from]) { from++; to--; }
@@ -588,7 +616,7 @@ index 00d8760..6f433fb 100644
    return to > from ? { line, from, to, name: text.slice(from, to), target, optional, declared } : null;
  }
  
-@@ -126,20 +135,42 @@ export function referencesIn(lines: string[], vocabulary: TypeVocabulary): Refer
+@@ -126,20 +137,42 @@ export function referencesIn(lines: string[], vocabulary: TypeVocabulary): Refer
      // not read as a table holds no references.
      const header = columns ? tableOf(lines.slice(line, last + 1).join("\n"))?.columns : undefined;
      if (columns && header)
@@ -612,12 +640,12 @@ index 00d8760..6f433fb 100644
 +          const text = lines[row].slice(0, cell.to);
 +          if (offer.kind === "by") {
 +            const ref = span(row, text, cell.from, cellOf(offer.by), false, declared, false, true);
-+            if (ref) out.push({ ...ref, owner: cellOf(offer.in) });
++            if (ref) out.push({ ...ref, row: { owner: cellOf(offer.in), schemas: offer.schemas } });
 +            return;
 +          }
 +          // The owner cell of a `by … in` row names an entity of the type that owns the row's
 +          // type, as a qualifier names one: listed, marked and renamed, drawing no edge.
-+          const target = offer.kind === "owner" ? ownerTypeOf(cellOf(offer.by)) : targetOf(offer);
++          const target = offer.kind === "owner" ? offer.owners.get(cellOf(offer.by)) ?? null : targetOf(offer);
 +          const ref = target ? span(row, text, cell.from, target, optionalOf(offer), declared, false, offer.kind === "owner") : null;
            if (ref) out.push(ref);
          });
@@ -630,61 +658,31 @@ index 00d8760..6f433fb 100644
  // The file of the entity a name names, from the file at `path`, as the checks resolve it: by
 -// the declared type, and for an owned type within the owner the file is in. null: it names none.
 -export function resolveIn(named: Named[], path: string, model: string, target: string, name: string): string | null {
--  return visibleIn(named, path, model).find((n) => n.type === target && n.name === name)?.path ?? null;
-+// the declared type, and for an owned type within the owner the file is in; or, given `owner`,
-+// the one a `by` reference's row names, within that owner and never the file's own place
-+// (R4, R9). null: it names none.
-+export function resolveIn(named: Named[], path: string, model: string, target: string, name: string, owner?: string): string | null {
-+  const among = owner === undefined ? visibleIn(named, path, model) : withinOwner(named, target, owner);
-+  return among.find((n) => n.type === target && n.name === name)?.path ?? null;
++// the declared type, and for an owned type within the owner the file is in; or, given a `by`
++// reference's `row`, by the package's `resolveRow`, within the owner its row names and never
++// the file's own place (R4, R9). null: it names none.
++export function resolveIn(named: Named[], path: string, model: string, target: string, name: string, row?: Reference["row"]): string | null {
++  if (row) return resolveRow(named, row.schemas, { type: target, name, owner: row.owner }).entity?.path ?? null;
+   return visibleIn(named, path, model).find((n) => n.type === target && n.name === name)?.path ?? null;
  }
-diff --git a/src/scope.ts b/src/scope.ts
-index 193fde3..c0e897a 100644
---- a/src/scope.ts
-+++ b/src/scope.ts
-@@ -39,3 +39,24 @@ export function namesIn(named: Named[], path: string, model: string): Map<string
-   for (const n of visibleIn(named, path, model)) byType.get(n.type)!.push(n.name);
-   return new Map([...byType].map(([type, names]) => [type, sorted(names)]));
- }
-+
-+// The type that owns `type` (R10), as the package lists it, or null where nothing does.
-+export function ownerTypeOf(type: string): string | null {
-+  return TYPES.find((t) => t.type === type)?.owner ?? null;
-+}
-+
-+// The entities a row of a `ref → by <Column> in <Owner>` column may name as a `type` (R4, R9),
-+// with `owner` the owner its row names, "" where it names none. The page the row is written in
-+// is never consulted: of an owned type, those within the named owner, and none where the row
-+// names no owner, names one that is not there, or names a type whose owner is itself owned; of
-+// any other type, all of them, and none where the row names an owner it cannot have.
-+export function withinOwner(named: Named[], type: string, owner: string): Named[] {
-+  const ownerType = ownerTypeOf(type);
-+  if (!ownerType) return owner ? [] : named.filter((n) => n.type === type);
-+  if (!owner || ownerTypeOf(ownerType)) return [];
-+  const held = named.find((n) => n.type === ownerType && n.name === owner);
-+  if (!held) return [];
-+  // An owner's file is `<its folder>/<slug>.md`, and what it owns sits under that folder.
-+  const folder = held.path.slice(0, held.path.lastIndexOf("/") + 1);
-+  return named.filter((n) => n.type === type && n.path.startsWith(folder));
-+}
 ```
 
 - [ ] **Step 4: Run the tests to see them pass**
 
 ```bash
 npm run -s typecheck; echo "typecheck $?"
-node --test test/scope.test.ts test/references.test.ts 2>&1 | grep -E "^ℹ (pass|fail)"
+node --test test/references.test.ts 2>&1 | grep -E "^ℹ (pass|fail)"
 npm test 2>&1 | grep -E "^ℹ (pass|fail)"
 ```
 
-Expected: `typecheck 0`, then `fail 0` twice. `namelinks.ts`, `refs.ts` and `refactor.ts` still call `resolveIn` with five arguments, which type-checks and resolves a row through the page's place until Tasks 4 and 6 pass the `owner` on.
+Expected: `typecheck 0`, then `fail 0` twice. `namelinks.ts`, `refs.ts` and `refactor.ts` still call `resolveIn` with five arguments, which type-checks and resolves a row through the page's place until Tasks 4 and 6 pass the `row` on.
 
-- [ ] **Step 5: Say in AGENTS.md what the plugin reads for itself**
+- [ ] **Step 5: Name the three in AGENTS.md among the package readers the plugin calls**
 
-In `AGENTS.md`, in the paragraph that opens `What the plugin reads for itself is stated here`, directly after the sentence that ends with the words “what the columns are called it takes from `tableOf`.”, insert this sentence:
+In `AGENTS.md`, in the paragraph that opens with “**A rule the plugin needs that the package does not export**”, replace its last sentence, the one that opens “Where the package exports a reader the plugin calls it:”, with this one, so the row rule is said to be the package's and nothing is added to the paragraph of what the plugin reads for itself:
 
 ```markdown
-A row of a `ref → by <Column> in <Owner>` column is resolved by `src/scope.ts` within the owner the row names, from the package's `TYPES` and the owner's folder, because the parser's `resolveBy` is a closure the package does not export; and `src/vocabulary.ts` takes from that declaration which columns hold the row's type and its owner.
+Where the package exports a reader the plugin calls it: `tableOf`, `sectionsOf`, `typeOfPath`, `declarationOf`, `enumTokensOf`, `isNewer`, and for a `ref → by <Column> in <Owner>` row, `ownerTypesOf`, `rowScope` and `resolveRow`.
 ```
 
 - [ ] **Step 6: Check and commit**
@@ -692,15 +690,13 @@ A row of a `ref → by <Column> in <Owner>` column is resolved by `src/scope.ts`
 ```bash
 sh conventions/conventions-format > /dev/null; echo "format $?"
 sh conventions/conventions-check > /dev/null; echo "prose $?"
-git add src/scope.ts src/references.ts AGENTS.md test/scope.test.ts test/references.test.ts
+git add src/references.ts AGENTS.md test/references.test.ts
 git commit -F - <<'EOF'
 A question row names an entity within its row's owner
 
-A question's `## Rests on` row names an entity of the type its `Type` cell names, within the owner its `Owner` cell names where that type is owned, and the parser never consults the page the row is written on. The reader of a file's references now yields the `Entity` cell as a reference whose type is the row's and which carries the row's owner, and the `Owner` cell as a reference to the owning type, as a qualifier names an entity and draws no edge. `resolveIn` takes that owner and resolves within it through the new `withinOwner`, so a name the row's owner does not hold resolves to nothing even where another owner, or the page's own place, holds it. Backticks around a cell are left out of the name, as the parser leaves them out.
+A question's `## Rests on` row names an entity of the type its `Type` cell names, within the owner its `Owner` cell names where that type is owned, and the parser never consults the page the row is written on. The reader of a file's references now yields the `Entity` cell as a reference whose type is the row's and which carries the row's owner, and the `Owner` cell as a reference to the owning type, as a qualifier names an entity and draws no edge. `resolveIn` hands such a row to the package's `resolveRow`, the rule the parser resolves it by, so a name the row's owner does not hold resolves to nothing even where another owner, or the page's own place, holds it. Backticks around a cell are left out of the name, as the parser leaves them out, and AGENTS.md names the package's three row readers among those the plugin calls.
 
-The parser's own resolver is a closure the package does not export, so the plugin reads the owner from the package's `TYPES` and the owner's folder, as it already does for a page's place, and AGENTS.md says so.
-
-Verified: npm run typecheck, npm test (all pass), the new scope and references tests seen failing first, sh conventions/conventions-format and sh conventions/conventions-check exit 0.
+Verified: npm run typecheck, npm test (all pass), the four new references tests seen failing first, sh conventions/conventions-format and sh conventions/conventions-check exit 0.
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 EOF
@@ -718,7 +714,7 @@ Expected: `format 0`, `prose 0`, `[A question row names an entity within its row
 
 **Interfaces:**
 
-- Consumes: `Reference.owner` and `resolveIn(named, path, model, target, name, owner?: string)` from Task 3.
+- Consumes: `Reference.row` and `resolveIn(named, path, model, target, name, row?: Reference["row"])` from Task 3.
 - Produces: no new names. `referencesFor` lists a question under each entity its rows name and under each owner its rows name, `declared` `## Rests on · Entity` or `## Rests on · Owner`; `referencesTo`, and with it `renamePlan` and `deletePlan`, finds an `Entity` cell and an `Owner` cell by what they resolve to within the row's owner.
 
 - [ ] **Step 1: Write the failing tests**
@@ -834,7 +830,7 @@ Apply this diff:
 
 ```diff
 diff --git a/src/refactor.ts b/src/refactor.ts
-index a0a9c5f..af6cc5d 100644
+index a0a9c5f..7c9f765 100644
 --- a/src/refactor.ts
 +++ b/src/refactor.ts
 @@ -29,7 +29,7 @@ export function referencesTo(
@@ -842,12 +838,12 @@ index a0a9c5f..af6cc5d 100644
      const lines = text.split("\n");
      for (const ref of referencesIn(lines, v))
 -      if (ref.target === target.type && ref.name === target.name && resolveIn(named, path, model, ref.target, ref.name) === target.path)
-+      if (ref.target === target.type && ref.name === target.name && resolveIn(named, path, model, ref.target, ref.name, ref.owner) === target.path)
++      if (ref.target === target.type && ref.name === target.name && resolveIn(named, path, model, ref.target, ref.name, ref.row) === target.path)
          out.push({ path, line: ref.line, from: ref.from, to: ref.to });
    }
    return out;
 diff --git a/src/refs.ts b/src/refs.ts
-index 9cad9d1..9a65c83 100644
+index 9cad9d1..02f8b14 100644
 --- a/src/refs.ts
 +++ b/src/refs.ts
 @@ -34,7 +34,7 @@ function mentionsIn(world: World, path: string, text: string): Mention[] {
@@ -855,7 +851,7 @@ index 9cad9d1..9a65c83 100644
    const out: Mention[] = [];
    for (const ref of referencesIn(text.split("\n"), vocabulary)) {
 -    const target = resolveIn(world.named, path, world.model, ref.target, ref.name);
-+    const target = resolveIn(world.named, path, world.model, ref.target, ref.name, ref.owner);
++    const target = resolveIn(world.named, path, world.model, ref.target, ref.name, ref.row);
      if (target) out.push({ path, line: ref.line, name: ref.name, declared: ref.declared, target });
    }
    return out;
@@ -878,7 +874,7 @@ git add src/refs.ts src/refactor.ts test/refs.test.ts test/refactor.test.ts
 git commit -F - <<'EOF'
 The pane, Rename and Delete follow a question's row
 
-The references pane, Rename entity and Delete entity all find a name through the reader of a file's references and `resolveIn`, and both now pass a question row's owner along. So the pane lists a question under each entity it rests on and under the owner its row names, a rename rewrites an `Entity` cell that names the renamed entity and every `Owner` cell that names a renamed owner, and a delete lists the rows it would leave naming nothing. A row that names a name its owner does not hold is none of these, even where the page's own place would have found it.
+The references pane, Rename entity and Delete entity all find a name through the reader of a file's references and `resolveIn`, and both now pass a question row's owner and schemas along to the package's `resolveRow`. So the pane lists a question under each entity it rests on and under the owner its row names, a rename rewrites an `Entity` cell that names the renamed entity and every `Owner` cell that names a renamed owner, and a delete lists the rows it would leave naming nothing. A row that names a name its owner does not hold is none of these, even where the page's own place would have found it.
 
 Verified: npm run typecheck, npm test (all pass), the two tests where the row's owner and the page's place disagree seen failing first.
 
@@ -898,8 +894,8 @@ Expected: `[The pane, Rename and Delete follow a question's row]`.
 
 **Interfaces:**
 
-- Consumes: the `Offer` kinds and `bare` from Task 2; `ownerTypeOf` and `withinOwner` from Task 3.
-- Produces: in `src/tables.ts`, `rowOf(table: { columns: string[]; rows: string[][] }, index: number): Record<string, string>`; the `cell` kind of `Context` gains `row?: Record<string, string>`, every cell of the row by its column's name as `tableOf` reads it, which `contextAt` and `cellContextOf` now always set; in `src/candidates.ts`, `export interface Pool { types: string[]; named: Named[] }` and `candidatesFor(context, vocabulary, names, lines, pool: Pool = EMPTY)`, where `EMPTY` offers nothing. Task 6's `suggest.ts` hands in the pool.
+- Consumes: the `Offer` kinds (`types` with its `types`, `by` with its `schemas`, `owner` with its `owners`) and `bare` from Task 2; `rowScope(entities, schemas, { type, owner })` from `companygraph-meta-model/instance`, typed in Task 2.
+- Produces: in `src/tables.ts`, `rowOf(table: { columns: string[]; rows: string[][] }, index: number): Record<string, string>`; the `cell` kind of `Context` gains `row?: Record<string, string>`, every cell of the row by its column's name as `tableOf` reads it, which `contextAt` and `cellContextOf` now always set; in `src/candidates.ts`, `candidatesFor(context, vocabulary, names, lines, named: Named[] = [])`, `named` being every entity the model holds. The `Type` cell offers the offer's `types`; the `Entity` cell offers the names in `rowScope(named, offer.schemas, { type, owner }).within`, called once per completion request, and nothing where the package answers an error; the `Owner` cell offers the names of `owners.get(type)`, the map built once per vocabulary load. Task 6's `suggest.ts` hands in `this.plugin.named`.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -967,12 +963,12 @@ index 440c687..3895b62 100644
 In `test/candidates.test.ts`, add `import { namedOf } from "../src/scope.ts";` after the import from `../src/candidates.ts`, and append:
 
 ```ts
-// A question's Rests on (core 0.40.0): what each of its columns offers is read from the row. The
-// pool is what suggest.ts hands in: the types the vault's core declares and every entity it holds.
-const pool = { types: [...vocabulary.keys()], named: namedOf(buildModel(files, EXAMPLE).graph!) };
+// A question's Rests on (core 0.40.0): what each of its columns offers is read from the row, and
+// from every entity the model holds, which is what suggest.ts hands in.
+const every = namedOf(buildModel(files, EXAMPLE).graph!);
 const question = vocabulary.get("question")!;
 const rests = (column: string, row: Record<string, string>, typed = "") =>
-  labels(candidatesFor({ kind: "cell", section: "Rests on", column, typed, start: 0, row }, question, names, [], pool));
+  labels(candidatesFor({ kind: "cell", section: "Rests on", column, typed, start: 0, row }, question, names, [], every));
 
 test("the Type column offers the types the vault's core declares", () => {
   const types = rests("Type", { Type: "", Entity: "", Owner: "", For: "" });
@@ -994,9 +990,9 @@ test("the Owner column offers the names of the type that owns the row's type, an
   assert.deepEqual(rests("Owner", { Type: "feature" }), []);
 });
 
-test("a Rests on cell with no row read, or no pool handed in, offers nothing rather than guess", () => {
-  assert.deepEqual(labels(candidatesFor({ kind: "cell", section: "Rests on", column: "Entity", typed: "", start: 0 }, question, names, [], pool)), []);
-  assert.deepEqual(labels(candidatesFor({ kind: "cell", section: "Rests on", column: "Type", typed: "", start: 0, row: {} }, question, names, [])), []);
+test("a Rests on cell with no row read, or no entities handed in, offers no names rather than guess", () => {
+  assert.deepEqual(labels(candidatesFor({ kind: "cell", section: "Rests on", column: "Entity", typed: "", start: 0 }, question, names, [], every)), []);
+  assert.deepEqual(labels(candidatesFor({ kind: "cell", section: "Rests on", column: "Entity", typed: "", start: 0, row: { Type: "experience", Owner: "Mira Halvorsen" } }, question, names, [])), []);
 });
 ```
 
@@ -1012,40 +1008,44 @@ Apply this diff:
 
 ```diff
 diff --git a/src/candidates.ts b/src/candidates.ts
-index 86fb282..518fd9f 100644
+index 86fb282..07fd2eb 100644
 --- a/src/candidates.ts
 +++ b/src/candidates.ts
-@@ -5,7 +5,10 @@ import { sectionsOf } from "companygraph-meta-model/checks";
- import { IMAGE_FILE } from "companygraph-meta-model/instance";
+@@ -2,10 +2,12 @@
+ // which names exist, the file says what is already there. Nothing is offered that would not
+ // resolve, and nothing is wrapped: a name is inserted plain (R3).
+ import { sectionsOf } from "companygraph-meta-model/checks";
+-import { IMAGE_FILE } from "companygraph-meta-model/instance";
++import { IMAGE_FILE, rowScope } from "companygraph-meta-model/instance";
  import type { Context } from "./context.ts";
  import { frontmatterEnd } from "./context.ts";
 +import { bare } from "./vocabulary.ts";
  import type { Field, Offer, TypeVocabulary } from "./vocabulary.ts";
-+import { ownerTypeOf, withinOwner } from "./scope.ts";
 +import type { Named } from "./scope.ts";
  
  export interface Candidate { label: string; insert: string }
  
-@@ -24,9 +27,22 @@ export function cursorAfter(start: Position, insert: string): Position {
+@@ -24,9 +26,23 @@ export function cursorAfter(start: Position, insert: string): Position {
  const requiredFirst = <T extends { required: boolean }>(items: T[]) =>
    [...items.filter((i) => i.required), ...items.filter((i) => !i.required)];
  
 -function offered(offer: Offer, names: Map<string, string[]>): string[] {
-+// What a `by` row's columns offer from (R4, R9): the types the vault's core declares, and every
-+// entity the model holds, whatever the page's own place, since the row says where a name is.
-+export interface Pool { types: string[]; named: Named[] }
-+const EMPTY: Pool = { types: [], named: [] };
-+
 +const sortedNames = (named: Named[]) => [...new Set(named.map((n) => n.name))].sort((a, b) => a.localeCompare(b));
 +
-+function offered(offer: Offer, names: Map<string, string[]>, row: Record<string, string> = {}, pool: Pool = EMPTY): string[] {
++// `row` is the cell's row by column, and `named` every entity the model holds: a `by` row says
++// itself where its name is (R4, R9), so its offers are drawn from the whole model, whatever the
++// page's own place. The Entity column asks the package's `rowScope` once per completion request.
++function offered(offer: Offer, names: Map<string, string[]>, row: Record<string, string> = {}, named: Named[] = []): string[] {
    if (offer.kind === "names") return names.get(offer.target) ?? [];
    if (offer.kind === "values") return offer.values;
-+  if (offer.kind === "types") return [...pool.types].sort((a, b) => a.localeCompare(b));
-+  if (offer.kind === "by") return sortedNames(withinOwner(pool.named, bare(row[offer.by]), offer.in ? bare(row[offer.in]) : ""));
++  if (offer.kind === "types") return offer.types;
++  if (offer.kind === "by") {
++    const scope = rowScope(named, offer.schemas, { type: bare(row[offer.by]), owner: offer.in ? bare(row[offer.in]) : "" });
++    return sortedNames(scope.within ?? []);
++  }
 +  if (offer.kind === "owner") {
-+    const owner = ownerTypeOf(bare(row[offer.by]));
-+    return owner ? sortedNames(pool.named.filter((n) => n.type === owner)) : [];
++    const owner = offer.owners.get(bare(row[offer.by]));
++    return owner ? sortedNames(named.filter((n) => n.type === owner)) : [];
 +  }
    return [];
  }
@@ -1054,10 +1054,10 @@ index 86fb282..518fd9f 100644
    vocabulary: TypeVocabulary,
    names: Map<string, string[]>,
    lines: string[],
-+  pool: Pool = EMPTY,
++  named: Named[] = [],
  ): Candidate[] {
 -  const candidates = offers(context, vocabulary, names, lines);
-+  const candidates = offers(context, vocabulary, names, lines, pool);
++  const candidates = offers(context, vocabulary, names, lines, named);
    // What is typed is already one of the things on offer: there is nothing left to complete, and
    // a popup still open over it captures the Enter that belongs to the editor. One candidate is
    // not the test — `Java` typed in full still matches `JavaScript` — what is typed is.
@@ -1065,7 +1065,7 @@ index 86fb282..518fd9f 100644
    vocabulary: TypeVocabulary,
    names: Map<string, string[]>,
    lines: string[],
-+  pool: Pool,
++  named: Named[],
  ): Candidate[] {
    if (context.kind === "key") {
      const absent = absentFields(vocabulary, lines);
@@ -1074,7 +1074,7 @@ index 86fb282..518fd9f 100644
        ?.columns?.find((c) => c.name === context.column);
      if (!column) return [];
 -    return matching(offered(column.offer, names), context.typed).map((v) => ({ label: v, insert: v }));
-+    return matching(offered(column.offer, names, context.row, pool), context.typed).map((v) => ({ label: v, insert: v }));
++    return matching(offered(column.offer, names, context.row, named), context.typed).map((v) => ({ label: v, insert: v }));
    }
    if (context.kind === "grouped") {
      const section = vocabulary.sections.find((s) => s.heading === context.section);
@@ -1168,7 +1168,7 @@ git add src/tables.ts src/context.ts src/candidates.ts test/context.test.ts test
 git commit -F - <<'EOF'
 Completion in a question's row reads the row
 
-A cell's context now carries every cell of its row, read by the package's table reader in Source mode and in Live Preview alike, and completion takes a pool of the types the vault's core declares and every entity the model holds. In a question's `## Rests on` the `Type` cell offers those types, the `Owner` cell the names of the type that owns the row's type, and the `Entity` cell the names of the row's type within the row's owner. An owned type offers nothing until its owner is named, rather than every owner's names at once, and a cell that names no type offers nothing.
+A cell's context now carries every cell of its row, read by the package's table reader in Source mode and in Live Preview alike, and completion takes every entity the model holds. In a question's `## Rests on` the `Type` cell offers the types the vault's core declares, the `Owner` cell the names of the type that owns the row's type, from the package's `ownerTypesOf` read once per vocabulary, and the `Entity` cell what the package's `rowScope` narrows the row to, asked once per completion request. An owned type offers nothing until its owner is named, rather than every owner's names at once, and a cell that names no type offers nothing.
 
 Verified: npm run typecheck, npm test (all pass), the three column tests and the context assertions seen failing first.
 
@@ -1188,8 +1188,8 @@ Expected: `[Completion in a question's row reads the row]`.
 
 **Interfaces:**
 
-- Consumes: `Reference.owner` and `resolveIn(named, path, model, target, name, owner?: string)` from Task 3; `Pool` and `candidatesFor(context, vocabulary, names, lines, pool)` from Task 5; `start`, `Session`, `available` from `e2e/obsidian.ts`; `PROFILE`, `openNote`, `tablesOf` from `e2e/notes.ts`; `clearNotices`, `command`, `intoField`, `modalText`, `noModal`, `onDisk`, `pressButton`, `waitForChecks`, `waitForModal`, `waitForNotice` from `e2e/ui.ts`.
-- Produces: `Suggest.pool(): Pool` in `src/suggest.ts`; in `src/namelinks.ts` the resolver's `resolve(target, name, owner?)`.
+- Consumes: `Reference.row` and `resolveIn(named, path, model, target, name, row?: Reference["row"])` from Task 3; `candidatesFor(context, vocabulary, names, lines, named)` from Task 5; `start`, `Session`, `available` from `e2e/obsidian.ts`; `PROFILE`, `openNote`, `tablesOf` from `e2e/notes.ts`; `clearNotices`, `command`, `intoField`, `modalText`, `noModal`, `onDisk`, `pressButton`, `waitForChecks`, `waitForModal`, `waitForNotice` from `e2e/ui.ts`.
+- Produces: in `src/suggest.ts` both calls of `candidatesFor` hand in `this.plugin.named`; in `src/namelinks.ts` the resolver's `resolve(target: string, name: string, row?: Reference["row"])`, which resolves a row among every entity through `resolveRow` and anything else among what the page sees.
 
 - [ ] **Step 1: Write the e2e test**
 
@@ -1369,99 +1369,90 @@ node scripts/fixtures.mjs > /dev/null && node esbuild.config.mjs > /dev/null 2>&
 node --test --test-concurrency=1 e2e/question.e2e.ts 2>&1 | grep -E "^✖ |^ℹ (pass|fail|skipped)" | sort -u
 ```
 
-Expected: `typecheck 0`, `build 0`, `skipped 0`, and two failures. The pane test and the rename test pass, since Tasks 3 and 4 made them. `a name in a row carries its entity's path, Cmd+click opens it, and a row naming another owner is marked unresolved` fails waiting for “the Entity cell to be marked as naming nothing”, because `namelinks.ts` still resolves the row through the page's place, where the fixture's experience is found whatever owner the row names. `the Type cell offers the core's types, and the Entity cell the names of the row's owner` fails waiting for “the types of the core to be offered”, because `suggest.ts` hands completion no pool. If anything else fails, read the screenshot and errors under `e2e/failures/` before changing any source.
+Expected: `typecheck 0`, `build 0`, `skipped 0`, and two failures. The pane test and the rename test pass, since Tasks 3 and 4 made them. `a name in a row carries its entity's path, Cmd+click opens it, and a row naming another owner is marked unresolved` fails waiting for “the Entity cell to be marked as naming nothing”, because `namelinks.ts` still resolves the row through the page's place, where the fixture's experience is found whatever owner the row names. `the Type cell offers the core's types, and the Entity cell the names of the row's owner` fails waiting for “the types of the core to be offered”, because `suggest.ts` hands completion no entities. If anything else fails, read the screenshot and errors under `e2e/failures/` before changing any source.
 
-- [ ] **Step 3: Pass the row's owner to the marks, and the pool to completion**
+- [ ] **Step 3: Pass the row to the marks, and the entities to completion**
 
 Apply this diff:
 
 ```diff
 diff --git a/src/namelinks.ts b/src/namelinks.ts
-index 7f5f68b..d3c5baf 100644
+index 7f5f68b..617a1e6 100644
 --- a/src/namelinks.ts
 +++ b/src/namelinks.ts
-@@ -28,7 +28,10 @@ function resolverFor(plugin: CompanyGraphPlugin, path: string | undefined) {
+@@ -11,6 +11,7 @@ import type { DecorationSet, EditorView, ViewUpdate } from "@codemirror/view";
+ import { typeOfPath } from "companygraph-meta-model/checks";
+ import type CompanyGraphPlugin from "./main.ts";
+ import { cellAt, referencesIn, resolveIn } from "./references.ts";
++import type { Reference } from "./references.ts";
+ import { visibleIn } from "./scope.ts";
+ 
+ // Sent after a rebuild, since what a name resolves to can change without the text changing.
+@@ -28,7 +29,10 @@ function resolverFor(plugin: CompanyGraphPlugin, path: string | undefined) {
    if (!vocabulary) return null;
    // What the file may name is worked out once per pass, not once per name.
    const visible = visibleIn(plugin.named, path, layout.model);
 -  return { vocabulary, resolve: (target: string, name: string) => resolveIn(visible, path, layout.model, target, name) };
 +  // A `by` reference names its owner in its own row, so it is resolved among every entity.
-+  const resolve = (target: string, name: string, owner?: string) =>
-+    resolveIn(owner === undefined ? visible : plugin.named, path, layout.model, target, name, owner);
++  const resolve = (target: string, name: string, row?: Reference["row"]) =>
++    resolveIn(row ? plugin.named : visible, path, layout.model, target, name, row);
 +  return { vocabulary, resolve };
  }
  
  export function nameLinks(plugin: CompanyGraphPlugin) {
-@@ -52,7 +55,7 @@ export function nameLinks(plugin: CompanyGraphPlugin) {
+@@ -52,7 +56,7 @@ export function nameLinks(plugin: CompanyGraphPlugin) {
            .map((r) => ({ ...r, at: doc.line(r.line + 1).from }))
            .sort((a, b) => a.at + a.from - (b.at + b.from));
          for (const ref of refs) {
 -          const path = resolver.resolve(ref.target, ref.name);
-+          const path = resolver.resolve(ref.target, ref.name, ref.owner);
++          const path = resolver.resolve(ref.target, ref.name, ref.row);
            // An optional reference that names nothing is a fact, and drawn as the text it is.
            if (!path && ref.optional) continue;
            builder.add(
-@@ -81,10 +84,10 @@ export function markNames(plugin: CompanyGraphPlugin, view: MarkdownView, cm: Ed
+@@ -81,10 +85,10 @@ export function markNames(plugin: CompanyGraphPlugin, view: MarkdownView, cm: Ed
    }
    const resolver = resolverFor(plugin, view.file?.path);
    if (!resolver) return;
 -  const mark = (el: Element | null, target: string, name: string | null | undefined, optional = false) => {
-+  const mark = (el: Element | null, target: string, name: string | null | undefined, optional = false, owner?: string) => {
++  const mark = (el: Element | null, target: string, name: string | null | undefined, optional = false, row?: Reference["row"]) => {
      const text = (name ?? "").trim();
      if (!el || !text) return;
 -    const path = resolver.resolve(target, text);
-+    const path = resolver.resolve(target, text, owner);
++    const path = resolver.resolve(target, text, row);
      // An optional reference that names nothing is a fact, and drawn as the text it is.
      if (!path && optional) return;
      el.setAttribute(MARK, "");
-@@ -131,7 +134,7 @@ export function markNames(plugin: CompanyGraphPlugin, view: MarkdownView, cm: Ed
+@@ -131,7 +135,7 @@ export function markNames(plugin: CompanyGraphPlugin, view: MarkdownView, cm: Ed
        const line = first + 2 + body;
        for (const ref of byLine.get(line) ?? []) {
          const cell = cellAt(lines[line], ref.from);
 -        if (cell !== null) mark(tr.children[cell] ?? null, ref.target, ref.name, ref.optional);
-+        if (cell !== null) mark(tr.children[cell] ?? null, ref.target, ref.name, ref.optional, ref.owner);
++        if (cell !== null) mark(tr.children[cell] ?? null, ref.target, ref.name, ref.optional, ref.row);
        }
      });
    }
 diff --git a/src/suggest.ts b/src/suggest.ts
-index 834efe5..7ba3729 100644
+index 834efe5..4a5bb1d 100644
 --- a/src/suggest.ts
 +++ b/src/suggest.ts
-@@ -6,7 +6,7 @@ import type CompanyGraphPlugin from "./main.ts";
- import { contextAt, mayHoldContext } from "./context.ts";
- import type { Context } from "./context.ts";
- import { candidatesFor, cursorAfter, entersThrough } from "./candidates.ts";
--import type { Candidate } from "./candidates.ts";
-+import type { Candidate, Pool } from "./candidates.ts";
- import { cellContextOf } from "./tables.ts";
- import { namesIn } from "./scope.ts";
- import { editedCell } from "./livetable.ts";
 @@ -99,7 +99,7 @@ export class Suggest extends EditorSuggest<Candidate> {
        const context = cellContextOf({ ...cell, lines: editor.lineCount(), line: editor.getLine(cursor.line), ch: cursor.ch });
        if (!context) return null;
        if (entersThrough(context) && !this.enterFirst && !asked) return null;
 -      const candidates = candidatesFor(context, vocabulary, namesIn(this.plugin.named, file.path, layout.model), []);
-+      const candidates = candidatesFor(context, vocabulary, namesIn(this.plugin.named, file.path, layout.model), [], this.pool());
++      const candidates = candidatesFor(context, vocabulary, namesIn(this.plugin.named, file.path, layout.model), [], this.plugin.named);
        return candidates.length ? { context, candidates } : null;
      }
  
-@@ -116,10 +116,15 @@ export class Suggest extends EditorSuggest<Candidate> {
+@@ -116,7 +116,7 @@ export class Suggest extends EditorSuggest<Candidate> {
      // An empty entry shows its names only where its Enter can be let through.
      if (entersThrough(context) && !this.enterFirst && !asked) return null;
      // The names this file may use: an owned type's are its owner's own, as core 0.30.1 holds.
 -    const candidates = candidatesFor(context, vocabulary, namesIn(this.plugin.named, file.path, layout.model), lines);
-+    const candidates = candidatesFor(context, vocabulary, namesIn(this.plugin.named, file.path, layout.model), lines, this.pool());
++    const candidates = candidatesFor(context, vocabulary, namesIn(this.plugin.named, file.path, layout.model), lines, this.plugin.named);
      return candidates.length ? { context, candidates } : null;
    }
  
-+  // What a `by` row offers from: the types the vault's core declares and every entity it holds.
-+  pool(): Pool {
-+    return { types: [...this.plugin.vocabulary.keys()], named: this.plugin.named };
-+  }
-+
-   onTrigger(cursor: EditorPosition, editor: Editor, file: TFile | null): EditorSuggestTriggerInfo | null {
-     const asked = this.asked;
-     this.asked = false;
 ```
 
 - [ ] **Step 4: Run the file to see it pass, three times**
@@ -1490,7 +1481,7 @@ git add e2e/question.e2e.ts src/namelinks.ts src/suggest.ts
 git commit -F - <<'EOF'
 In Obsidian a question row links, marks and completes
 
-The marks in Source mode and in Live Preview's tables now resolve a question row's name within the owner its row names, among every entity the model holds, so a name the row's owner does not hold is drawn as naming nothing, and one it holds opens on Cmd+click. Completion hands its new pool in, the types of the vault's core and every entity, so a question's `Type`, `Entity` and `Owner` cells complete from the row.
+The marks in Source mode and in Live Preview's tables now resolve a question row's name by the package's `resolveRow`, within the owner its row names, among every entity the model holds, so a name the row's owner does not hold is drawn as naming nothing, and one it holds opens on Cmd+click. Completion hands in every entity the model holds, so a question's `Type`, `Entity` and `Owner` cells complete from the row.
 
 `e2e/question.e2e.ts` gives its vault copy the bundled question schema and one question, since the fixture's core is older than the type, and works the four paths a person takes: the references pane listing the question under the experience it rests on, Cmd+click on a name in the row and the mark on one its owner does not hold, completion in the `Type` and `Entity` cells, and a rename of the owner rewriting the row's `Owner` cell. The mark and completion tests failed on the build before this change.
 
@@ -1571,9 +1562,9 @@ Then open it:
 
 ```bash
 gh pr create --repo companygraph/obsidian-plugin --base main --head a-question-row-is-written-in-the-vault --title "A question row is written in the vault" --body-file - <<'EOF'
-meta-model v0.45.0 adds core's `question` and a reference form whose type is read from its row, `ref → by <Column> in <Owner>`: a question's `## Rests on` names an entity of the type its `Type` cell names, within the owner its `Owner` cell names where that type is owned, and never by the page the row is written on. The plugin is where a question is written, so this supports the form rather than only re-pinning, as the design's section on the plugin asks (companygraph/meta-model#147). The pin moves to v0.45.0 by name and takes v0.43.0 and v0.44.0 in with it; the one thing either broke here was the skills test, since v0.44.0 carries a fourth skill, and the pin test now holds the lockfile to the pin as well.
+meta-model v0.45.0 added core's `question` and a reference form whose type is read from its row, `ref → by <Column> in <Owner>`: a question's `## Rests on` names an entity of the type its `Type` cell names, within the owner its `Owner` cell names where that type is owned, and never by the page the row is written on. The plugin is where a question is written, so this supports the form rather than only re-pinning, as the design's section on the plugin asks (companygraph/meta-model#147), and v0.46.0 exports the rule that resolves such a row (companygraph/meta-model#148), so the plugin calls it rather than copying it. The pin moves to v0.46.0 by name and takes v0.43.0 to v0.45.0 in with it; the one thing any of them broke here was the skills test, since v0.44.0 carries a fourth skill, and the pin test now holds the lockfile to the pin as well.
 
-The vocabulary reads the form as an offer of its own and reads the two columns it names as the column of types and the column of owners. The reader of a file's references yields a row's `Entity` cell as a reference of the row's type that carries the row's owner, and the `Owner` cell as a reference to the owning type, as a qualifier names an entity without drawing an edge; `resolveIn` resolves the first within that owner through a new `withinOwner`. Because the references pane, the marks, Rename entity and Delete entity all go through those two, each follows the row once the owner is passed along: the pane lists a question under each entity it rests on and under its row's owner, a name opens on Cmd+click and one its owner does not hold is marked as naming nothing, a rename rewrites an `Entity` cell and every `Owner` cell that names a renamed owner, and a delete lists the rows it would leave naming nothing. Completion reads the row from the cell's context: the `Type` cell offers the core's types, the `Owner` cell the owning type's names, and the `Entity` cell the row's type's names within its owner. New entity offers `question` and the checks hold it with no code here, and tests hold both. The parser's own resolver is a closure the package does not export, so `withinOwner` reads the package's `TYPES` and the owner's folder, and `AGENTS.md` says so; an export from meta-model would retire that copy.
+The vocabulary reads the form as an offer of its own and reads the two columns it names as the column of types and the column of owners. The reader of a file's references yields a row's `Entity` cell as a reference of the row's type that carries the row's owner, and the `Owner` cell as a reference to the owning type, as a qualifier names an entity without drawing an edge; `resolveIn` hands the first to the package's `resolveRow`. Because the references pane, the marks, Rename entity and Delete entity all go through those two, each follows the row once the owner is passed along: the pane lists a question under each entity it rests on and under its row's owner, a name opens on Cmd+click and one its owner does not hold is marked as naming nothing, a rename rewrites an `Entity` cell and every `Owner` cell that names a renamed owner, and a delete lists the rows it would leave naming nothing. Completion reads the row from the cell's context: the `Type` cell offers the core's types, the `Owner` cell the owning type's names, and the `Entity` cell what the package's `rowScope` narrows the row to. New entity offers `question` and the checks hold it with no code here, and tests hold both. `AGENTS.md` names `ownerTypesOf`, `rowScope` and `resolveRow` among the package readers the plugin calls; `ownerTypesOf` is read once per vocabulary load, and the other two once per `by` cell resolved or completed, since each reads the schemas again on every call.
 
 `e2e/question.e2e.ts` gives its vault copy the bundled question schema and one question, since the fixture's core predates the type, and works the pane, Cmd+click and the unresolved mark, completion in the `Type` and `Entity` cells, and a rename of the owner. This is 0.10.0, a minor, and it goes into the owner's vault before either instance takes core 0.40.0, since an older plugin refuses that core. The plan is `docs/superpowers/plans/2026-09-24-a-question-row-is-written-in-the-vault.md`.
 
@@ -1588,8 +1579,8 @@ Expected: the pull request's URL, then `test` and `conventions / conventions` pa
 
 ## After the merge, on the owner's word
 
-Tag `0.10.0` on a detached `origin/main` (this repository's tags carry no `v`), build, and `gh release create 0.10.0 main.js manifest.json styles.css` with notes in the shape of 0.9.1's: what reaches a vault first (a question's `## Rests on` completes, links, marks and follows Rename and Delete; the bundled checker is meta-model v0.45.0 with core 0.40.0), then what a vault must do (nothing; a vault on an older core is checked as before). Install it into the owner's vault before either instance takes core 0.40.0, and only then are the instances' upgrade pull requests clear to merge.
+Tag `0.10.0` on a detached `origin/main` (this repository's tags carry no `v`), build, and `gh release create 0.10.0 main.js manifest.json styles.css` with notes in the shape of 0.9.1's: what reaches a vault first (a question's `## Rests on` completes, links, marks and follows Rename and Delete; the bundled checker is meta-model v0.46.0 with core 0.40.0), then what a vault must do (nothing; a vault on an older core is checked as before). Install it into the owner's vault before either instance takes core 0.40.0, and only then are the instances' upgrade pull requests clear to merge.
 
 ## What this plan does not do
 
-It does not seed a question in either instance, or move `INSTANCE_COMMIT` in `scripts/fixtures.mjs`: no instance carries a question until after this release, and once the reference instance does, the e2e file can drop the schema and the question it writes into its vault copy, a small change of its own. It does not mark an `Owner` cell filled on an unowned type, or a `Type` cell naming no type, in the editor: neither is a name of anything the plugin could resolve, and the checks name both in the pane with the row tinted. It does not propose the parser's `resolveBy` as an export to meta-model, which would retire `withinOwner`; that is the owner's call, raised with the pull request.
+It does not seed a question in either instance, or move `INSTANCE_COMMIT` in `scripts/fixtures.mjs`: no instance carries a question until after this release, and once the reference instance does, the e2e file can drop the schema and the question it writes into its vault copy, a small change of its own. It does not mark an `Owner` cell filled on an unowned type, or a `Type` cell naming no type, in the editor: neither is a name of anything the plugin could resolve, and the checks name both in the pane with the row tinted.
