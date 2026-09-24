@@ -64,3 +64,27 @@ test("a file that is no entity, and one nothing names, give empty lists", () => 
   assert.equal(countOf(refs.out), 0);
   assert.ok(countOf(refs.in) > 0);
 });
+
+// A question's Rests on (core 0.40.0): a question is listed under each entity it rests on, and
+// under the owner its row names, each saying the column it stands in.
+const WHO = "example/model/questions/who-split-billing-out-of-the-monolith.md";
+
+test("a question is listed under the entity it rests on, and under the owner its row names", () => {
+  const experience = world.named.find((n) => n.type === "experience" && n.name === "Splitting the billing domain")!.path;
+  const under = referencesFor(world, experience).in.find((g) => g.path === WHO)!;
+  assert.deepEqual(under.mentions.map((m) => [m.declared, m.name]), [["## Rests on · Entity", "Splitting the billing domain"]]);
+  const owner = referencesFor(world, "example/model/profiles/mira-halvorsen/mira-halvorsen.md").in.find((g) => g.path === WHO)!;
+  assert.deepEqual(owner.mentions.map((m) => [m.declared, m.name]), [["## Rests on · Owner", "Mira Halvorsen"]]);
+  assert.ok(referencesFor(world, "example/model/features/charge-explanation.md").in.some((g) => g.path.endsWith("how-do-i-find-out-why-a-line-is-on-my-invoice.md")));
+});
+
+test("what a question names is what its rows name, and a row naming another owner's name names nothing", () => {
+  const out = referencesFor(world, WHO).out.map((g) => g.path);
+  assert.ok(out.some((p) => p.endsWith("mira-halvorsen/experiences/2022-beacon-systems.md")));
+  assert.ok(out.includes("example/model/profiles/mira-halvorsen/mira-halvorsen.md"));
+  // The model does not parse with that row, so the names are the last parse's, as in the vault.
+  const files = new Map(world.files).set(WHO, world.files.get(WHO)!.replace("| Mira Halvorsen |", "| Tomas Reyes |"));
+  const now = referencesFor({ ...world, files }, WHO).out.map((g) => g.path);
+  assert.ok(!now.some((p) => p.includes("/experiences/")), "Tomas has no experience of that name");
+  assert.ok(now.includes("example/model/profiles/tomas-reyes/tomas-reyes.md"));
+});

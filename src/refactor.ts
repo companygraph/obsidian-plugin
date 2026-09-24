@@ -29,7 +29,7 @@ export function referencesTo(
     if (!v) continue;
     const lines = text.split("\n");
     for (const ref of referencesIn(lines, v))
-      if (ref.target === target.type && ref.name === target.name && resolveIn(named, path, model, ref.target, ref.name) === target.path)
+      if (ref.target === target.type && ref.name === target.name && resolveIn(named, path, model, ref.target, ref.name, ref.row) === target.path)
         out.push({ path, line: ref.line, from: ref.from, to: ref.to });
   }
   return out;
