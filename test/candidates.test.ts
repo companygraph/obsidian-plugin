@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { buildModel, namesByType, schemasOf } from "../src/model.ts";
 import { vocabularyOf } from "../src/vocabulary.ts";
 import { absentFields, candidatesFor, cursorAfter, entersThrough, propertyCandidates } from "../src/candidates.ts";
+import { namedOf } from "../src/scope.ts";
 import { example, EXAMPLE } from "./helpers.ts";
 
 const files = example();
@@ -198,4 +199,36 @@ test("a widget input offers the type's names less the pills it holds, an enum it
   assert.deepEqual(propertyCandidates(image, "", names, [], ["ai-agent.md", "ai-agent.png", "notes.txt", "photo.jpg"]), ["ai-agent.png", "photo.jpg"]);
   const location = profile.fields.find((f) => f.name === "location")!;
   assert.equal(propertyCandidates(location, "", names, [], []), null);
+});
+
+// A question's Rests on (core 0.40.0): what each of its columns offers is read from the row, and
+// from every entity the model holds, which is what suggest.ts hands in.
+const every = namedOf(buildModel(files, EXAMPLE).graph!);
+const question = vocabulary.get("question")!;
+const rests = (column: string, row: Record<string, string>, typed = "") =>
+  labels(candidatesFor({ kind: "cell", section: "Rests on", column, typed, start: 0, row }, question, names, [], every));
+
+test("the Type column offers the types the vault's core declares", () => {
+  const types = rests("Type", { Type: "", Entity: "", Owner: "", For: "" });
+  assert.deepEqual(types, [...vocabulary.keys()].sort((a, b) => a.localeCompare(b)));
+  assert.ok(types.includes("experience") && types.includes("question"));
+  assert.deepEqual(rests("Type", { Type: "exp" }, "exp"), ["experience", "experience-kind"]);
+});
+
+test("the Entity column offers the names of the row's type, within the row's owner where the type is owned", () => {
+  assert.deepEqual(rests("Entity", { Type: "experience", Owner: "Mira Halvorsen" }), ["Rebuilding the order pipeline", "Splitting the billing domain"]);
+  assert.equal(rests("Entity", { Type: "`experience`", Owner: "`Tomas Reyes`" }).length, 3);
+  assert.deepEqual(rests("Entity", { Type: "experience", Owner: "" }), [], "an owned type waits for its owner");
+  assert.deepEqual(rests("Entity", { Type: "feature", Owner: "" }), names.get("feature"));
+  assert.deepEqual(rests("Entity", { Type: "", Owner: "" }), [], "no type, nothing to offer");
+});
+
+test("the Owner column offers the names of the type that owns the row's type, and nothing for an unowned one", () => {
+  assert.deepEqual(rests("Owner", { Type: "experience" }), names.get("profile"));
+  assert.deepEqual(rests("Owner", { Type: "feature" }), []);
+});
+
+test("a Rests on cell with no row read, or no entities handed in, offers no names rather than guess", () => {
+  assert.deepEqual(labels(candidatesFor({ kind: "cell", section: "Rests on", column: "Entity", typed: "", start: 0 }, question, names, [], every)), []);
+  assert.deepEqual(labels(candidatesFor({ kind: "cell", section: "Rests on", column: "Entity", typed: "", start: 0, row: { Type: "experience", Owner: "Mira Halvorsen" } }, question, names, [])), []);
 });

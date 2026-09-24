@@ -15,6 +15,13 @@ export function sectionAbove(getLine: (n: number) => string | undefined, line: n
   return null;
 }
 
+// One body row of a table the package read, by its columns' names, each cell as the package's
+// reader gives it, trimmed; "" for a cell the row lacks. What a `by` column reads its type and
+// owner from, in either mode.
+export function rowOf(table: { columns: string[]; rows: string[][] }, index: number): Record<string, string> {
+  return Object.fromEntries(table.columns.map((c, i) => [c, table.rows[index]?.[i] ?? ""]));
+}
+
 export interface CellFacts {
   table: string;          // the table's own lines in the note, as text
   row: number;            // 0 is the header row; the separator row is not a row
@@ -31,15 +38,16 @@ export interface CellFacts {
 // name a column alike and a table the package does not read as one gives no context in either.
 export function cellContextOf(facts: CellFacts): Context | null {
   if (facts.row < 1 || !facts.section) return null;
-  const column = tableOf(facts.table)?.columns[facts.col];
-  if (!column) return null;
+  const table = tableOf(facts.table);
+  const column = table?.columns[facts.col];
+  if (!table || !column) return null;
   // A cell holding `<br>` is several lines in its editor and one in the note; Source mode sees
   // the whole of it on one line, and a name inserted into part of it would not be what was meant.
   if (facts.lines !== 1) return null;
   // As in a line of text: anything but blank after the cursor means it sits inside text.
   if (facts.line.slice(facts.ch).trim() !== "") return null;
   const typed = facts.line.slice(0, facts.ch).trimStart();
-  return { kind: "cell", section: facts.section, column, typed, start: facts.ch - typed.length };
+  return { kind: "cell", section: facts.section, column, typed, start: facts.ch - typed.length, row: rowOf(table, facts.row - 1) };
 }
 
 export type TableRow = { kind: "header" } | { kind: "body"; index: number };

@@ -36,7 +36,7 @@ test("at the start of a frontmatter line: a key", () => {
 });
 
 test("in a table row: the cell's column by the header's name, under its section", () => {
-  assert.deepEqual(at(13), { kind: "cell", section: "Skills", column: "Level", typed: "Exp", start: 9 });
+  assert.deepEqual(at(13), { kind: "cell", section: "Skills", column: "Level", typed: "Exp", start: 9, row: { Skill: "Java", Level: "Exp", Evidence: "" } });
 });
 
 test("the header and separator rows are not cells", () => {
@@ -102,7 +102,7 @@ test("a cell with only a space before the next pipe is still offered", () => {
     "| --- | --- | --- |",
     "| Java | Exp | built it |",
   ];
-  assert.deepEqual(contextAt(lines, 4, 12), { kind: "cell", section: "Skills", column: "Level", typed: "Exp", start: 9 });
+  assert.deepEqual(contextAt(lines, 4, 12), { kind: "cell", section: "Skills", column: "Level", typed: "Exp", start: 9, row: { Skill: "Java", Level: "Exp", Evidence: "built it" } });
 });
 
 test("trailing whitespace only after the cursor still yields the context", () => {
