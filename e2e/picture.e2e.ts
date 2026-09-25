@@ -1,8 +1,8 @@
 // A profile's picture, read by the vault's own reader: the checks hold an image from its bytes
 // (R9), and the only reader that hands them bytes here is `readInstance`, through Obsidian's
 // `readBinary`. Read as text, a correct picture fails as corrupted, and no test that feeds the
-// checks a map would see it. The fixture vendors a core older than the type, so the test gives
-// the vault the profile schema of the release this build bundles before it names a picture.
+// checks a map would see it. The fixture's profile names a JPEG of its own already, and the test
+// names its PNG in that field's place, so the one picture the profile names is the test's.
 import { after, afterEach, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -15,7 +15,6 @@ import { command, waitForChecks } from "./ui.ts";
 const skip = available() ? false : "Obsidian is not installed here; set OBSIDIAN_BIN to run this suite";
 
 const META = path.join(import.meta.dirname, "..", "test", "fixtures", "meta-model");
-const SCHEMA = fs.readFileSync(path.join(META, "core", "profile-schema.md"), "utf8");
 // The example's own picture: a real PNG, 256 by 256, which is the floor R9 sets.
 const PNG = [...fs.readFileSync(path.join(META, "example", "model", "profiles", "ai-agent", "ai-agent.png"))];
 const FOLDER = PROFILE.slice(0, PROFILE.lastIndexOf("/"));
@@ -28,13 +27,13 @@ describe("a profile's picture is read as bytes", { skip }, () => {
 
   test("a named PNG beside the profile passes, and the same bytes named .jpg fail by name", async () => {
     const { ui } = session;
-    await ui.evaluate(async (schema: string, note: string, folder: string, bytes: number[]) => {
-      await app.vault.adapter.write("meta/core/profile-schema.md", schema);
+    await ui.evaluate(async (note: string, folder: string, bytes: number[]) => {
       await app.vault.createBinary(`${folder}/picture.png`, new Uint8Array(bytes).buffer);
       const file = app.vault.getAbstractFileByPath(note);
       const text = (await app.vault.read(file)) as string;
-      await app.vault.modify(file, text.replace("\n---\n", "\nimage: picture.png\n---\n"));
-    }, [SCHEMA, PROFILE, FOLDER, PNG]);
+      if (!/^image: .+$/m.test(text)) throw new Error("the fixture's profile names no picture to replace");
+      await app.vault.modify(file, text.replace(/^image: .+$/m, "image: picture.png"));
+    }, [PROFILE, FOLDER, PNG]);
     await openNote(ui, PROFILE);
     await command(ui, "check-now");
     await waitForChecks(ui, "the checks to pass with a picture in the vault", "none");

@@ -103,20 +103,28 @@ test("a section runs from its heading to the next heading, blank lines included"
   assert.equal(sectionAt(lines(PAGE), 6), null);
 });
 
-test("every heading of the reference instance is declared, and no required section is missing", () => {
+test("every heading of the reference instance is declared but the Voice pages' own, and no required section is missing", () => {
   const files = reference();
   const refVocabulary = vocabularyOf(schemasOf(files, REFERENCE));
   let checked = 0;
+  const own: string[] = [];
   for (const [path, text] of files) {
     if (!path.startsWith(`${REFERENCE.model}/`) || !path.endsWith(".md")) continue;
     const type = typeOfPath(path, REFERENCE.model);
     const v = type ? refVocabulary.get(type) : undefined;
     if (!v) continue;
     checked++;
-    assert.deepEqual(headingsOf(lines(text), v).filter((h) => h.kind === "own"), [], path);
+    for (const h of headingsOf(lines(text), v)) if (h.kind === "own") own.push(`${path}: ${h.heading}`);
     assert.deepEqual(missingOf(lines(text), v), [], path);
   }
   assert.ok(checked > 0);
+  // Sections are open: a page may add one its schema does not declare, and the plugin reads
+  // it as the page's own. The reference instance does so in one place, the two narrating agents'
+  // `## Voice`, which says which voice the rulebook names; every other heading is declared.
+  assert.deepEqual(own.sort(), [
+    "model/profiles/english-voice/english-voice.md: Voice",
+    "model/profiles/german-voice/german-voice.md: Voice",
+  ]);
 });
 
 test("Remove section removes a declared optional section whole, and refuses the rest", () => {

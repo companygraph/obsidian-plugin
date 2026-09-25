@@ -1,12 +1,10 @@
 // A question's Rests on as a person writes one (core 0.40.0, meta-model v0.45.0): a row's cells
 // complete from the row, the references pane lists the question under what it rests on, a name
 // in a row opens its entity and one that names nothing is marked, and renaming the owner a row
-// names carries its Owner cell. The fixture vendors a core older than the type, so the vault is
-// first given the question schema of the release this build bundles, and one question.
+// names carries its Owner cell. The fixture holds questions of its own; the vault is given one
+// more, whose rows are this file's to edit and put back.
 import { after, afterEach, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
-import fs from "node:fs";
-import path from "node:path";
 import { available, start } from "./obsidian.ts";
 import type { Session } from "./obsidian.ts";
 import { PROFILE, openNote, tablesOf } from "./notes.ts";
@@ -14,7 +12,6 @@ import { clearNotices, command, intoField, modalText, noModal, onDisk, pressButt
 
 const skip = available() ? false : "Obsidian is not installed here; set OBSIDIAN_BIN to run this suite";
 
-const SCHEMA = fs.readFileSync(path.join(import.meta.dirname, "..", "test", "fixtures", "meta-model", "core", "question-schema.md"), "utf8");
 const QUESTION = "model/questions/who-spoke-at-eclipse-mdd-day.md";
 const EXPERIENCE = "model/profiles/robert-blust/experiences/2010-eclipse-mdd-day.md";
 const TEXT = [
@@ -66,11 +63,9 @@ describe("a question's Rests on", { skip }, () => {
   before(async () => {
     session = await start();
     const { ui } = session;
-    await ui.evaluate(async (schema: string, at: string, text: string) => {
-      await app.vault.adapter.write("meta/core/question-schema.md", schema);
-      await app.vault.createFolder("model/questions");
+    await ui.evaluate(async (at: string, text: string) => {
       await app.vault.create(at, text);
-    }, [SCHEMA, QUESTION, TEXT]);
+    }, [QUESTION, TEXT]);
     await command(ui, "check-now");
     await waitForChecks(ui, "the checks to pass with a question in the vault", "none");
     await ui.waitFor("the plugin to know the question", (at: string) =>

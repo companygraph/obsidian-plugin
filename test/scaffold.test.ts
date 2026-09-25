@@ -4,7 +4,7 @@ import { checkInstance } from "companygraph-meta-model/checks";
 import { schemasOf } from "../src/model.ts";
 import { vocabularyOf } from "../src/vocabulary.ts";
 import { scaffoldOf, targetsFor } from "../src/scaffold.ts";
-import { example, EXAMPLE, reference, REFERENCE } from "./helpers.ts";
+import { example, EXAMPLE, reference, REFERENCE, whole } from "./helpers.ts";
 
 const vocabulary = vocabularyOf(schemasOf(example(), EXAMPLE));
 const MODEL = "model";
@@ -101,7 +101,9 @@ test("every type scaffolded into the reference instance owes only what its notic
   // From inside an owner of each kind, so every type is offered once. What the checks may then
   // say of a new entity is what the scaffold leaves to its author: a required list with no item
   // yet, as a field or as a section, an owner's folder with nothing owned in it, an owner's
-  // table that does not list it.
+  // table that does not list it, and, since core 0.41.0, each required value it leaves blank,
+  // which R9 reads as absent. Those are named: exactly the required scalars the scaffold was
+  // not handed a value for, and no other.
   const files = reference();
   const refVocabulary = vocabularyOf(schemasOf(files, REFERENCE));
   const expected = [/carries no items/, /has no item, and its schema requires the section/, /is missing (phases|tracks|experiences)\//, /does not list/];
@@ -113,7 +115,12 @@ test("every type scaffolded into the reference instance owes only what its notic
       const trial = new Map(files);
       const path = target.pathFor("Zeta Probe Thing", "2031-04")!;
       trial.set(path, scaffoldOf(refVocabulary.get(target.type)!, "Zeta Probe Thing", target.asks ? { [target.asks]: "2031-04" } : {}).text);
-      const unexpected = checkInstance(trial, REFERENCE).failures.filter((f) => !expected.some((e) => e.test(f)));
+      const asked = target.asks ? [target.asks] : [];
+      const failures = checkInstance(whole(trial), REFERENCE).failures;
+      const blank = failures.map((f) => f.startsWith(`${path}: `) ? f.match(/^[^:]+: `([^`]+)` is blank, which [a-z-]+-schema\.md requires(?: — one of .+)?$/)?.[1] : undefined).filter((f) => f !== undefined);
+      const left = refVocabulary.get(target.type)!.fields.filter((f) => f.required && !f.list && !asked.includes(f.name)).map((f) => f.name);
+      assert.deepEqual([...blank].sort(), [...left].sort(), `${target.type}: the blank required values`);
+      const unexpected = failures.filter((f) => !expected.some((e) => e.test(f)) && !(f.startsWith(`${path}: `) && / is blank, which /.test(f)));
       assert.deepEqual(unexpected, [], target.type);
     }
   }
