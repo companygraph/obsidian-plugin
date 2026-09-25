@@ -58,9 +58,6 @@ describe("the kpi type", { skip }, () => {
     await openNote(ui, LEAD);
     await sourceMode(ui, true);
     // Clear the value on a line and read what the suggest offers, as names.e2e.ts does for source.
-    // The value is waited for to be gone before the list is asked for, and Complete here asks for
-    // it where the cursor stands: in full runs the list the keystroke alone opens was twice seen
-    // not open, with the value already cleared, and waiting on it was a race.
     const offeredOn = async (prefix: string) => {
       const line = await ui.evaluate((p: string) => {
         const editor = app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor;
@@ -74,9 +71,6 @@ describe("the kpi type", { skip }, () => {
         return editor.hasFocus() && editor.getSelection() === (editor.getLine(at) as string).slice(p.length);
       }, [line, prefix]);
       await ui.press("Backspace");
-      await ui.waitFor(`the value after "${prefix}" to be cleared`, (at: number, p: string) =>
-        app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor.getLine(at) === p, [line, prefix]);
-      await command(ui, "complete-here");
       const items = await ui.waitFor(`values to be offered after "${prefix}"`, offered);
       await ui.press("Escape");
       return items as string[];
