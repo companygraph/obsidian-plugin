@@ -48,8 +48,12 @@ export class Pane extends ItemView {
     const copy = banner.createEl("button", { cls: "companygraph-copy clickable-icon" });
     setIcon(copy, "copy");
     copy.setAttribute("aria-label", "Copy report");
+    // The clipboard can refuse, a window without the focus among the reasons, and a press that
+    // shows nothing reads as a copy that worked.
     copy.onClickEvent(() => {
-      void navigator.clipboard.writeText(reportText(state)).then(() => new Notice("CompanyGraph: report copied"));
+      void navigator.clipboard.writeText(reportText(state))
+        .then(() => new Notice("CompanyGraph: report copied"))
+        .catch((error: unknown) => new Notice(`CompanyGraph: the report could not be copied (${error instanceof Error ? error.message : String(error)})`));
     });
 
     if (state.status === "checking") return;
