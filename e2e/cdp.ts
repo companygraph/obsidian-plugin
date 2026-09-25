@@ -139,6 +139,14 @@ export async function connect(port: number, record = false): Promise<Connection>
   const collector = `(() => { window.__e2eErrors = [];
     window.addEventListener("error", (e) => window.__e2eErrors.push(String(e.message)));
     window.addEventListener("unhandledrejection", (e) => window.__e2eErrors.push("rejection: " + String(e.reason?.stack ?? e.reason).slice(0, 400))); })()`;
+  // The page counts as focused and shown whatever the operating system does with the window. A
+  // freshly started Obsidian gives the focus back to the application that was in front a second
+  // or two after it loads, and a key pressed then reaches the editor only for the window's blur
+  // to follow it: CodeMirror closed the suggest the key had opened before it could ask the plugin,
+  // and the list a Backspace opens was seen not to open in one full run of five. A window left
+  // behind another is also hidden, and a hidden page stops drawing frames: a test waiting on one
+  // waited for as long as the window stayed behind.
+  await send("Emulation.setFocusEmulationEnabled", { enabled: true });
   await run(collector);
   if (record) {
     // Coverage counts what runs after it is switched on, and the plugin has loaded by the time

@@ -81,6 +81,16 @@ describe("the entity commands", { skip }, () => {
 
   test("Rename entity reviews what it will change, then carries the file, the H1 and every reference", async () => {
     const { ui } = session;
+    // The two entities New entity made above are left with their required values blank, which
+    // R9 reads as absent since core 0.41.0, so the checks are not clean until those are filled.
+    // Filled here with values the fixture's own skills and experiences carry, as their author
+    // would, so the clean checks awaited below are the rename's to keep.
+    await ui.evaluate(async (skill: string) => {
+      const probes = app.vault.getMarkdownFiles().filter((f: { path: string }) => f.path === skill || /\/experiences\/2031-/.test(f.path));
+      if (probes.length !== 2) throw new Error(`expected the probe skill and experience, found ${probes.length}`);
+      for (const file of probes)
+        await app.vault.modify(file, ((await app.vault.read(file)) as string).replace(/^source:$/m, "source: Local").replace(/^kind:$/m, "kind: Role"));
+    }, [SKILL]);
     // A skill the profile names, read from the fixture: the first row of its Skills table.
     const profile = (await onDisk(ui, PROFILE))!;
     const name = profile.split("\n").find((line, i, all) => i > 1 && all[i - 1].startsWith("| ---"))!.split("|")[1].trim();

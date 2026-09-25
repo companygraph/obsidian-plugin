@@ -18,7 +18,6 @@ const ROLES = '.metadata-property[data-property-key="roles"]';
 const NATURE = '.metadata-property[data-property-key="nature"]';
 const IMAGE = '.metadata-property[data-property-key="image"]';
 const META = path.join(import.meta.dirname, "..", "test", "fixtures", "meta-model");
-const SCHEMA = fs.readFileSync(path.join(META, "core", "profile-schema.md"), "utf8");
 const PNG = [...fs.readFileSync(path.join(META, "example", "model", "profiles", "ai-agent", "ai-agent.png"))];
 const FOLDER = PROFILE.slice(0, PROFILE.lastIndexOf("/"));
 
@@ -121,12 +120,15 @@ describe("completion in the Properties widget", { skip }, () => {
 
   test("an image field offers the pictures beside the note", async () => {
     const { ui } = session;
-    await ui.evaluate(async (schema: string, note: string, folder: string, bytes: number[]) => {
-      await app.vault.adapter.write("meta/core/profile-schema.md", schema);
+    // The fixture's profile names its own JPEG; the field is emptied, so what is offered is typed
+    // into an empty value, and a PNG is put beside the note for the suggest to find.
+    await ui.evaluate(async (note: string, folder: string, bytes: number[]) => {
       await app.vault.createBinary(`${folder}/picture.png`, new Uint8Array(bytes).buffer);
       const file = app.vault.getAbstractFileByPath(note) as never;
-      await app.vault.modify(file, ((await app.vault.read(file)) as string).replace("\n---\n", "\nimage:\n---\n"));
-    }, [SCHEMA, PROFILE, FOLDER, PNG]);
+      const text = (await app.vault.read(file)) as string;
+      if (!/^image: .+$/m.test(text)) throw new Error("the fixture's profile names no picture to empty");
+      await app.vault.modify(file, text.replace(/^image: .+$/m, "image:"));
+    }, [PROFILE, FOLDER, PNG]);
     // The rebuild has to have read the schema that declares the field before the input is used.
     await ui.waitFor("the vocabulary to declare image", () => !!app.plugins.plugins.companygraph.vocabulary.get("profile")?.fields.some((f: { name: string }) => f.name === "image"));
     await openNote(ui, PROFILE);
@@ -134,7 +136,9 @@ describe("completion in the Properties widget", { skip }, () => {
     await waitForSuggest(ui, `${IMAGE} .metadata-input-longtext`);
     await ui.click(`${IMAGE} .metadata-input-longtext`);
     await ui.type("p");
-    assert.deepEqual((await offered(ui, "the picture beside the note")).items, ["picture.png"]);
+    // Both pictures beside the note hold a "p", the fixture's own JPEG in its extension, and
+    // nothing else in the folder is a picture; the first offered is the one put there.
+    assert.deepEqual((await offered(ui, "the pictures beside the note")).items, ["picture.png", "robert-blust.jpg"]);
     await ui.press("Enter");
     const text = await ui.waitFor("the note to name the picture", async () => { const t = (await app.vault.read(app.vault.getAbstractFileByPath("model/profiles/robert-blust/robert-blust.md") as never)) as string; return /image: picture\.png/.test(t) ? t : null; });
     assert.match(text, /image: picture\.png/);

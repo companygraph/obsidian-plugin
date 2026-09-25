@@ -22,6 +22,20 @@ describe("making an instance and moving its core", { skip }, () => {
 
   test("Move this vault's core says what it will write, moves the pins, and leaves the vault's own skills", async () => {
     const { ui } = session;
+    // The fixture is already on the core this build carries, and a vault on it has nothing to
+    // move. The copy is set back to the release before it, as that release left an instance: the
+    // manifest and the workflow name 0.46.1 and core 0.40.0, and the kpi schema 0.41.0 added is
+    // not there, on disk or in the manifest.
+    await ui.evaluate(async (manifest: string) => {
+      const was = JSON.parse(await app.vault.adapter.read(manifest));
+      was.tooling = "0.46.1";
+      was.core.version = "0.40.0";
+      delete was.files["meta/core/kpi-schema.md"];
+      await app.vault.adapter.write(manifest, `${JSON.stringify(was, null, 2)}\n`);
+      await app.vault.adapter.remove("meta/core/kpi-schema.md");
+      const workflow = ".github/workflows/companygraph.yml";
+      await app.vault.adapter.write(workflow, (await app.vault.adapter.read(workflow)).replace(/instance-check\.yml@v[0-9.]+/, "instance-check.yml@v0.46.1"));
+    }, [MANIFEST]);
     const own = await onDisk(ui, OWN_SKILL);
     const before = JSON.parse((await onDisk(ui, MANIFEST))!);
     await command(ui, "move-core");
@@ -29,6 +43,8 @@ describe("making an instance and moving its core", { skip }, () => {
     await ui.waitFor("the plan to be shown", () => /Core .* → /.test(document.querySelector<HTMLElement>(".modal .modal-content")?.innerText ?? "") || null);
     const shown = await modalText(ui);
     assert.match(shown, /\.companygraph\/manifest\.json/);
+    assert.match(shown, /Core 0\.40\.0 → /);
+    assert.match(shown, /meta\/core\/kpi-schema\.md/);
     await pressButton(ui, "Move it");
     await noModal(ui);
     await waitForNotice(ui, "^Core ");
