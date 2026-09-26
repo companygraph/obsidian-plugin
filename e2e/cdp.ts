@@ -88,12 +88,18 @@ export async function connect(port: number, record = false): Promise<Connection>
       // Aimed only at what has come to rest: a sidebar sliding open or a note still scrolling
       // moves an element between the look and the press, and the press lands on what was there
       // before. So the middle of the element is given back once two looks in a row agree on it.
+      // And only at what nothing covers: a notice Obsidian shows on its own, "Indexing complete."
+      // on 1.13.7, stands in the corner where a pane keeps its buttons, and a press there lands on
+      // the notice and dismisses it. So the element at the aim point has to be the one aimed at,
+      // or inside it, as it is for a person who waits for the notice to go before clicking.
       await run("window.__e2eAim = null");
       const at = await driver.waitFor(`something to click, at rest: ${typeof target === "string" ? target : target.name || "a found element"}`,
         // Built here, run there: the finder is spliced in as source.
         new Function(`return (() => { const el = ${find}; if (!el) return null; el.scrollIntoView({ block: "center" });
           const r = el.getBoundingClientRect(); if (!r.width || !r.height) return null;
-          const now = { x: r.x + r.width / 2, y: r.y + r.height / 2 }; const was = window.__e2eAim; window.__e2eAim = now;
+          const now = { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+          const hit = document.elementFromPoint(now.x, now.y); if (!hit || !(hit === el || el.contains(hit))) { window.__e2eAim = null; return null; }
+          const was = window.__e2eAim; window.__e2eAim = now;
           return was && was.x === now.x && was.y === now.y ? now : null; })()`) as PageFn<{ x: number; y: number } | null>);
       await send("Page.bringToFront");
       const event = { x: at.x, y: at.y, button: "left", clickCount: 1, modifiers: bits(modifiers) };
