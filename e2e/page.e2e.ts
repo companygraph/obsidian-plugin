@@ -11,13 +11,35 @@ import { clearNotices, command, onDisk, pick, promptItems, waitForNotice, waitFo
 const skip = available() ? false : "Obsidian is not installed here; set OBSIDIAN_BIN to run this suite";
 
 // Puts the note's cursor at the end of the first line that is exactly `text`, with the focus in the editor.
+// The focus goes to the note's own CodeMirror view first and the selection is set after it, not
+// through `editor.setCursor` and `editor.focus()`: a live-preview table keeps an editor of its own
+// for the cell last edited, `editor.focus()` hands the focus back to that cell, and a selection
+// set while the cell still holds the focus is pulled back into the table, so a keystroke or a
+// command meant for a heading lands in a table row instead. A note with a table after its
+// required heading, as a decision has, is where an earlier test leaves such a cell open.
 const cursorOn = (text: string) => {
   const editor = app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor;
   const line = (editor.getValue() as string).split("\n").indexOf(text);
   if (line < 0) return false;
-  editor.setCursor({ line, ch: text.length });
-  editor.focus();
+  const cm = editor.cm;
+  cm.contentDOM.focus();
+  cm.dispatch({ selection: { anchor: cm.state.doc.line(line + 1).to }, scrollIntoView: true });
+  cm.focus();
   return true;
+};
+
+// Leaves a live-preview table the way a person does, by clicking the heading nearest the cursor,
+// over the DevTools protocol. While a table's cell editor is open, Obsidian pulls a selection set
+// from code back into the cell and scrolls the note back to it, so neither a programmatic cursor
+// nor a click on a heading out of view reaches the note; a click on the heading above the table,
+// which stays in view, closes the cell editor.
+const leaveTable = async (ui: Session["ui"]) => {
+  await ui.click(() => {
+    const headings = Array.from(document.querySelectorAll<HTMLElement>(".cm-line.HyperMD-header"));
+    return headings.length ? headings[headings.length - 1] : null;
+  });
+  await ui.waitFor("no table cell to hold the focus", () =>
+    !(document.activeElement as HTMLElement | null)?.closest(".cm-table-widget, .table-cell-wrapper"));
 };
 
 describe("the page of an entity", { skip }, () => {
@@ -76,6 +98,9 @@ describe("the page of an entity", { skip }, () => {
       !(app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor.getValue() as string).split("\n").includes(`## ${heading}`), [note.addable[0]]);
 
     await clearNotices(ui);
+    // Removing the last section leaves the cursor at the end of the section above it, which in a
+    // decision is the Bears on table; the table is left as a person would, and the cursor set.
+    await leaveTable(ui);
     assert.equal(await ui.evaluate(cursorOn, [`## ${note.required}`]), true);
     await command(ui, "remove-section");
     await waitForNotice(ui, "is required by the schema and cannot be removed");
