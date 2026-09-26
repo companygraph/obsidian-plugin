@@ -163,6 +163,8 @@ const rowsOf = (text: string) => {
 
 test("a question row is a reference to the entity it names, carrying the owner its row names", () => {
   assert.deepEqual(rowsOf(files.get(WHO)!).slice(1), [
+    // Core 0.45.0: a question's own kind is required and is itself a reference, declared "kind".
+    ["Product", "question-kind", undefined, "kind", "Product"],
     ["Splitting the billing domain", "experience", "Mira Halvorsen", "## Rests on · Entity", "Splitting the billing domain"],
     ["Mira Halvorsen", "profile", undefined, "## Rests on · Owner", "Mira Halvorsen"],
     // Core 0.43.0: the question also rests on the decision to split, an unowned type, whose blank
@@ -170,6 +172,7 @@ test("a question row is a reference to the entity it names, carrying the owner i
     ["Billing leaves the monolith", "decision", "", "## Rests on · Entity", "Billing leaves the monolith"],
   ]);
   assert.deepEqual(rowsOf(files.get(HOW)!).slice(1).map((r) => r.slice(0, 3)), [
+    ["Product", "question-kind", undefined],
     ["Charge explanation", "feature", ""],
     ["Pricing rules", "feature", ""],
   ]);
@@ -221,6 +224,7 @@ test("backticks around a Type, Entity or Owner cell are not part of what it name
   const row = "| `experience` | `Splitting the billing domain` | `Mira Halvorsen` | the period |";
   const text = files.get(WHO)!.replace(/^\| experience \|.*$/m, row);
   assert.deepEqual(rowsOf(text).slice(1).map((r) => [r[0], r[1], r[2], r[4]]), [
+    ["Product", "question-kind", undefined, "Product"],
     ["Splitting the billing domain", "experience", "Mira Halvorsen", "Splitting the billing domain"],
     ["Mira Halvorsen", "profile", undefined, "Mira Halvorsen"],
     ["Billing leaves the monolith", "decision", "", "Billing leaves the monolith"],
