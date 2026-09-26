@@ -45,6 +45,28 @@ describe("the compliance pane and what a failure marks", { skip }, () => {
     await waitForNotice(ui, "report copied");
   });
 
+  test("a report the clipboard refuses says it could not be copied, and why", async () => {
+    const { ui } = session;
+    await command(ui, "open-checks");
+    await ui.waitFor("the pane to offer its copy control", () => document.querySelector(".companygraph-copy") ? true : null);
+    await clearNotices(ui);
+    await ui.evaluate(() => {
+      const clipboard = navigator.clipboard as Clipboard & { was?: Clipboard["writeText"] };
+      clipboard.was = clipboard.writeText;
+      clipboard.writeText = () => Promise.reject(new DOMException("Document is not focused.", "NotAllowedError"));
+    });
+    try {
+      await ui.click(".companygraph-copy");
+      await waitForNotice(ui, "report could not be copied \\(Document is not focused\\.\\)");
+    } finally {
+      await ui.evaluate(() => {
+        const clipboard = navigator.clipboard as Clipboard & { was?: Clipboard["writeText"] };
+        if (clipboard.was) delete (clipboard as { writeText?: unknown }).writeText;
+        delete clipboard.was;
+      });
+    }
+  });
+
   test("a failure in a cell is listed, tints its row and says why, and opens the cell its message names", async () => {
     const { ui } = session;
     const before = (await onDisk(ui, PROFILE))!;
