@@ -93,6 +93,8 @@ describe("making an instance and moving its core", { skip }, () => {
     for (const [file, hash] of Object.entries(manifest.files as Record<string, string>))
       assert.equal(`sha256:${createHash("sha256").update((await onDisk(ui, file))!).digest("hex")}`, hash, file);
     assert.match((await onDisk(ui, "model/identity.md"))!, /\n# Acme\n/);
+    // The brand is the third singular the package's starting entities write, named as the identity is.
+    assert.match((await onDisk(ui, "model/brand.md"))!, /\n# Acme\n[\s\S]*\n## Voice\n/);
     assert.ok(await onDisk(ui, ".claude/skills/companygraph-export/build.py"));
     assert.equal(await onDisk(ui, "model/profiles/README.md"), null);
     assert.match((await onDisk(ui, "model/values/README.md"))!, /`meta\/core\/value-schema\.md`/);
