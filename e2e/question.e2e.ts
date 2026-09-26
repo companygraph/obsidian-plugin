@@ -15,7 +15,7 @@ const skip = available() ? false : "Obsidian is not installed here; set OBSIDIAN
 const QUESTION = "model/questions/who-spoke-at-eclipse-mdd-day.md";
 const EXPERIENCE = "model/profiles/robert-blust/experiences/2010-eclipse-mdd-day.md";
 const TEXT = [
-  "---", "source: Local", "---", "",
+  "---", "source: Local", "kind: Career", "---", "",
   "# Who spoke at Eclipse MDD Day?", "",
   "> The experience says who spoke, and the skill what it took.", "",
   "## Rests on", "",

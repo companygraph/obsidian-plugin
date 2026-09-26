@@ -134,7 +134,8 @@ test("a question is offered from anywhere, named by the slug of its question, an
   assert.equal(question.where, "model/questions/");
   assert.equal(question.pathFor("Who split billing out of the monolith?"), "model/questions/who-split-billing-out-of-the-monolith.md");
   assert.ok(byType(targetsFor(MODEL, "model/profiles/robert-blust/robert-blust.md", none)).has("question"));
-  const { text } = scaffoldOf(vocabulary.get("question")!, "Who wrote the pricing rules?", { source: "Local" });
+  // Core 0.45.0: kind is required on a question, so the scaffold needs it filled the way source is.
+  const { text } = scaffoldOf(vocabulary.get("question")!, "Who wrote the pricing rules?", { source: "Local", kind: "Product" });
   assert.ok(!text.includes("## Rests on"), "an optional section is the author's to add");
   const files = example();
   const path = "example/model/questions/who-wrote-the-pricing-rules.md";

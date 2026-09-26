@@ -84,6 +84,8 @@ test("a question links to each entity it rests on, and not to the owner its row 
   assert.deepEqual(Object.keys(who).filter((p) => !p.includes("/sources/")).sort(), [
     "example/model/decisions/2022-billing-leaves-the-monolith.md",
     "example/model/profiles/mira-halvorsen/experiences/2022-beacon-systems.md",
+    "example/model/question-kinds/product.md",
   ]);
+  assert.equal(who?.["example/model/question-kinds/product.md"], 1, "a question links to its kind");
   assert.equal(links["example/model/questions/does-beacon-systems-publish-its-revenue.md"]?.["example/model/sources/local.md"], 1, "a question resting on nothing names its source alone");
 });
