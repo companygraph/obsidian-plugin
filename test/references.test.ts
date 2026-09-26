@@ -165,6 +165,9 @@ test("a question row is a reference to the entity it names, carrying the owner i
   assert.deepEqual(rowsOf(files.get(WHO)!).slice(1), [
     ["Splitting the billing domain", "experience", "Mira Halvorsen", "## Rests on · Entity", "Splitting the billing domain"],
     ["Mira Halvorsen", "profile", undefined, "## Rests on · Owner", "Mira Halvorsen"],
+    // Core 0.43.0: the question also rests on the decision to split, an unowned type, whose blank
+    // Owner cell carries through as written and draws no owner reference of its own.
+    ["Billing leaves the monolith", "decision", "", "## Rests on · Entity", "Billing leaves the monolith"],
   ]);
   assert.deepEqual(rowsOf(files.get(HOW)!).slice(1).map((r) => r.slice(0, 3)), [
     ["Charge explanation", "feature", ""],
@@ -220,6 +223,7 @@ test("backticks around a Type, Entity or Owner cell are not part of what it name
   assert.deepEqual(rowsOf(text).slice(1).map((r) => [r[0], r[1], r[2], r[4]]), [
     ["Splitting the billing domain", "experience", "Mira Halvorsen", "Splitting the billing domain"],
     ["Mira Halvorsen", "profile", undefined, "Mira Halvorsen"],
+    ["Billing leaves the monolith", "decision", "", "Billing leaves the monolith"],
   ]);
 });
 

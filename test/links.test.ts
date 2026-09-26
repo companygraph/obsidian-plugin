@@ -80,6 +80,10 @@ test("a rename moves what was added, and the model's links, to the new path", ()
 test("a question links to each entity it rests on, and not to the owner its row names", () => {
   const links = linksOf(graph);
   const who = links["example/model/questions/who-split-billing-out-of-the-monolith.md"];
-  assert.deepEqual(Object.keys(who).filter((p) => !p.includes("/sources/")), ["example/model/profiles/mira-halvorsen/experiences/2022-beacon-systems.md"]);
+  // Core 0.43.0: the question also rests on the decision to split, so it links to both.
+  assert.deepEqual(Object.keys(who).filter((p) => !p.includes("/sources/")).sort(), [
+    "example/model/decisions/2022-billing-leaves-the-monolith.md",
+    "example/model/profiles/mira-halvorsen/experiences/2022-beacon-systems.md",
+  ]);
   assert.equal(links["example/model/questions/does-beacon-systems-publish-its-revenue.md"]?.["example/model/sources/local.md"], 1, "a question resting on nothing names its source alone");
 });
