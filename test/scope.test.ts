@@ -44,7 +44,10 @@ test("a phase's gate-to is offered its own process's phases, not another's", () 
         (path.endsWith("/delivery.md") ? text.replace("# Delivery", "# Review") : text)
           .replace(/^# (Specify|Build|Release)$/m, (_, n) => `# Audit ${n}`)
           .replace(/^gate-to: (\w+)$/m, (_, n) => `gate-to: Audit ${n}`)
-          .replace(/^\| (Specify|Build|Release) \|$/gm, (_, n) => `| Audit ${n} |`),
+          // A phase name sits in a `## Phases` row alone and in a `## If not met` row's `Leads
+          // to` cell beside its `Outcome`, so this catches the cell wherever it falls, not only
+          // a row of one column.
+          .replace(/\| (Specify|Build|Release) \|/g, (_, n) => `| Audit ${n} |`),
       );
   const graph = buildModel(files, EXAMPLE).graph!;
   assert.ok(graph, "the two processes parse");

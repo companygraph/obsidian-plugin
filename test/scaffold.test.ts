@@ -106,7 +106,15 @@ test("every type scaffolded into the reference instance owes only what its notic
   // not handed a value for, and no other.
   const files = reference();
   const refVocabulary = vocabularyOf(schemasOf(files, REFERENCE));
-  const expected = [/carries no items/, /has no item, and its schema requires the section/, /is missing (phases|tracks|experiences)\//, /does not list/];
+  // Core 0.55.0: a required table section owes a row as a required list owes an item, and the
+  // scaffold does not write one; the row, like the item, is the author's.
+  const expected = [
+    /carries no items/,
+    /has no item, and its schema requires the section/,
+    /has no row, and its schema requires the section/,
+    /is missing (phases|tracks|experiences)\//,
+    /does not list/,
+  ];
   const seen = new Set<string>();
   for (const active of ["model/processes/delivery/delivery.md", "model/profiles/robert-blust/robert-blust.md"]) {
     for (const target of targetsFor(REFERENCE.model, active, (p) => files.has(p))) {
