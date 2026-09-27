@@ -18,6 +18,21 @@ test("the reference instance passes and parses, in its own layout", () => {
   assert.deepEqual(m.failures, []);
   assert.ok(m.graph);
 });
+
+// Core 0.55.0, and the reason this task exists: a phase's `## If not met` table names, for each
+// outcome, the phase the work goes back to, and may leave `Leads to` empty to say the process
+// stops there. The parser bundled before this release read that empty cell the way it read any
+// other ref cell, and threw R4 on it instead of building the graph — so a vault with the tables
+// lost completion, name marks and the references pane over the whole vault, not only the one
+// phase. Release is the example's last phase, and its `## If not met` row leaves `Leads to`
+// empty by design, so the graph must still build and the row must report no failure of its own.
+const RELEASE = "example/model/processes/delivery/phases/release.md";
+test("a phase's `## If not met` row with an empty `Leads to` stops the process, and the graph still builds", () => {
+  const m = buildModel(whole(example()), EXAMPLE);
+  assert.ok(m.graph);
+  assert.deepEqual(m.failures.filter((f) => f.startsWith(RELEASE)), []);
+});
+
 test("an unresolvable reference is reported once: the checks speak, the parser's throw is dropped", () => {
   const m = buildModel(whole(edited(example(), ROLE, (t) => t.replace("source: Local", "source: Nowhere"))), EXAMPLE);
   assert.equal(m.graph, null);

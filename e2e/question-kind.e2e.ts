@@ -75,7 +75,7 @@ describe("the question kind", { skip }, () => {
     await ui.press("Backspace");
     const items = (await ui.waitFor("kinds to be offered", offered)) as string[];
     await ui.press("Escape");
-    assert.deepEqual([...items].sort(), ["Brand", "Career", "Ideas", "Model and chat"]);
+    assert.deepEqual([...items].sort(), ["Brand", "Career", "Cost", "Ideas", "Model and chat"]);
     await sourceMode(ui, false);
     await session.restore([QUESTION]);
   });
