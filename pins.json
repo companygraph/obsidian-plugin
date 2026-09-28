@@ -1,0 +1,7 @@
+{
+  "pins": [
+    { "kind": "conventions", "file": "conventions.json", "repo": "robertblust/conventions" },
+    { "kind": "npm-tag", "file": "package.json", "repo": "companygraph/meta-model", "after": ["npm run notices"] }
+  ],
+  "verify": ["npm run typecheck", "npm test", "npm run build"]
+}
