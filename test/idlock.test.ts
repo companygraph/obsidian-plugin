@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { heldAfter, holdsEdit, idOf, lostId } from "../src/idlock.ts";
+import { heldAfter, holdsEdit, idOf, lostId, lostInProperties } from "../src/idlock.ts";
 
 // The id lock (spec §8): since core 0.49.0 a page carries an `id` (R18), set once and never
 // changed. What is compared is the id the lock holds and the id the page carries after an edit.
@@ -61,15 +61,55 @@ test("the edits that pass the heading lock pass this one, and the Properties wid
   assert.equal(holdsEdit("set", true), true);
 });
 
+test("a line ending in a carriage return is read as the line", () => {
+  assert.equal(idOf(PAGE.replaceAll("\n", "\r\n")), ID);
+  assert.equal(idOf(BLANK.replaceAll("\n", "\r\n")), "");
+});
+
+test("a trailing comment is YAML's and no part of the id", () => {
+  assert.equal(idOf(PAGE.replace(`id: ${ID}`, `id: ${ID} # set by New entity`)), ID);
+  assert.equal(idOf(PAGE.replace(`id: ${ID}`, `id: "${ID}"  # quoted`)), ID);
+  assert.equal(idOf(PAGE.replace(`id: ${ID}`, "id: # owed")), "");
+  // A `#` with no space before it is part of the value, as YAML reads it.
+  assert.equal(idOf(PAGE.replace(`id: ${ID}`, "id: a#b")), "a#b");
+});
+
+test("a write of the Properties widget that drops or changes a held id is refused, whatever the view", () => {
+  assert.equal(lostInProperties(ID, { source: "Local" }), true);
+  assert.equal(lostInProperties(ID, { id: `${ID}x`, source: "Local" }), true);
+  assert.equal(lostInProperties(ID, { id: null }), true);
+  assert.equal(lostInProperties(ID, { id: "" }), true);
+  assert.equal(lostInProperties(ID, null), true);
+  assert.equal(lostInProperties(ID, { id: ID, source: "Elsewhere" }), false);
+  assert.equal(lostInProperties(ID, { id: ` ${ID} ` }), false);
+  // YAML reads a bare number as one; a pattern's numeric id is still the same id.
+  assert.equal(lostInProperties("0123", { id: 123 }), false);
+  assert.equal(lostInProperties("0123", { id: 124 }), true);
+  // Nothing held, nothing refused: a blank id may be filled and a page may gain one.
+  assert.equal(lostInProperties("", { id: ID }), false);
+  assert.equal(lostInProperties(null, {}), false);
+});
+
 test("the id held is the page's as the editor took it from the file, and moves only with the file", () => {
+  const open = (held: string | null) => ({ held, before: held });
   // A reload from disk, or the widget's own write that passed, both arrive as `set`.
-  assert.equal(heldAfter("", "set", PAGE), ID);
-  assert.equal(heldAfter(null, "set", PAGE), ID);
-  assert.equal(heldAfter(ID, "set", NONE), null);
+  assert.deepEqual(heldAfter(open(""), "set", PAGE), { held: ID, before: "" });
+  assert.deepEqual(heldAfter(open(null), "set", PAGE), { held: ID, before: null });
+  assert.deepEqual(heldAfter(open(ID), "set", NONE), { held: null, before: ID });
   // Typing does not move it: a blank id stays open while it is being written.
-  assert.equal(heldAfter("", "input.type", PAGE), "");
-  assert.equal(heldAfter(null, undefined, PAGE), null);
-  assert.equal(heldAfter(ID, "undo", BLANK), ID);
+  assert.deepEqual(heldAfter(open(""), "input.type", PAGE), open(""));
+  assert.deepEqual(heldAfter(open(null), undefined, PAGE), open(null));
+  assert.deepEqual(heldAfter(open(ID), "undo", BLANK), open(ID));
   // A name that merely begins like `set` is not one.
-  assert.equal(heldAfter("", "settle", PAGE), "");
+  assert.deepEqual(heldAfter(open(""), "settle", PAGE), open(""));
+});
+
+test("undo after the widget filled a blank id opens it again, and redo holds it again", () => {
+  const filled = heldAfter({ held: "", before: "" }, "set", PAGE);
+  const undone = heldAfter(filled, "undo", BLANK);
+  assert.deepEqual(undone, { held: "", before: ID });
+  assert.equal(lostId(undone.held, BLANK.replace("id:", "id: typed")), null);
+  assert.deepEqual(heldAfter(undone, "redo", PAGE), { held: ID, before: "" });
+  // An undo that leaves some other value keeps what is held.
+  assert.deepEqual(heldAfter(filled, "undo", PAGE.replace(ID, "other")), filled);
 });

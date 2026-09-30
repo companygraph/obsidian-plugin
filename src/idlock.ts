@@ -6,18 +6,20 @@
 import { frontmatterEnd } from "./context.ts";
 import { isHeld } from "./headings.ts";
 
-// The id a page carries: its value, with one pair of YAML's quotes around it set aside; "" where
-// the line is there and blank; null where the frontmatter has no top-level `id:` line, or the
-// page no frontmatter that has closed.
+// The id a page carries: its value, with one pair of YAML's quotes and a trailing comment set
+// aside; "" where the line is there and blank; null where the frontmatter has no top-level `id:`
+// line, or the page no frontmatter that has closed. A line may end in a carriage return.
 export function idOf(text: string): string | null {
-  const lines = text.split("\n");
+  const lines = text.split(/\r?\n/);
   const end = frontmatterEnd(lines);
   for (let i = 1; i < end; i++) {
     const found = lines[i].match(/^id:(.*)$/);
     if (!found) continue;
     const value = found[1].trim();
-    const quoted = value.match(/^(["'])(.*)\1$/);
-    return quoted ? quoted[2] : value;
+    const quoted = value.match(/^(["'])(.*?)\1(\s+#.*)?$/);
+    if (quoted) return quoted[2];
+    // A comment opens at a `#` that starts the value or follows a space, as YAML reads it.
+    return value.startsWith("#") ? "" : value.replace(/\s+#.*$/, "");
   }
   return null;
 }
@@ -29,16 +31,37 @@ export function lostId(held: string | null, after: string): string | null {
   return idOf(after) === held ? null : held;
 }
 
+// Whether a write of the Properties widget, the frontmatter it would save, loses the id held. The
+// widget writes this way in every view, Reading view included, where no editor sees the write, so
+// this is decided before it is made. YAML hands a bare number over as one, and a numeric id is
+// compared as a number for that reason.
+export function lostInProperties(held: string | null, frontmatter: unknown): boolean {
+  if (!held) return false;
+  const id = frontmatter && typeof frontmatter === "object" ? (frontmatter as Record<string, unknown>).id : undefined;
+  if (typeof id === "string") return id.trim() !== held;
+  if (typeof id === "number") return id !== Number(held);
+  return true;
+}
+
 // Whether the id lock looks at an edit. Every edit the heading lock holds, and besides those the
 // Properties widget's own write: the widget writes through the editor with the event `set`, the
 // same event as a file reloaded from disk, which must pass, so only knowing that the widget is
 // writing tells the two apart.
 export const holdsEdit = (event: string | undefined, fromProperties: boolean) => fromProperties || isHeld(event);
 
+// The id the lock holds, and the one it held before the last `set` moved it.
+export interface Held { held: string | null; before: string | null }
+
 // The id the lock holds after an edit that passed. It is the page's id as the editor took it from
 // the file, when the note was opened or reloaded, or as the widget wrote it: both arrive as `set`.
 // Typing does not move it, so a blank id stays open while it is written, and is held from the
-// next time the note is opened.
-export function heldAfter(held: string | null, event: string | undefined, after: string): string | null {
-  return event === "set" || event?.startsWith("set.") ? idOf(after) : held;
+// next time the note is opened. Undo and redo move it back and forth only where they bring back
+// the id held before the last `set`: an undo of the widget filling a blank id opens it again.
+export function heldAfter(hold: Held, event: string | undefined, after: string): Held {
+  if (event === "set" || event?.startsWith("set.")) return { held: idOf(after), before: hold.held };
+  if (event === "undo" || event === "redo") {
+    const now = idOf(after);
+    if (now !== hold.held && now === hold.before) return { held: now, before: hold.held };
+  }
+  return hold;
 }
