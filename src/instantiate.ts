@@ -85,6 +85,14 @@ export async function planMove(disk: Disk, release: Release, force = false): Pro
   const wanted = [...Object.keys(manifest.files ?? {}), ...Object.keys(release.skills).map((p) => `${SKILLS}${p}`)];
   for (const path of wanted)
     if (!held.has(path) && (await disk.exists(path))) held.set(path, await disk.read(path));
+  // model/identity.md and model/localization.md are the instance's own and carry no hash, so the
+  // manifest never names them; the planner still needs to see them, the same way companygraph's
+  // own `upgrade` does, to read model/identity.md's `source` for a fresh localization page and to
+  // know whether the instance already has one, rather than take a blank vault for one that simply
+  // was not asked for (R18: an upgrade that took silence for absence would overwrite the page a
+  // vault already holds with a fresh id every time it moved core).
+  for (const path of ["model/identity.md", "model/localization.md"])
+    if (await disk.exists(path)) held.set(path, await disk.read(path));
   const plan = upgradePlan({
     core: asMap(release.core),
     skills: asMap(release.skills),

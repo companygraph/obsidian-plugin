@@ -7,6 +7,17 @@ import { example, EXAMPLE } from "./helpers.ts";
 
 const vocabulary = vocabularyOf(schemasOf(example(), EXAMPLE));
 
+// Meta-model 0.66.0: parseSchemas gives each schema entity a UUID `id` (R18) and keeps
+// `core/<type>` as `address`; the vocabulary reads a schema's type from `address`, not `id`.
+test("the vocabulary is keyed by plain type names, read from a schema entity's address", () => {
+  assert.ok(vocabulary.has("skill"));
+  assert.ok(vocabulary.has("experience"));
+  assert.ok(vocabulary.has("profile"));
+  // A schema entity's own `id` is a UUID v7 (R18) since meta-model 0.66.0, not the type; a key
+  // that looked like one would mean the vocabulary was still reading `id`.
+  assert.ok([...vocabulary.keys()].every((k) => !/^[0-9a-f]{8}-/.test(k)));
+});
+
 test("a reference field offers the names of the type it declares", () => {
   const source = vocabulary.get("skill")!.fields.find((f) => f.name === "source")!;
   assert.deepEqual(source, { name: "source", required: true, list: false, offer: { kind: "names", target: "source" } });
