@@ -46,7 +46,8 @@ import { AddSection } from "./addsection.ts";
 import { addableSections } from "./headings.ts";
 import { PickType } from "./newentity.ts";
 import { targetsFor } from "./scaffold.ts";
-import { DeleteEntity, RenameEntity } from "./entitycommands.ts";
+import { DeleteEntity, FreshId, RenameEntity } from "./entitycommands.ts";
+import { freshIdOffered } from "./freshid.ts";
 import { MakeInstance, MoveCore } from "./instancecommands.ts";
 import type { Release } from "./instantiate.ts";
 import { cliProfile } from "./cli.ts";
@@ -325,6 +326,25 @@ export default class CompanyGraphPlugin extends Plugin {
         const target = openEntity();
         if (!target) return false;
         if (!checking) new DeleteEntity(this, target).open();
+        return true;
+      },
+    });
+    // Offered where the plugin may make the id, as New entity makes one: the type declares `id`,
+    // and the instance declares UUID version 7 or has no identifier file. Under a declared pattern
+    // it is not offered, as a command that cannot apply is not offered elsewhere here.
+    this.addCommand({
+      id: "fresh-id",
+      name: "Give this page a fresh id",
+      checkCallback: (checking) => {
+        const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+        const layout = this.layout;
+        if (!view?.file || !layout || !isEntityFile(this, view.file.path, view.getViewData())) return false;
+        const type = typeOfPath(view.file.path, layout.model);
+        const declaresId = !!type && !!this.vocabulary.get(type)?.fields.some((f) => f.name === "id");
+        const path = `${layout.model}/identifier.md`;
+        const identifier = this.app.vault.getAbstractFileByPath(path) ? (this.textOf(path) ?? undefined) : null;
+        if (!freshIdOffered(declaresId, identifier)) return false;
+        if (!checking) new FreshId(this.app, view).open();
         return true;
       },
     });

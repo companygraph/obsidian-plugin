@@ -12,6 +12,11 @@ import { namedOf } from "./scope.ts";
 import { deletePlan, renamePlan } from "./refactor.ts";
 import type { Mention } from "./refactor.ts";
 import type { Named } from "./scope.ts";
+import { uuidv7 } from "companygraph-meta-model/ids";
+import type { EditorView } from "@codemirror/view";
+import { freshIdChange } from "./freshid.ts";
+import { idOf } from "./idlock.ts";
+import { copyId } from "./widget.ts";
 
 async function saveOpenNotes(app: App) {
   const saves: Promise<void>[] = [];
@@ -208,6 +213,46 @@ export class DeleteEntity extends Modal {
           } finally {
             this.busy = false;
           }
+        }),
+      );
+  }
+
+  onClose() { this.contentEl.empty(); }
+}
+
+// Give this page a fresh id (spec §8). The one way the plugin changes an id, which R18 otherwise
+// never does, so it asks first and says what is at stake. On the author's word it replaces the
+// value of the page's `id:` line in the editor, with the event `input.id` the lock lets through
+// and follows, so the page is locked again on the new id, and puts the new id on the clipboard.
+export class FreshId extends Modal {
+  view: MarkdownView;
+
+  constructor(app: App, view: MarkdownView) {
+    super(app);
+    this.view = view;
+  }
+
+  onOpen() {
+    this.titleEl.setText("Give this page a fresh id");
+    const current = idOf(this.view.getViewData());
+    this.contentEl.createEl("p", {
+      text: current
+        ? `Its id ${current} is replaced by a new one, and anything outside the model that holds the old id will no longer find this page.`
+        : "It is given an id where it has none, and anything outside the model will find it by that id from now on.",
+    });
+    new Setting(this.contentEl)
+      .addButton((b) => b.setButtonText("Cancel").onClick(() => this.close()))
+      .addButton((b) =>
+        b.setButtonText("Confirm").setWarning().onClick(() => {
+          this.close();
+          const cm = (this.view.editor as unknown as { cm?: EditorView }).cm;
+          if (!cm) {
+            new Notice("The page's editor could not be reached; its id is unchanged.");
+            return;
+          }
+          const id = uuidv7();
+          cm.dispatch({ changes: freshIdChange(cm.state.doc.toString(), id), userEvent: "input.id" });
+          copyId(id, "the page's new id");
         }),
       );
   }

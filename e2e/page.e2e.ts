@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { available, start } from "./obsidian.ts";
 import type { Session } from "./obsidian.ts";
 import { PROFILE, editorText, openNote } from "./notes.ts";
-import { clearNotices, command, onDisk, pick, promptItems, waitForNotice, waitForPrompt } from "./ui.ts";
+import { clearNotices, command, modalText, onDisk, pick, pressButton, promptItems, waitForModal, waitForNotice, waitForPrompt } from "./ui.ts";
 
 const skip = available() ? false : "Obsidian is not installed here; set OBSIDIAN_BIN to run this suite";
 
@@ -207,6 +207,32 @@ describe("the page of an entity", { skip }, () => {
       const view = app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view;
       await view.setState({ ...view.getState(), mode: "source", source: false }, { history: false });
     });
+
+    // Give this page a fresh id: asked first, then the id line alone changes, the new id is
+    // copied, and the page is locked again on it.
+    await clearNotices(ui);
+    await command(ui, "fresh-id");
+    await waitForModal(ui, "Give this page a fresh id");
+    assert.match(await modalText(ui), new RegExp(`${ID}.*will no longer find this page`));
+    await pressButton(ui, "Confirm");
+    const fresh = await ui.waitFor("the page to carry a new id", (was: string) => {
+      const found = (app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor.getValue() as string).match(/^---\n(?:.*\n)*?id: ([0-9a-f-]{36})\n/)?.[1];
+      return found && found !== was ? found : null;
+    }, [ID]);
+    assert.match(fresh, /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    assert.equal(await ui.evaluate(editorText), before.replace(`id: ${ID}`, `id: ${fresh}`));
+    await waitForNotice(ui, `new id copied \\(${fresh}\\)`);
+    await ui.waitFor("the new id to be held", () =>
+      app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.containerEl.getAttribute("data-companygraph-id") === "locked");
+    await sourceMode(ui, true);
+    assert.equal(await ui.evaluate(cursorOn, [`id: ${fresh}`]), true);
+    await ui.type("x");
+    // Read from the text and not a notice: the lock's notice is told once for a burst, and the
+    // widget's refusals above are within it.
+    const after = before.replace(`id: ${ID}`, `id: ${fresh}`);
+    await ui.never("the new id to take the typing", (text: string) =>
+      app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor.getValue() !== text, [after], 1000);
+    await sourceMode(ui, false);
     await session.restore([note.path]);
   });
 

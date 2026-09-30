@@ -111,10 +111,11 @@ function holdPane(plugin: CompanyGraphPlugin) {
 
 // Puts a page's id on the clipboard, and says so either way: a press that shows nothing reads as
 // a copy that worked.
-export function copyId(id: string) {
+// `what` names the id in the notice: the page's id, or the new one Give this page a fresh id wrote.
+export function copyId(id: string, what = "id") {
   void navigator.clipboard.writeText(id)
-    .then(() => new Notice(`CompanyGraph: id copied (${id})`))
-    .catch((error: unknown) => new Notice(`CompanyGraph: the id could not be copied (${error instanceof Error ? error.message : String(error)})`));
+    .then(() => new Notice(`CompanyGraph: ${what} copied (${id})`))
+    .catch((error: unknown) => new Notice(`CompanyGraph: ${what} ${id}; it could not be copied (${error instanceof Error ? error.message : String(error)})`));
 }
 
 // The id of the page a note shows, or null where it has none or a blank one.
