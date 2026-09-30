@@ -1,5 +1,5 @@
 // Fetches the two repositories the suite runs against into test/fixtures/: companygraph/
-// meta-model at the tag or the commit package.json pins, for its worked example and core/, and the reference
+// meta-model at the tag package.json pins, for its worked example and core/, and the reference
 // instance robertblust/mental-model at one commit, for an instance in the layout every real one
 // has. Neither is in node_modules: the package ships lib/ and bin/ only, and an instance is
 // content, not a dependency. And the three files of one release of the Terminal plugin, which
@@ -13,8 +13,6 @@ import { PLUGINS, download } from "companygraph-meta-model/obsidian";
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
 const [, metaRepo, tag] = pkg.dependencies["companygraph-meta-model"].match(/^github:([^#]+)#(.+)$/);
-// A pin is a tag, and between releases it may be a commit, which codeload takes as it is.
-const metaRef = /^[0-9a-f]{40}$/.test(tag) ? tag : `refs/tags/${tag}`;
 
 // The instance commit is test data and lives here.
 const INSTANCE_COMMIT = "d011d81f5df07afc46c208d6ce3abd9bafebdaa8";
@@ -22,7 +20,7 @@ const INSTANCE_COMMIT = "d011d81f5df07afc46c208d6ce3abd9bafebdaa8";
 const TERMINAL_RELEASE = "3.27.2";
 
 const FIXTURES = [
-  { repo: metaRepo, ref: tag, url: `https://codeload.github.com/${metaRepo}/tar.gz/${metaRef}`, dir: "meta-model" },
+  { repo: metaRepo, ref: tag, url: `https://codeload.github.com/${metaRepo}/tar.gz/refs/tags/${tag}`, dir: "meta-model" },
   { repo: "robertblust/mental-model", ref: INSTANCE_COMMIT, url: `https://codeload.github.com/robertblust/mental-model/tar.gz/${INSTANCE_COMMIT}`, dir: "mental-model" },
 ];
 

@@ -19,7 +19,7 @@
     "notices": "node scripts/notices.mjs"
   },
   "dependencies": {
-    "companygraph-meta-model": "github:companygraph/meta-model#f99b3239d3d59a0fcc6661afb6007baecdd02b48",
+    "companygraph-meta-model": "github:companygraph/meta-model#v0.65.1",
     "markdownlint": "0.41.1"
   },
   "devDependencies": {
