@@ -6,7 +6,7 @@
 // field, so this is one, rebuilt when the text changes, when a rebuild sends `refreshNames`, and
 // when the editor turns out to hold another file. The tooltip is Obsidian's, shown for any
 // element with an aria-label.
-import { Notice, editorEditorField, editorInfoField, setIcon } from "obsidian";
+import { MarkdownView, Notice, editorEditorField, editorInfoField, setIcon } from "obsidian";
 import { EditorState as State, RangeSetBuilder, StateField, Transaction as Tr } from "@codemirror/state";
 import type { EditorState, Transaction } from "@codemirror/state";
 import { Decoration, EditorView, ViewPlugin, WidgetType } from "@codemirror/view";
@@ -17,7 +17,7 @@ import { headingsOf, insertionAt, isEntityText, isHeld, lockedLines, lostLine, m
 import type { HeadingKind } from "./headings.ts";
 import type { TypeVocabulary } from "./vocabulary.ts";
 import { refreshNames } from "./namelinks.ts";
-import { heldAfter, holdsEdit, idOf, lostId } from "./idlock.ts";
+import { containerMark, heldAfter, holdsEdit, idOf, lostId } from "./idlock.ts";
 import type { Held } from "./idlock.ts";
 
 // The vocabulary of the entity in the editor, or null where the file is none. Obsidian gives a
@@ -256,15 +256,30 @@ const LOCKED = "data-companygraph-id";
 
 // The row is drawn locked by an attribute on the view's container, which holds the widget in
 // Live Preview and in Reading view alike; styles.css draws it and widget.ts guards its focus. Set
-// by the note's own editor only: a table cell's editor sits inside it and holds no page.
+// only by the editor of a note's own view: the editor field names the view, and the view's editor
+// must be this one. A canvas's node editors share one container and a table cell's editor sits
+// inside the note's, and neither touches it.
+function ownView(v: EditorView): MarkdownView | null {
+  const info = v.state.field(editorInfoField, false);
+  if (!(info instanceof MarkdownView)) return null;
+  let cm: EditorView | undefined;
+  try {
+    cm = (info.editor as unknown as { cm?: EditorView } | undefined)?.cm;
+  } catch {
+    cm = undefined;
+  }
+  return cm === v ? info : null;
+}
+
 function markContainer(field: StateField<IdHold>) {
   return ViewPlugin.define((view) => {
     let container: Element | null = null;
     const mark = (v: EditorView) => {
-      if (v.dom.parentElement?.closest(".cm-editor")) return;
-      container = v.dom.closest(".workspace-leaf-content") ?? container;
-      if (!container) return;
-      if (v.state.field(field, false)?.locked) container.setAttribute(LOCKED, "locked");
+      const own = ownView(v);
+      const action = containerMark(!!v.state.field(field, false)?.locked, own !== null);
+      if (action === "leave") return;
+      container = own!.containerEl;
+      if (action === "set") container.setAttribute(LOCKED, "locked");
       else container.removeAttribute(LOCKED);
     };
     mark(view);

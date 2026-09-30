@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { heldAfter, holdsEdit, idOf, lostId, lostInProperties } from "../src/idlock.ts";
+import { containerMark, heldAfter, holdsEdit, idOf, isCopyPress, lostId, lostInProperties } from "../src/idlock.ts";
 
 // The id lock (spec §8): since core 0.49.0 a page carries an `id` (R18), set once and never
 // changed. What is compared is the id the lock holds and the id the page carries after an edit.
@@ -112,4 +112,31 @@ test("undo after the widget filled a blank id opens it again, and redo holds it 
   assert.deepEqual(heldAfter(undone, "redo", PAGE), { held: ID, before: "" });
   // An undo that leaves some other value keeps what is held.
   assert.deepEqual(heldAfter(filled, "undo", PAGE.replace(ID, "other")), filled);
+});
+
+test("YAML's null is a blank id, so the page is not locked and the widget may fill it", () => {
+  for (const nothing of ["~", "null", "Null", "NULL", "null # owed"])
+    assert.equal(idOf(PAGE.replace(`id: ${ID}`, `id: ${nothing}`)), "", nothing);
+  assert.equal(lostId(idOf(PAGE.replace(`id: ${ID}`, "id: ~")), PAGE), null);
+  // Quoted, it is the string, as YAML reads it; and a word that only begins so is a value.
+  assert.equal(idOf(PAGE.replace(`id: ${ID}`, 'id: "null"')), "null");
+  assert.equal(idOf(PAGE.replace(`id: ${ID}`, "id: nullish")), "nullish");
+});
+
+test("only the note's own editor marks its container, and another editor leaves it alone", () => {
+  assert.equal(containerMark(true, true), "set");
+  assert.equal(containerMark(false, true), "remove");
+  // A canvas node's editor, or a table cell's, shares a container it does not own.
+  assert.equal(containerMark(true, false), "leave");
+  assert.equal(containerMark(false, false), "leave");
+});
+
+test("a press copies only with the primary button and only where it did not move", () => {
+  assert.equal(isCopyPress({ button: 0, x: 10, y: 10 }, { button: 0, x: 10, y: 10 }), true);
+  assert.equal(isCopyPress({ button: 0, x: 10, y: 10 }, { button: 0, x: 13, y: 12 }), true);
+  assert.equal(isCopyPress({ button: 0, x: 10, y: 10 }, { button: 0, x: 30, y: 10 }), false);
+  assert.equal(isCopyPress({ button: 2, x: 10, y: 10 }, { button: 2, x: 10, y: 10 }), false);
+  assert.equal(isCopyPress({ button: 1, x: 10, y: 10 }, { button: 0, x: 10, y: 10 }), false);
+  // A release with no press seen on the value copies nothing.
+  assert.equal(isCopyPress(null, { button: 0, x: 10, y: 10 }), false);
 });

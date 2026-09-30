@@ -18,8 +18,10 @@ export function idOf(text: string): string | null {
     const value = found[1].trim();
     const quoted = value.match(/^(["'])(.*?)\1(\s+#.*)?$/);
     if (quoted) return quoted[2];
-    // A comment opens at a `#` that starts the value or follows a space, as YAML reads it.
-    return value.startsWith("#") ? "" : value.replace(/\s+#.*$/, "");
+    // A comment opens at a `#` that starts the value or follows a space, as YAML reads it, and
+    // YAML's null is no id at all: blank, so the page is not locked and may be filled.
+    const bare = value.startsWith("#") ? "" : value.replace(/\s+#.*$/, "");
+    return /^(~|null|Null|NULL)$/.test(bare) ? "" : bare;
   }
   return null;
 }
@@ -64,4 +66,20 @@ export function heldAfter(hold: Held, event: string | undefined, after: string):
     if (now !== hold.held && now === hold.before) return { held: now, before: hold.held };
   }
   return hold;
+}
+
+// What an editor does to the attribute on its view's container that draws the id's row locked.
+// Only the note's own editor touches it: a canvas's node editors share one container, and a
+// table cell's editor sits inside the note's, so either would mark or clear a row not its own.
+export function containerMark(locked: boolean, owned: boolean): "set" | "remove" | "leave" {
+  if (!owned) return "leave";
+  return locked ? "set" : "remove";
+}
+
+// A press on the locked value, from the button going down to it coming up: it copies the id
+// with the primary button only, and only where the pointer stayed put, so a drag copies nothing.
+export interface Press { button: number; x: number; y: number }
+export function isCopyPress(down: Press | null, up: Press): boolean {
+  if (!down || down.button !== 0 || up.button !== 0) return false;
+  return Math.abs(up.x - down.x) <= 4 && Math.abs(up.y - down.y) <= 4;
 }

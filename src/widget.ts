@@ -8,7 +8,8 @@ import { typeOfPath } from "companygraph-meta-model/checks";
 import type CompanyGraphPlugin from "./main.ts";
 import { ID_REFUSED, propertiesWrite, tellLocked } from "./headingmarks.ts";
 import { isEntityText } from "./headings.ts";
-import { idOf, lostId, lostInProperties } from "./idlock.ts";
+import { idOf, isCopyPress, lostId, lostInProperties } from "./idlock.ts";
+import type { Press } from "./idlock.ts";
 
 // Puts the focus into a field's value. false: the row is not there (yet), so a caller that
 // has only just changed the note may try once more; true: done, or there is nothing to do.
@@ -181,19 +182,28 @@ export function holdIdInProperties(plugin: CompanyGraphPlugin) {
   // be selected. The container carries the attribute; headingmarks.ts sets it.
   const locked = (target: EventTarget | null) =>
     target instanceof HTMLElement ? target.closest<HTMLElement>(LOCKED_VALUE) : null;
+  // The press is read from the button going down to the click: the primary button only, and not
+  // where the pointer moved, so a drag copies nothing. Every press still takes no focus.
+  let down: Press | null = null;
+  const pressOf = (event: MouseEvent): Press => ({ button: event.button, x: event.clientX, y: event.clientY });
   plugin.registerDomEvent(document, "mousedown", (event) => {
+    const value = locked(event.target);
+    down = value ? pressOf(event) : null;
+    if (!value) return;
+    event.preventDefault();
+    event.stopPropagation();
+  }, { capture: true });
+  plugin.registerDomEvent(document, "click", (event) => {
     const value = locked(event.target);
     if (!value) return;
     event.preventDefault();
     event.stopPropagation();
+    const copy = isCopyPress(down, pressOf(event));
+    down = null;
+    if (!copy) return;
     const view = viewHolding(plugin, value);
     const id = view ? idIn(view) : null;
     if (id) copyId(id);
-  }, { capture: true });
-  plugin.registerDomEvent(document, "click", (event) => {
-    if (!locked(event.target)) return;
-    event.preventDefault();
-    event.stopPropagation();
   }, { capture: true });
   // The focus that still reaches it, by Tab, is passed on and says why.
   plugin.registerDomEvent(document, "focusin", (event) => {
