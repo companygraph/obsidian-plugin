@@ -1,7 +1,8 @@
 // New entity (spec §8): a picker of the types a new entity may be made of here, then its name,
 // and for a type whose filename takes a field's value, that value too. The file is written where
 // the type's folder says, with what its schema requires, and opened with the cursor on the
-// tagline. Where and what are scaffold.ts's.
+// tagline. Where and what are scaffold.ts's, the id among what: read against the instance's
+// `model/identifier.md` as it stands when the file is written.
 import { FuzzySuggestModal, MarkdownView, Modal, Notice, Setting, TFile } from "obsidian";
 import type { App } from "obsidian";
 import type { TypeVocabulary } from "./vocabulary.ts";
@@ -95,13 +96,20 @@ class NameEntity extends Modal {
     }
     const values: Record<string, string> = {};
     if (this.target.asks) values[this.target.asks] = this.asked.trim();
-    const { text, tagline } = scaffoldOf(this.vocabulary, name, values);
     const dir = path.slice(0, path.lastIndexOf("/"));
     this.busy = true;
     let file: TFile;
+    let tagline: number;
+    let owes: string | null;
     try {
+      // Read inside the guard, since a read waits and a second Enter may land meanwhile.
+      const identifierFile = vault.getAbstractFileByPath(`${this.model}/identifier.md`);
+      const identifier = identifierFile instanceof TFile ? await vault.read(identifierFile) : null;
+      const scaffold = scaffoldOf(this.vocabulary, name, values, identifier);
+      tagline = scaffold.tagline;
+      owes = scaffold.owes;
       if (!vault.getAbstractFileByPath(dir)) await vault.createFolder(dir);
-      file = await vault.create(path, text);
+      file = await vault.create(path, scaffold.text);
     } catch (error) {
       this.busy = false;
       new Notice(`${path} could not be written: ${error instanceof Error ? error.message : String(error)}`);
@@ -113,7 +121,9 @@ class NameEntity extends Modal {
     const view = leaf.view instanceof MarkdownView ? leaf.view : null;
     view?.editor.setCursor({ line: tagline, ch: 2 });
     view?.editor.focus();
-    if (this.target.owes) new Notice(this.target.owes);
+    // What the scaffold could not write: an id under a pattern, the owner's row or first entity.
+    const owed = [owes, this.target.owes].filter((o) => o !== null);
+    if (owed.length) new Notice(owed.join(" "));
   }
 
   onClose() { this.contentEl.empty(); }
