@@ -40,7 +40,7 @@ import { absentFields } from "./candidates.ts";
 import { AddField } from "./addfield.ts";
 import { BRIEF_VIEW, BriefPane } from "./briefpane.ts";
 import { headingLock, headingMarks, idHold, removeSection } from "./headingmarks.ts";
-import { holdIdInProperties } from "./widget.ts";
+import { copyId, holdIdInProperties, idIn } from "./widget.ts";
 import { pictureMark } from "./picturemark.ts";
 import { AddSection } from "./addsection.ts";
 import { addableSections } from "./headings.ts";
@@ -371,6 +371,19 @@ export default class CompanyGraphPlugin extends Plugin {
         const adapter = this.app.vault.adapter;
         if (!Platform.isDesktopApp || !terminal || !(adapter instanceof FileSystemAdapter)) return false;
         if (!checking) void this.openCli(terminal, adapter.getBasePath());
+        return true;
+      },
+    });
+    // An id cannot be edited, and is what a person copies to name the entity elsewhere; the
+    // locked row in the Properties widget copies it on a press as well.
+    this.addCommand({
+      id: "copy-entity-id",
+      name: "Copy entity id",
+      checkCallback: (checking) => {
+        const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+        const id = view ? idIn(view) : null;
+        if (!id) return false;
+        if (!checking) copyId(id);
         return true;
       },
     });

@@ -145,7 +145,7 @@ describe("the page of an entity", { skip }, () => {
     await openNote(ui, note.path);
     await ui.evaluate(async (at: string, text: string) => app.vault.modify(app.vault.getAbstractFileByPath(at), text), [note.path, was.replace(/^---\n/, `---\nid: ${ID}\n`)]);
     await ui.waitFor("the id to be held", () =>
-      !!app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.containerEl.querySelector('.cm-editor[data-companygraph-id="locked"]'));
+      app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.containerEl.getAttribute("data-companygraph-id") === "locked");
     const before = await ui.evaluate(editorText);
 
     await sourceMode(ui, true);
@@ -159,30 +159,56 @@ describe("the page of an entity", { skip }, () => {
 
     await sourceMode(ui, false);
     const row = '.metadata-property[data-property-key="id"] .metadata-property-value';
-    await ui.waitFor("the id's row to be drawn", (at: string) => {
+    const drawn = (what: string) => ui.waitFor(what, (at: string) => {
       const el = app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.containerEl.querySelector(at) as HTMLElement | null;
       return !!el && el.offsetParent !== null;
     }, [row]);
-    // The row turns the focus away with a notice of its own, apart from the filter's burst; the
-    // widget's refused write is read from the text and the row, since its notice may fall inside
-    // the burst of the Source mode refusal above.
-    await clearNotices(ui);
-    await ui.click((at: string) => app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.containerEl.querySelector(at), [row]);
-    await waitForNotice(ui, "is the entity's identity and cannot be edited here");
-    assert.equal(await ui.evaluate((at: string) => !!document.activeElement?.closest(at), [row]), false);
-
+    const showsId = () => ui.waitFor("the row to show the id", (at: string, id: string) => {
+      const el = app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.containerEl.querySelector(at) as HTMLElement | null;
+      return el?.innerText.trim() === id ? true : null;
+    }, [row, ID]);
     // Deleting the property through the widget: its own write, the frontmatter without the id.
-    await ui.evaluate(() => {
+    const deleteThroughWidget = () => ui.evaluate(() => {
       const view = app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view;
       const { id: _, ...rest } = app.metadataCache.getFileCache(view.file)?.frontmatter ?? {};
       view.saveFrontmatter(rest);
     });
+    await drawn("the id's row to be drawn in Live Preview");
+
+    // A press on the locked value copies the id and takes no focus.
+    await clearNotices(ui);
+    await ui.click((at: string) => app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.containerEl.querySelector(at), [row]);
+    await waitForNotice(ui, `id copied \\(${ID}\\)`);
+    assert.equal(await ui.evaluate((at: string) => !!document.activeElement?.closest(at), [row]), false);
+
+    await deleteThroughWidget();
     assert.equal(await ui.evaluate(editorText), before);
-    const shown = await ui.waitFor("the row to show the id again", (at: string, id: string) => {
-      const el = app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.containerEl.querySelector(at) as HTMLElement | null;
-      return el?.innerText.trim() === id ? true : null;
-    }, [row, ID]);
-    assert.equal(shown, true);
+    assert.equal(await showsId(), true);
+
+    // Reading view: the widget's write goes to no editor, and is refused before it is made.
+    await ui.evaluate(async () => {
+      const view = app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view;
+      await view.setState({ ...view.getState(), mode: "preview" }, { history: false });
+    });
+    await ui.waitFor("the note to be in Reading view", () => app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.getMode() === "preview");
+    await drawn("the id's row to be drawn in Reading view");
+    assert.equal(await ui.evaluate(() =>
+      app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.containerEl.getAttribute("data-companygraph-id")), "locked");
+    await deleteThroughWidget();
+    assert.ok(((await onDisk(ui, note.path)) ?? "").includes(`id: ${ID}`));
+    assert.equal(await showsId(), true);
+    await clearNotices(ui);
+    await ui.click((at: string) => app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.containerEl.querySelector(at), [row]);
+    await waitForNotice(ui, `id copied \\(${ID}\\)`);
+
+    // And from the command palette, for the note in front.
+    await clearNotices(ui);
+    await command(ui, "copy-entity-id");
+    await waitForNotice(ui, `id copied \\(${ID}\\)`);
+    await ui.evaluate(async () => {
+      const view = app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view;
+      await view.setState({ ...view.getState(), mode: "source", source: false }, { history: false });
+    });
     await session.restore([note.path]);
   });
 

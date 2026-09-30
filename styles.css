@@ -300,11 +300,12 @@
 }
 
 /* The page's `id` in the Properties widget, once it has a value: read-only, drawn as the lock on
-   a declared heading is, faint, with a lock after it. The editor carries the attribute while the
-   id is held; widget.ts turns the focus away from the value. */
+   a declared heading is, faint, with a lock after it, in Live Preview and Reading view. The view's
+   container carries the attribute while the id is held; widget.ts turns the focus away from the
+   value, and a press on it copies the id. */
 [data-companygraph-id="locked"] .metadata-property[data-property-key="id"] .metadata-property-value {
   color: var(--text-faint);
-  cursor: default;
+  cursor: copy;
 }
 
 [data-companygraph-id="locked"] .metadata-property[data-property-key="id"] .metadata-property-value::after {

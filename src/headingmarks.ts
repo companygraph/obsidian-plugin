@@ -9,7 +9,7 @@
 import { Notice, editorEditorField, editorInfoField, setIcon } from "obsidian";
 import { EditorState as State, RangeSetBuilder, StateField, Transaction as Tr } from "@codemirror/state";
 import type { EditorState, Transaction } from "@codemirror/state";
-import { Decoration, EditorView, WidgetType } from "@codemirror/view";
+import { Decoration, EditorView, ViewPlugin, WidgetType } from "@codemirror/view";
 import type { DecorationSet } from "@codemirror/view";
 import { typeOfPath } from "companygraph-meta-model/checks";
 import type CompanyGraphPlugin from "./main.ts";
@@ -18,6 +18,7 @@ import type { HeadingKind } from "./headings.ts";
 import type { TypeVocabulary } from "./vocabulary.ts";
 import { refreshNames } from "./namelinks.ts";
 import { heldAfter, holdsEdit, idOf, lostId } from "./idlock.ts";
+import type { Held } from "./idlock.ts";
 
 // The vocabulary of the entity in the editor, or null where the file is none. Obsidian gives a
 // table cell's own small editor the note's extensions and the note's file, read from the
@@ -229,41 +230,68 @@ const eventOf = (tr: Transaction) => tr.annotation(Tr.userEvent);
 // with the event `set`, the event of a reload from disk; `refused` says the lock held that write.
 export const propertiesWrite = { active: false, refused: false };
 
+// The notice of either lock, once for a burst of refused keystrokes and not once each. One timer
+// for the editor, the widget and its row, so one refusal seen from two sides says so once.
+let told = 0;
+export function tellLocked(message: string) {
+  if (Date.now() - told > 2000) {
+    told = Date.now();
+    new Notice(message);
+  }
+}
+export const ID_REFUSED = `"id" is the entity's identity and cannot be edited here.`;
+
 // The id the lock holds in one editor, and whether the page is an entity's with that id set, which
 // is what makes the Properties widget's row for it read-only. A field, and not a reading of the
 // text, because the id held is the page's as the editor took it from the file: typing into a
 // blank id does not lock it while it is written.
-interface IdHold { held: string | null; locked: boolean; path: string | null }
+interface IdHold extends Held { locked: boolean; path: string | null }
 
-function holdOf(plugin: CompanyGraphPlugin, state: EditorState, held: string | null): IdHold {
-  const locked = !!held && vocabularyIn(plugin, state) !== null && isEntityText(state.doc.toString());
-  return { held, locked, path: fileIn(state) };
+function holdOf(plugin: CompanyGraphPlugin, state: EditorState, hold: Held): IdHold {
+  const locked = !!hold.held && vocabularyIn(plugin, state) !== null && isEntityText(state.doc.toString());
+  return { ...hold, locked, path: fileIn(state) };
+}
+
+const LOCKED = "data-companygraph-id";
+
+// The row is drawn locked by an attribute on the view's container, which holds the widget in
+// Live Preview and in Reading view alike; styles.css draws it and widget.ts guards its focus. Set
+// by the note's own editor only: a table cell's editor sits inside it and holds no page.
+function markContainer(field: StateField<IdHold>) {
+  return ViewPlugin.define((view) => {
+    let container: Element | null = null;
+    const mark = (v: EditorView) => {
+      if (v.dom.parentElement?.closest(".cm-editor")) return;
+      container = v.dom.closest(".workspace-leaf-content") ?? container;
+      if (!container) return;
+      if (v.state.field(field, false)?.locked) container.setAttribute(LOCKED, "locked");
+      else container.removeAttribute(LOCKED);
+    };
+    mark(view);
+    return {
+      update: (update) => mark(update.view),
+      destroy: () => container?.removeAttribute(LOCKED),
+    };
+  });
 }
 
 export function idHold(plugin: CompanyGraphPlugin) {
   return StateField.define<IdHold>({
-    create: (state) => holdOf(plugin, state, idOf(state.doc.toString())),
+    create: (state) => {
+      const held = idOf(state.doc.toString());
+      return holdOf(plugin, state, { held, before: held });
+    },
     update(hold, tr: Transaction) {
       const refreshed = tr.effects.some((e) => e.is(refreshNames));
       if (!tr.docChanged && !refreshed && fileIn(tr.state) === hold.path) return hold;
-      const held = tr.docChanged ? heldAfter(hold.held, eventOf(tr), tr.newDoc.toString()) : hold.held;
-      return holdOf(plugin, tr.state, held);
+      const next = tr.docChanged ? heldAfter(hold, eventOf(tr), tr.newDoc.toString()) : hold;
+      return holdOf(plugin, tr.state, { held: next.held, before: next.before });
     },
-    // Scoped to the editor, which holds its own Properties widget; styles.css draws the row.
-    provide: (field) => EditorView.editorAttributes.from(field, (hold): Record<string, string> =>
-      hold.locked ? { "data-companygraph-id": "locked" } : {}),
+    provide: (field) => markContainer(field),
   });
 }
 
 export function headingLock(plugin: CompanyGraphPlugin, ids: StateField<IdHold>) {
-  let told = 0;
-  // One notice for a burst of refused keystrokes, not one each.
-  const tell = (message: string) => {
-    if (Date.now() - told > 2000) {
-      told = Date.now();
-      new Notice(message);
-    }
-  };
   const filter = State.transactionFilter.of((tr) => {
     if (!tr.docChanged) return tr;
     const event = eventOf(tr);
@@ -278,13 +306,13 @@ export function headingLock(plugin: CompanyGraphPlugin, ids: StateField<IdHold>)
     if (headings) {
       const lost = lostLine(lockedLines(before.split("\n"), found.vocabulary), lockedLines(after.split("\n"), found.vocabulary));
       if (lost !== null) {
-        tell(`"${lost.slice(3).trim()}" is the schema's heading and cannot be edited here.`);
+        tellLocked(`"${lost.slice(3).trim()}" is the schema's heading and cannot be edited here.`);
         return [];
       }
     }
     if (id && lostId(tr.startState.field(ids, false)?.held ?? null, after) !== null) {
       if (propertiesWrite.active) propertiesWrite.refused = true;
-      tell(`"id" is the entity's identity and cannot be edited here.`);
+      tellLocked(ID_REFUSED);
       return [];
     }
     return tr;
