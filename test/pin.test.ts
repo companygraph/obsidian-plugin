@@ -10,15 +10,26 @@ const read = (rel: string) => JSON.parse(fs.readFileSync(path.join(root, rel), "
 
 test("the installed meta-model is the release package.json pins", () => {
   const pin = read("package.json").dependencies["companygraph-meta-model"];
+  // A release is pinned by its tag. Between releases the pin may name one commit, and then the
+  // lockfile is held to that commit, since the package's version does not say which one it is.
   const tag = pin.match(/^github:companygraph\/meta-model#v(\d+\.\d+\.\d+)$/)?.[1];
-  assert.ok(tag, `the pin "${pin}" is not github:companygraph/meta-model#vX.Y.Z`);
+  const commit = pin.match(/^github:companygraph\/meta-model#([0-9a-f]{40})$/)?.[1];
+  assert.ok(tag || commit, `the pin "${pin}" is not github:companygraph/meta-model#vX.Y.Z or #<commit>`);
   const installed = read("node_modules/companygraph-meta-model/package.json").version;
-  assert.equal(installed, tag, "install the package by name so the lockfile moves with the pin");
   // The lockfile is what `npm ci` installs, in CI and in a fresh clone: a pin moved by hand
   // leaves it on the old release while the working tree's install says the new one.
   const locked = read("package-lock.json").packages["node_modules/companygraph-meta-model"];
-  assert.equal(locked.version, tag, "package-lock.json installs another release than the pin names");
   assert.match(locked.resolved, /^git\+ssh:\/\/git@github\.com\/companygraph\/meta-model\.git#[0-9a-f]{40}$/, "the lockfile resolves the pin to one commit");
+  if (tag) {
+    assert.equal(installed, tag, "install the package by name so the lockfile moves with the pin");
+    assert.equal(locked.version, tag, "package-lock.json installs another release than the pin names");
+  } else {
+    assert.ok(locked.resolved.endsWith(`#${commit}`), "package-lock.json installs another commit than the pin names");
+    // npm's record of what node_modules holds names the commit the working tree installed.
+    const held = read("node_modules/.package-lock.json").packages["node_modules/companygraph-meta-model"];
+    assert.equal(held.resolved, locked.resolved, "install the package by name so the lockfile moves with the pin");
+    assert.equal(installed, locked.version, "install the package by name so the lockfile moves with the pin");
+  }
   assert.equal(read("package-lock.json").packages[""].dependencies["companygraph-meta-model"], pin, "the lockfile's own copy of the pin");
 });
 

@@ -4,6 +4,8 @@ import { buildModel, schemasOf } from "../src/model.ts";
 import { vocabularyOf } from "../src/vocabulary.ts";
 import { candidatesFor } from "../src/candidates.ts";
 import { namedOf, namesIn } from "../src/scope.ts";
+import { resolveRow } from "companygraph-meta-model/instance";
+import { UUIDV7 } from "companygraph-meta-model/ids";
 import { example, EXAMPLE, edited } from "./helpers.ts";
 
 // Core 0.30.1: a name of an owned type written inside an owner is one of that owner's own. The
@@ -82,4 +84,32 @@ test("a phase's track heading is offered its own process's tracks", () => {
   const lines = ["# Release", "", "## Activities", "", "### Code", "", "1. Ship it.", "", "### "];
   const offered = candidatesFor({ kind: "grouped", section: "Activities", typed: "", start: 4 }, vocabulary.get("phase")!, names, lines);
   assert.deepEqual(offered.map((c) => c.label), ["Docs"]);
+});
+
+// Since meta-model 0.65.0 an entity's `id` is the stable one its page carries (R18), and where
+// the page sits is its `address`. An owner's folder is read from the address, so the address is
+// passed through with the id: without it the package reads an owner's folder from a UUID, and
+// no owned row resolves.
+test("an entity is passed on with its stable id and, apart from it, the address it sits at", () => {
+  const graph = buildModel(example(), EXAMPLE).graph!;
+  const mira = graph.entities.find((e) => e.path === MIRA)!;
+  assert.match(mira.id, UUIDV7, "the fixture's owner carries a stable id");
+  const n = namedOf(graph).find((e) => e.path === MIRA)!;
+  assert.equal(n.id, mira.id);
+  assert.equal(n.address, mira.address);
+  assert.notEqual(n.address, n.id);
+});
+
+test("a row naming an owned entity resolves within an owner that carries a stable id", () => {
+  const files = example();
+  const schemas = schemasOf(files, EXAMPLE);
+  const owner = named.find((n) => n.path === MIRA)!;
+  assert.match(owner.id, UUIDV7);
+  const row = { type: "experience", name: "Splitting the billing domain", owner: owner.name };
+  const resolved = resolveRow(named, schemas, row);
+  if (!resolved.entity) assert.fail(resolved.error);
+  assert.ok(resolved.entity.path.startsWith("example/model/profiles/mira-halvorsen/experiences/"));
+  // The same name under another owner names nothing there.
+  const tomas = named.find((n) => n.path === TOMAS)!;
+  assert.ok(resolveRow(named, schemas, { ...row, owner: tomas.name }).error);
 });

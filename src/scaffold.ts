@@ -4,9 +4,11 @@
 // with its file inside; an owned type goes into the owner the open note is in, and nowhere when
 // the note is in none; a singular type has one fixed file, and is offered only while it does not
 // exist. What it starts with is what its schema requires: the required fields, the H1, an empty
-// tagline and every required section in the schema's order, a table section with its header.
-// Pure.
+// tagline and every required section in the schema's order, a table section with its header,
+// and first of all an id (R18), made by the package's own maker. Pure but for the random bytes a
+// new id takes.
 import { DATE, TYPES, slug } from "companygraph-meta-model/checks";
+import { idFormatOf, uuidv7 } from "companygraph-meta-model/ids";
 import type { TypeVocabulary } from "./vocabulary.ts";
 import { tableStart } from "./headings.ts";
 
@@ -76,19 +78,44 @@ export function targetsFor(model: string, activePath: string | null, exists: (pa
   return out;
 }
 
-// The text a new entity starts with, and the line its tagline is on, where the cursor goes.
-export function scaffoldOf(vocabulary: TypeVocabulary, name: string, values: Record<string, string> = {}): { text: string; tagline: number } {
+// The id a new page starts with (R18): a fresh UUID version 7 where `model/identifier.md`
+// declares that format, or where the instance has no identifier file yet, since the format is
+// then not the instance's choice to make and every tool makes that one. A pattern is the
+// instance's own and says nothing of how an id is made, so none is; nor where the file does not
+// read, which the checks report on the file itself. `owes` is then what the author is told.
+function newId(identifier: string | null): { id: string | null; owes: string | null } {
+  if (identifier === null) return { id: uuidv7(), owes: null };
+  const declared = idFormatOf(identifier);
+  if (declared.format === "uuidv7") return { id: uuidv7(), owes: null };
+  if (declared.format === "pattern")
+    return { id: null, owes: "Its id is left blank: model/identifier.md declares a pattern, which the plugin cannot make an id for. Write one that matches it." };
+  return { id: null, owes: `Its id is left blank: model/identifier.md does not read (${declared.error}).` };
+}
+
+// The text a new entity starts with, the line its tagline is on, where the cursor goes, and what
+// it owes that the scaffold could not write. `identifier` is the text of the instance's
+// `model/identifier.md`, or null where it has none. The id is written only where the type's
+// schema declares one, which every schema does since core 0.49.0, and always as the first line.
+export function scaffoldOf(
+  vocabulary: TypeVocabulary,
+  name: string,
+  values: Record<string, string> = {},
+  identifier: string | null = null,
+): { text: string; tagline: number; owes: string | null } {
   const lines: string[] = [];
   const fields = vocabulary.fields.filter((f) => f.required);
-  if (fields.length) {
+  const declaresId = vocabulary.fields.some((f) => f.name === "id");
+  const { id, owes } = declaresId ? newId(identifier) : { id: null, owes: null };
+  if (fields.length || declaresId) {
     lines.push("---");
+    if (declaresId) lines.push(id ? `id: ${id}` : "id:");
     // A list is left as its key alone: `[]` would be the flow sequence R11 forbids.
-    for (const f of fields) lines.push(values[f.name] && !f.list ? `${f.name}: ${values[f.name]}` : `${f.name}:`);
+    for (const f of fields) if (f.name !== "id") lines.push(values[f.name] && !f.list ? `${f.name}: ${values[f.name]}` : `${f.name}:`);
     lines.push("---", "");
   }
   lines.push(`# ${name}`, "");
   const tagline = lines.length;
   lines.push("> ");
   for (const s of vocabulary.sections.filter((s) => s.required)) lines.push("", `## ${s.heading}`, "", ...tableStart(s));
-  return { text: `${lines.join("\n")}\n`, tagline };
+  return { text: `${lines.join("\n")}\n`, tagline, owes };
 }

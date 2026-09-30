@@ -34,13 +34,27 @@ declare module "companygraph-meta-model/checks" {
   export function enumTokensOf(description: string): string[];
 }
 
+declare module "companygraph-meta-model/ids" {
+  // R18's UUID version 7, lowercase, and a fresh one; free of Node, so it runs on a phone.
+  export const UUIDV7: RegExp;
+  export function uuidv7(ms?: number, random?: ArrayLike<number>): string;
+  // The `id` a page's frontmatter carries, as written, or null.
+  export function idOf(text: string): string | null;
+  // What `model/identifier.md` declares, as a test an id passes or fails, or why it cannot be read.
+  export function idFormatOf(text: string):
+    | { format: "uuidv7" | "pattern"; test: (id: string) => boolean; error?: undefined }
+    | { error: string; format?: undefined; test?: undefined };
+}
+
 declare module "companygraph-meta-model/instance" {
   // R9's image: `.jpg`, `.jpeg` or `.png`, lowercase. Every reader of an instance decides by it.
   export const IMAGE_FILE: RegExp;
   export interface Table { caption: string | null; columns: string[]; rows: string[][] }
   export interface Section { heading: string; text: string; tables: Table[]; table?: Table }
+  // `id` is the stable id a page carries (R18), or its address where it carries none; `address`
+  // is where the page sits in the container, the path without `.md`, and `path` the file's own.
   export interface Entity {
-    id: string; type: string; name: string; tagline: string;
+    id: string; address: string; type: string; name: string; tagline: string;
     fields: Record<string, string | string[]>;
     sections: Section[]; owner: string | null; path: string;
   }
@@ -55,9 +69,10 @@ declare module "companygraph-meta-model/instance" {
     | { form: "ref"; target: null; by: string; in: string | null };
   export function declarationOf(cell: string | undefined): Declaration | null;
   // A `ref → by <Column> in <Owner>` row (R4, R9), resolved by the rule the parser resolves it
-  // by. `schemas` is keyed `<type>-schema.md`; an entity needs only `{ type, name, path }`; the
-  // row's cells are passed bare. Each call reads the schemas again and keeps nothing.
-  export interface RowEntity { type: string; name: string; path: string }
+  // by. `schemas` is keyed `<type>-schema.md`; an entity needs `{ type, name, path }`, and an
+  // owner's folder is read from its `address`, or its `id` where it has none; the row's cells are
+  // passed bare. Each call reads the schemas again and keeps nothing.
+  export interface RowEntity { type: string; name: string; path: string; id?: string; address?: string }
   export type RowError = { error: string; subject: "value" | "owner" };
   // Every owned type mapped to its owner type, from the schemas' `**Owner:**` lines (R10).
   export function ownerTypesOf(schemas: Map<string, string>): Map<string, string>;

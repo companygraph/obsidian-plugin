@@ -149,7 +149,8 @@ test("moving in the list with an arrow key is choosing, and then the key accepts
 // The owner, in the trial: "without typing s for source-id, I may not know the keys". An empty
 // key line is how the fields a file may still take are found at all, so it offers by itself.
 test("an empty key line offers every field the file lacks, required first", () => {
-  const lines = ["---", "source: Local", "", "---"];
+  // Every page carries its id since core 0.49.0 (R18), so the page here does too.
+  const lines = ["---", "id: 01a02f53-2408-7291-ac16-087fcdee4d71", "source: Local", "", "---"];
   const c = candidatesFor({ kind: "key", typed: "", start: 0 }, profile, names, lines);
   assert.equal(c[0].label, "nature (required)");
   assert.ok(!labels(c).some((l) => l.startsWith("source ")));
@@ -159,11 +160,11 @@ test("an empty key line offers every field the file lacks, required first", () =
 // One decision, two callers: the key popup in Source mode and the Add a field picker, which is
 // how a field is added from the Properties widget, where Obsidian's own list knows no schema.
 test("the fields a file may still take are those its schema declares and it lacks, required first", () => {
-  const lines = ["---", "source: Local", "roles:", "  - Reviewer", "---", "", "# Mira", "nature: not a field down here"];
+  const lines = ["---", "id: 01a02f53-2408-7291-ac16-087fcdee4d71", "source: Local", "roles:", "  - Reviewer", "---", "", "# Mira", "nature: not a field down here"];
   const absent = absentFields(profile, lines);
   assert.equal(absent[0].name, "nature");
   assert.ok(absent[0].required);
-  assert.ok(!absent.some((f) => f.name === "source" || f.name === "roles"));
+  assert.ok(!absent.some((f) => f.name === "id" || f.name === "source" || f.name === "roles"));
   assert.ok(absent.some((f) => f.name === "source-id"));
   assert.deepEqual(absentFields(profile, ["# No frontmatter"]).map((f) => f.name), profile.fields.filter((f) => f.required).concat(profile.fields.filter((f) => !f.required)).map((f) => f.name));
 });
