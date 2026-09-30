@@ -15,7 +15,7 @@ const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"))
 const [, metaRepo, tag] = pkg.dependencies["companygraph-meta-model"].match(/^github:([^#]+)#(.+)$/);
 
 // The instance commit is test data and lives here.
-const INSTANCE_COMMIT = "d011d81f5df07afc46c208d6ce3abd9bafebdaa8";
+const INSTANCE_COMMIT = "61bde0aa170f682cd3657e6bfe994025cdcbfd5b";
 // The Terminal release whose view state src/main.ts's openCli hands a profile to.
 const TERMINAL_RELEASE = "3.27.2";
 

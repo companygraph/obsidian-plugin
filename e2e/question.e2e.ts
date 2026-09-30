@@ -14,8 +14,9 @@ const skip = available() ? false : "Obsidian is not installed here; set OBSIDIAN
 
 const QUESTION = "model/questions/who-spoke-at-eclipse-mdd-day.md";
 const EXPERIENCE = "model/profiles/robert-blust/experiences/2010-eclipse-mdd-day.md";
+// Since core 0.49.0 every page carries an id (R18), in the format model/identifier.md declares.
 const TEXT = [
-  "---", "source: Local", "kind: Career", "---", "",
+  "---", "id: 01a0f1f8-a055-7e2e-8e2e-00000000e2e0", "source: Local", "kind: Career", "---", "",
   "# Who spoke at Eclipse MDD Day?", "",
   "> The experience says who spoke, and the skill what it took.", "",
   "## Rests on", "",
@@ -87,6 +88,13 @@ describe("a question's Rests on", { skip }, () => {
       .find((f) => f.querySelector(".companygraph-file-name")?.textContent?.startsWith("who-spoke-at-eclipse-mdd-day"))
       ?.querySelector("li.companygraph-open"));
     await ui.waitFor("the question to be in front", (at: string) => app.workspace.getActiveFile()?.path === at, [QUESTION]);
+    // The row is opened in the cell that names the experience, a moment after the note is in
+    // front. The table is then left as a person leaves it, by a click on its heading, so the next
+    // test finds it drawn and not a cell half-way to opening.
+    await ui.waitFor("the cell naming the experience to be open", (at: string) =>
+      !!document.querySelector(`.cm-table-widget td[data-companygraph-path="${at}"] .cm-editor`), [EXPERIENCE]);
+    await ui.click(() => Array.from(document.querySelectorAll<HTMLElement>(".cm-line.HyperMD-header")).find((h) => h.innerText.trim() === "Rests on") ?? null);
+    await ui.waitFor("no cell to be open", () => !document.querySelector(".cm-table-widget .cm-editor"));
   });
 
   test("a name in a row carries its entity's path, Cmd+click opens it, and a row naming another owner is marked unresolved", async () => {

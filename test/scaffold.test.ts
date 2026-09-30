@@ -116,6 +116,7 @@ test("every type scaffolded into the reference instance owes only what its notic
     /is missing (phases|tracks|experiences)\//,
     /does not list/,
   ];
+  assert.ok(files.has(`${REFERENCE.model}/identifier.md`), "the reference instance declares its ids");
   const seen = new Set<string>();
   for (const active of ["model/processes/delivery/delivery.md", "model/profiles/robert-blust/robert-blust.md"]) {
     for (const target of targetsFor(REFERENCE.model, active, (p) => files.has(p))) {
@@ -123,8 +124,12 @@ test("every type scaffolded into the reference instance owes only what its notic
       seen.add(target.type);
       const trial = new Map(files);
       const path = target.pathFor("Zeta Probe Thing", "2031-04")!;
-      trial.set(path, scaffoldOf(refVocabulary.get(target.type)!, "Zeta Probe Thing", target.asks ? { [target.asks]: "2031-04" } : {}).text);
-      const asked = target.asks ? [target.asks] : [];
+      // Handed the instance's own identifier file, as New entity hands it: since core 0.49.0 it
+      // declares uuidv7, so the scaffold writes the id and leaves it to no author.
+      const scaffold = scaffoldOf(refVocabulary.get(target.type)!, "Zeta Probe Thing", target.asks ? { [target.asks]: "2031-04" } : {}, files.get(`${REFERENCE.model}/identifier.md`) ?? null);
+      assert.equal(scaffold.owes, null, `${target.type}: the id owed`);
+      trial.set(path, scaffold.text);
+      const asked = target.asks ? [target.asks, "id"] : ["id"];
       const failures = checkInstance(whole(trial), REFERENCE).failures;
       const blank = failures.map((f) => f.startsWith(`${path}: `) ? f.match(/^[^:]+: `([^`]+)` is blank, which [a-z-]+-schema\.md requires(?: — one of .+)?$/)?.[1] : undefined).filter((f) => f !== undefined);
       const left = refVocabulary.get(target.type)!.fields.filter((f) => f.required && !f.list && !asked.includes(f.name)).map((f) => f.name);

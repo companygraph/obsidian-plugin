@@ -136,14 +136,12 @@ describe("the page of an entity", { skip }, () => {
     await ui.waitFor("the H1 to be as it was", (text: string) => app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor.getValue() === text, [before]);
   });
 
-  // The fixture predates core 0.49.0 and carries no ids, so the note is given one on disk first,
-  // which the editor takes as a reload, as it takes any change to the file.
+  // The fixture is on core 0.49.0, where every page carries an id (R18): the note's own is the one held.
   test("an id that has a value cannot be typed into in Source mode, nor edited in the Properties widget", async () => {
     const { ui } = session;
-    const ID = "0199a0c4-7b3e-7c11-9a2f-3c5e8d1f2a40";
-    const was = (await onDisk(ui, note.path))!;
+    const ID = (await onDisk(ui, note.path))!.match(/^---\n(?:.*\n)*?id: ([0-9a-f-]{36})\n/)?.[1];
+    assert.ok(ID, "the note carries an id");
     await openNote(ui, note.path);
-    await ui.evaluate(async (at: string, text: string) => app.vault.modify(app.vault.getAbstractFileByPath(at), text), [note.path, was.replace(/^---\n/, `---\nid: ${ID}\n`)]);
     await ui.waitFor("the id to be held", () =>
       app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.containerEl.getAttribute("data-companygraph-id") === "locked");
     const before = await ui.evaluate(editorText);
