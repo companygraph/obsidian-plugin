@@ -64,7 +64,8 @@ export interface Held { held: string | null; before: string | null }
 // the id held before the last `set`: an undo of the widget filling a blank id opens it again.
 export function heldAfter(hold: Held, event: string | undefined, after: string): Held {
   // A fresh id, the plugin's own command, moves it too, so the page is locked on the new one.
-  if (event === "set" || event?.startsWith("set.") || event === "input.id") return { held: idOf(after), before: hold.held };
+  const under = (name: string) => event === name || !!event?.startsWith(`${name}.`);
+  if (under("set") || under("input.id")) return { held: idOf(after), before: hold.held };
   if (event === "undo" || event === "redo") {
     const now = idOf(after);
     if (now !== hold.held && now === hold.before) return { held: now, before: hold.held };

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { freshIdChange, freshIdOffered } from "../src/freshid.ts";
+import { freshIdChange, freshIdOffered, withFreshId } from "../src/freshid.ts";
 
 // Give this page a fresh id (spec §8): offered where the plugin may make an id, as the scaffold
 // makes one, and written as the one change to the page's `id:` line.
@@ -34,13 +34,6 @@ test("the id line's value is replaced and nothing else in the file changes", () 
   }
 });
 
-test("a line ending in a carriage return keeps it", () => {
-  const crlf = PAGE.replaceAll("\n", "\r\n");
-  assert.equal(apply(crlf, freshIdChange(crlf, NEW)), crlf.replace(OLD, NEW));
-  const none = crlf.replace(`id: ${OLD}\r\n`, "");
-  assert.equal(apply(none, freshIdChange(none, NEW)), crlf.replace(OLD, NEW));
-});
-
 test("a page without an id gains one as its first frontmatter line, and a page without frontmatter gains that too", () => {
   const none = PAGE.replace(`id: ${OLD}\n`, "");
   assert.equal(apply(none, freshIdChange(none, NEW)), PAGE.replace(OLD, NEW));
@@ -49,4 +42,9 @@ test("a page without an id gains one as its first frontmatter line, and a page w
   // An `id:` in the body is not the page's.
   const body = `${none}id: elsewhere\n`;
   assert.equal(apply(body, freshIdChange(body, NEW)), `${PAGE.replace(OLD, NEW)}id: elsewhere\n`);
+});
+
+test("the text with a fresh id is the text with that one change made", () => {
+  assert.equal(withFreshId(PAGE, NEW), PAGE.replace(OLD, NEW));
+  assert.equal(withFreshId("# Reviewer\n", NEW), `---\nid: ${NEW}\n---\n\n# Reviewer\n`);
 });

@@ -14,7 +14,7 @@ import type { Mention } from "./refactor.ts";
 import type { Named } from "./scope.ts";
 import { uuidv7 } from "companygraph-meta-model/ids";
 import type { EditorView } from "@codemirror/view";
-import { freshIdChange } from "./freshid.ts";
+import { freshIdChange, withFreshId } from "./freshid.ts";
 import { idOf } from "./idlock.ts";
 import { copyId } from "./widget.ts";
 
@@ -245,16 +245,34 @@ export class FreshId extends Modal {
       .addButton((b) =>
         b.setButtonText("Confirm").setWarning().onClick(() => {
           this.close();
-          const cm = (this.view.editor as unknown as { cm?: EditorView }).cm;
-          if (!cm) {
-            new Notice("The page's editor could not be reached; its id is unchanged.");
-            return;
-          }
-          const id = uuidv7();
-          cm.dispatch({ changes: freshIdChange(cm.state.doc.toString(), id), userEvent: "input.id" });
-          copyId(id, "the page's new id");
+          void this.write().catch((error: unknown) =>
+            new Notice(`The page's id is unchanged: ${error instanceof Error ? error.message : String(error)}`));
         }),
       );
+  }
+
+  // Written as the view writes: in Reading view no editor holds the text that is saved, so it goes
+  // the way the Properties widget's own write goes there, into the view and then to the file,
+  // which no lock of this plugin's stands in; elsewhere into the editor with `input.id`. The new
+  // id is announced and copied only once the view holds it and the file does.
+  async write() {
+    const view = this.view;
+    const file = view.file;
+    if (!file) throw new Error("the note has no file");
+    const id = uuidv7();
+    if (view.getMode() === "preview") {
+      const internal = view as unknown as { onInternalDataChange?: () => void };
+      view.setViewData(withFreshId(view.getViewData(), id), false);
+      internal.onInternalDataChange?.();
+    } else {
+      const cm = (view.editor as unknown as { cm?: EditorView }).cm;
+      if (!cm) throw new Error("the page's editor could not be reached");
+      cm.dispatch({ changes: freshIdChange(cm.state.doc.toString(), id), userEvent: "input.id" });
+    }
+    await view.save();
+    if (idOf(view.getViewData()) !== id || idOf(await this.app.vault.read(file)) !== id)
+      throw new Error("the new id did not reach the file");
+    copyId(id, "the page's new id");
   }
 
   onClose() { this.contentEl.empty(); }

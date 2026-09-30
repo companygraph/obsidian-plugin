@@ -164,4 +164,6 @@ test("the plugin's own fresh id moves what is held to the new id, so the page is
   assert.deepEqual(moved, { held: NEW, before: ID });
   assert.equal(lostId(moved.held, PAGE.replace(ID, NEW)), null);
   assert.equal(lostId(moved.held, PAGE), NEW);
+  // As the pass list reads an event, a name under `input.id` is that event too.
+  assert.deepEqual(heldAfter({ held: ID, before: ID }, "input.id.fresh", PAGE.replace(ID, NEW)), moved);
 });

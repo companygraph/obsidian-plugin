@@ -232,7 +232,39 @@ describe("the page of an entity", { skip }, () => {
     const after = before.replace(`id: ${ID}`, `id: ${fresh}`);
     await ui.never("the new id to take the typing", (text: string) =>
       app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor.getValue() !== text, [after], 1000);
+    // The positive control, in the same state: typing on a free line, the end of the body, is
+    // taken, so the refusal above was the lock's and not keys that reached nothing. Then taken back.
+    await ui.evaluate(() => {
+      const cm = app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor.cm;
+      cm.contentDOM.focus();
+      cm.dispatch({ selection: { anchor: cm.state.doc.length }, scrollIntoView: true });
+      cm.focus();
+    });
+    await ui.type("z");
+    await ui.waitFor("the end of the body to take the typing", (text: string) =>
+      app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor.getValue() === `${text}z`, [after]);
+    await ui.press("Backspace");
+    await ui.waitFor("the typing to be taken back", (text: string) =>
+      app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor.getValue() === text, [after]);
+
+    // In Reading view no editor holds the text that is saved; the new id still reaches the file.
+    await ui.evaluate(async () => {
+      const view = app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view;
+      await view.setState({ ...view.getState(), mode: "preview" }, { history: false });
+    });
+    await ui.waitFor("the note to be in Reading view", () => app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.getMode() === "preview");
+    await clearNotices(ui);
+    await command(ui, "fresh-id");
+    await waitForModal(ui, "Give this page a fresh id");
+    await pressButton(ui, "Confirm");
+    const again = await ui.waitFor("the file to carry another new id", async (at: string, was: string) => {
+      const found = ((await app.vault.adapter.read(at)) as string).match(/^---\n(?:.*\n)*?id: ([0-9a-f-]{36})\n/)?.[1];
+      return found && found !== was ? found : null;
+    }, [note.path, fresh]);
+    assert.equal(await onDisk(ui, note.path), after.replace(`id: ${fresh}`, `id: ${again}`));
+    await waitForNotice(ui, `new id copied \\(${again}\\)`);
     await sourceMode(ui, false);
+    assert.equal(await ui.evaluate(editorText), after.replace(`id: ${fresh}`, `id: ${again}`));
     await session.restore([note.path]);
   });
 

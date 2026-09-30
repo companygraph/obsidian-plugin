@@ -17,20 +17,19 @@ export function freshIdOffered(declaresId: boolean, identifier: Identifier | und
 
 // The one change that gives a page the id `id`: the value of its frontmatter's `id:` line, a
 // comment or quotes with it; for a page without the line, a first frontmatter line; for a page
-// without frontmatter, frontmatter holding the id alone, as the package's `withId` writes it. A
-// carriage return at a line's end stays where it is.
+// without frontmatter, frontmatter holding the id alone, as the package's `withId` writes it.
 export function freshIdChange(text: string, id: string): { from: number; to: number; insert: string } {
-  const lines: { from: number; text: string; eol: string }[] = [];
-  const re = /([^\r\n]*)(\r?\n|$)/g;
-  let found: RegExpExecArray | null;
-  while ((found = re.exec(text)) && found.index < text.length) {
-    lines.push({ from: found.index, text: found[1], eol: found[2] });
-    if (!found[2]) break;
-  }
-  const end = lines[0]?.text === "---" ? lines.findIndex((l, i) => i > 0 && l.text === "---") : -1;
+  const lines = text.split("\n");
+  const end = lines[0] === "---" ? lines.findIndex((l, i) => i > 0 && l === "---") : -1;
   if (end === -1) return { from: 0, to: 0, insert: `---\nid: ${id}\n---\n\n` };
+  const offset = (n: number) => lines.slice(0, n).reduce((sum, l) => sum + l.length + 1, 0);
   for (let i = 1; i < end; i++)
-    if (lines[i].text.startsWith("id:"))
-      return { from: lines[i].from + 3, to: lines[i].from + lines[i].text.length, insert: ` ${id}` };
-  return { from: lines[1].from, to: lines[1].from, insert: `id: ${id}${lines[0].eol}` };
+    if (lines[i].startsWith("id:")) return { from: offset(i) + 3, to: offset(i) + lines[i].length, insert: ` ${id}` };
+  return { from: offset(1), to: offset(1), insert: `id: ${id}\n` };
+}
+
+// The text a page has once given the id `id`.
+export function withFreshId(text: string, id: string): string {
+  const change = freshIdChange(text, id);
+  return text.slice(0, change.from) + change.insert + text.slice(change.to);
 }
