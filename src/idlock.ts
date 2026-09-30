@@ -83,3 +83,12 @@ export function isCopyPress(down: Press | null, up: Press): boolean {
   if (!down || down.button !== 0 || up.button !== 0) return false;
   return Math.abs(up.x - down.x) <= 4 && Math.abs(up.y - down.y) <= 4;
 }
+
+// Whether a lock's refusal is told now, given the one told last. A burst of refused keystrokes,
+// or one refusal seen from the editor and the widget both, says so once within two seconds; a
+// refusal of something else says so at once, so a heading held a moment before never silences
+// the id's refusal, nor the id's a heading's.
+export interface Told { message: string; at: number }
+export function tells(last: Told | null, message: string, now: number): boolean {
+  return !last || last.message !== message || now - last.at > 2000;
+}

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { containerMark, heldAfter, holdsEdit, idOf, isCopyPress, lostId, lostInProperties } from "../src/idlock.ts";
+import { containerMark, heldAfter, holdsEdit, idOf, isCopyPress, lostId, lostInProperties, tells } from "../src/idlock.ts";
 
 // The id lock (spec §8): since core 0.49.0 a page carries an `id` (R18), set once and never
 // changed. What is compared is the id the lock holds and the id the page carries after an edit.
@@ -139,4 +139,16 @@ test("a press copies only with the primary button and only where it did not move
   assert.equal(isCopyPress({ button: 1, x: 10, y: 10 }, { button: 0, x: 10, y: 10 }), false);
   // A release with no press seen on the value copies nothing.
   assert.equal(isCopyPress(null, { button: 0, x: 10, y: 10 }), false);
+});
+
+test("a refusal says so once for a burst, and a refusal of another thing says so at once", () => {
+  const HEADING = '"What it means" is the schema\'s heading and cannot be edited here.';
+  const ID_REFUSED = '"id" is the entity\'s identity and cannot be edited here.';
+  // Nothing said yet: the first refusal is told.
+  assert.equal(tells(null, ID_REFUSED, 1000), true);
+  // The same refusal again within two seconds is the same burst, seen once.
+  assert.equal(tells({ message: ID_REFUSED, at: 1000 }, ID_REFUSED, 2999), false);
+  assert.equal(tells({ message: ID_REFUSED, at: 1000 }, ID_REFUSED, 3001), true);
+  // A heading held a moment before says nothing of the id: the id's refusal is told at once.
+  assert.equal(tells({ message: HEADING, at: 1000 }, ID_REFUSED, 1100), true);
 });

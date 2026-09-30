@@ -17,8 +17,8 @@ import { headingsOf, insertionAt, isEntityText, isHeld, lockedLines, lostLine, m
 import type { HeadingKind } from "./headings.ts";
 import type { TypeVocabulary } from "./vocabulary.ts";
 import { refreshNames } from "./namelinks.ts";
-import { containerMark, heldAfter, holdsEdit, idOf, lostId } from "./idlock.ts";
-import type { Held } from "./idlock.ts";
+import { containerMark, heldAfter, holdsEdit, idOf, lostId, tells } from "./idlock.ts";
+import type { Held, Told } from "./idlock.ts";
 
 // The vocabulary of the entity in the editor, or null where the file is none. Obsidian gives a
 // table cell's own small editor the note's extensions and the note's file, read from the
@@ -230,12 +230,14 @@ const eventOf = (tr: Transaction) => tr.annotation(Tr.userEvent);
 // with the event `set`, the event of a reload from disk; `refused` says the lock held that write.
 export const propertiesWrite = { active: false, refused: false };
 
-// The notice of either lock, once for a burst of refused keystrokes and not once each. One timer
-// for the editor, the widget and its row, so one refusal seen from two sides says so once.
-let told = 0;
+// The notice of either lock, once for a burst of refused keystrokes and not once each. One record
+// for the editor, the widget and its row, so one refusal seen from two sides says so once; when
+// it is told is idlock.ts's `tells`.
+let told: Told | null = null;
 export function tellLocked(message: string) {
-  if (Date.now() - told > 2000) {
-    told = Date.now();
+  const now = Date.now();
+  if (tells(told, message, now)) {
+    told = { message, at: now };
     new Notice(message);
   }
 }
