@@ -29,6 +29,10 @@ declare module "companygraph-meta-model/checks" {
   // Heading → the text under it, keyed by the heading's own words; "" holds what stands above
   // the first `## `.
   export function sectionsOf(text: string): Map<string, string>;
+  // Every pipe block in a text, in order, with the section its caption declares columns for.
+  export function blocksOf(
+    body: string,
+  ): { section: string | null; grouped: string | null; table: { columns: string[]; rows: string[][] } | null }[];
   export const COLUMN_CAPTION: RegExp;
   export const HEADING_CAPTION: RegExp;
   export function enumTokensOf(description: string): string[];

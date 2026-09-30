@@ -8,6 +8,9 @@ import type { Session } from "./obsidian.ts";
 import { PROFILE, editorText, openNote } from "./notes.ts";
 import { clearNotices, command, modalText, onDisk, pick, pressButton, promptItems, waitForModal, waitForNotice, waitForPrompt } from "./ui.ts";
 
+// A decision: sections named in each other's rules, and rules enough to fold.
+const DECISION = "model/decisions/2026-anthropic-api-capped.md";
+
 const skip = available() ? false : "Obsidian is not installed here; set OBSIDIAN_BIN to run this suite";
 
 // Puts the note's cursor at the end of the first line that is exactly `text`, with the focus in the editor.
@@ -338,8 +341,50 @@ describe("the page of an entity", { skip }, () => {
         // textContent, not innerText: the type is drawn in capitals by a style, and is not written so.
         const place = pane?.querySelector(".companygraph-brief-place")?.textContent?.trim();
         return place === want ? `${pane!.querySelector(".companygraph-brief-type")?.textContent?.trim()} ${place}` : null;
-      }, [heading]));
+      }, [heading.slice(3)]));
     }
-    assert.deepEqual(seen, sections.slice(0, 2).map((heading) => `profile ${heading}`));
+    assert.deepEqual(seen, sections.slice(0, 2).map((heading) => `profile ${heading.slice(3)}`));
+  });
+
+  test("the brief names a section by name, its chip moves the cursor there, and a group opened stays open", async () => {
+    const { ui } = session;
+    const placeIs = (want: string) => ui.waitFor(`the brief to be about ${want}`, (name: string) =>
+      app.workspace.getLeavesOfType("companygraph-brief")[0]?.view.contentEl.querySelector(".companygraph-brief-place")?.textContent?.trim() === name, [want]);
+    await openNote(ui, DECISION);
+    await command(ui, "open-brief");
+    assert.equal(await ui.evaluate(cursorOn, ["## The question"]), true);
+    await ui.press("ArrowDown");
+    await placeIs("The question");
+    // Its rule names `## Why`, which reads as the section's name and not its syntax, and is a
+    // chip that takes the cursor to the note's own `## Why`.
+    const rule = await ui.evaluate(() =>
+      (app.workspace.getLeavesOfType("companygraph-brief")[0].view.contentEl as HTMLElement).querySelector(".companygraph-brief-rules.is-named li")?.textContent ?? "");
+    assert.ok(!rule.includes("##"), rule);
+    await ui.click(() => Array.from(app.workspace.getLeavesOfType("companygraph-brief")[0].view.contentEl.querySelectorAll("button.companygraph-brief-mention.is-section"))
+      .find((b) => (b as HTMLElement).textContent === "Why") as Element | undefined);
+    await placeIs("Why");
+    assert.equal(await ui.evaluate(() => {
+      const editor = app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor;
+      return editor.getLine(editor.getCursor().line) as string;
+    }), "## Why");
+    // Every other rule is folded; one group opened is remembered for the type, and still open
+    // once the cursor has moved on and the brief been drawn again.
+    const group = (key: string) => `.companygraph-brief-group[data-group="${key}"]`;
+    const closed = await ui.evaluate(() =>
+      Array.from(app.workspace.getLeavesOfType("companygraph-brief")[0].view.contentEl.querySelectorAll(".companygraph-brief-group")).every((d) => !(d as HTMLDetailsElement).open));
+    assert.equal(closed, true);
+    await ui.click((selector: string) => app.workspace.getLeavesOfType("companygraph-brief")[0].view.contentEl.querySelector(`${selector} > summary`), [group("## Consequences")]);
+    await ui.waitFor("the group to be remembered", () =>
+      (app.plugins.plugins.companygraph.settings.briefOpen.decision ?? []).includes("## Consequences"));
+    assert.equal(await ui.evaluate(cursorOn, ["## Alternatives"]), true);
+    await ui.press("ArrowDown");
+    await placeIs("Alternatives");
+    assert.equal(await ui.evaluate((selector: string) =>
+      (app.workspace.getLeavesOfType("companygraph-brief")[0].view.contentEl.querySelector(selector) as HTMLDetailsElement | null)?.open ?? false, [group("## Consequences")]), true);
+    await ui.evaluate(async () => {
+      const plugin = app.plugins.plugins.companygraph;
+      plugin.settings.briefOpen = {};
+      await plugin.saveSettings();
+    });
   });
 });
