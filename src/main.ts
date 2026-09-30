@@ -39,7 +39,8 @@ import { typeOfPath } from "companygraph-meta-model/checks";
 import { absentFields } from "./candidates.ts";
 import { AddField } from "./addfield.ts";
 import { BRIEF_VIEW, BriefPane } from "./briefpane.ts";
-import { headingLock, headingMarks, removeSection } from "./headingmarks.ts";
+import { headingLock, headingMarks, idHold, removeSection } from "./headingmarks.ts";
+import { holdIdInProperties } from "./widget.ts";
 import { pictureMark } from "./picturemark.ts";
 import { AddSection } from "./addsection.ts";
 import { addableSections } from "./headings.ts";
@@ -156,7 +157,9 @@ export default class CompanyGraphPlugin extends Plugin {
     this.registerEditorExtension(marksField);
     this.registerEditorExtension(nameLinks(this));
     this.registerEditorExtension(headingMarks(this));
-    this.registerEditorExtension(headingLock(this));
+    const ids = idHold(this);
+    this.registerEditorExtension(ids);
+    this.registerEditorExtension(headingLock(this, ids));
     this.registerEditorExtension(pictureMark(this));
     // Every editor extension is registered before the first await of this method. Obsidian reads
     // them when it builds an editor, and the editors of the notes already open are built before a
@@ -172,6 +175,7 @@ export default class CompanyGraphPlugin extends Plugin {
     const suggest = new Suggest(this.app, this);
     this.registerEditorSuggest(suggest);
     watchPropertyInputs(this);
+    holdIdInProperties(this);
     this.addCommand({
       id: "add-field",
       name: "Add a field",

@@ -28,6 +28,16 @@ const cursorOn = (text: string) => {
   return true;
 };
 
+// Switches the note in front between Source mode and Live Preview.
+const sourceMode = async (ui: Session["ui"], on: boolean) => {
+  await ui.evaluate(async (source: boolean) => {
+    const view = app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view;
+    await view.setState({ ...view.getState(), mode: "source", source }, { history: false });
+  }, [on]);
+  await ui.waitFor(`the editor to be in ${on ? "Source mode" : "Live Preview"}`, (source: boolean) =>
+    app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.getState().source === source, [on]);
+};
+
 // Leaves a live-preview table the way a person does, by clicking the heading nearest the cursor,
 // over the DevTools protocol. While a table's cell editor is open, Obsidian pulls a selection set
 // from code back into the cell and scrolls the note back to it, so neither a programmatic cursor
@@ -124,6 +134,56 @@ describe("the page of an entity", { skip }, () => {
       (app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor.getValue() as string).split("\n").includes(line), [`${h1}x`]);
     await ui.press("Backspace");
     await ui.waitFor("the H1 to be as it was", (text: string) => app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor.getValue() === text, [before]);
+  });
+
+  // The fixture predates core 0.49.0 and carries no ids, so the note is given one on disk first,
+  // which the editor takes as a reload, as it takes any change to the file.
+  test("an id that has a value cannot be typed into in Source mode, nor edited in the Properties widget", async () => {
+    const { ui } = session;
+    const ID = "0199a0c4-7b3e-7c11-9a2f-3c5e8d1f2a40";
+    const was = (await onDisk(ui, note.path))!;
+    await openNote(ui, note.path);
+    await ui.evaluate(async (at: string, text: string) => app.vault.modify(app.vault.getAbstractFileByPath(at), text), [note.path, was.replace(/^---\n/, `---\nid: ${ID}\n`)]);
+    await ui.waitFor("the id to be held", () =>
+      !!app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.containerEl.querySelector('.cm-editor[data-companygraph-id="locked"]'));
+    const before = await ui.evaluate(editorText);
+
+    await sourceMode(ui, true);
+    await clearNotices(ui);
+    assert.equal(await ui.evaluate(cursorOn, [`id: ${ID}`]), true);
+    await ui.type("x");
+    await waitForNotice(ui, "is the entity's identity and cannot be edited here");
+    assert.equal(await ui.evaluate(editorText), before);
+    await ui.press("Backspace");
+    assert.equal(await ui.evaluate(editorText), before);
+
+    await sourceMode(ui, false);
+    const row = '.metadata-property[data-property-key="id"] .metadata-property-value';
+    await ui.waitFor("the id's row to be drawn", (at: string) => {
+      const el = app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.containerEl.querySelector(at) as HTMLElement | null;
+      return !!el && el.offsetParent !== null;
+    }, [row]);
+    // The row turns the focus away with a notice of its own, apart from the filter's burst; the
+    // widget's refused write is read from the text and the row, since its notice may fall inside
+    // the burst of the Source mode refusal above.
+    await clearNotices(ui);
+    await ui.click((at: string) => app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.containerEl.querySelector(at), [row]);
+    await waitForNotice(ui, "is the entity's identity and cannot be edited here");
+    assert.equal(await ui.evaluate((at: string) => !!document.activeElement?.closest(at), [row]), false);
+
+    // Deleting the property through the widget: its own write, the frontmatter without the id.
+    await ui.evaluate(() => {
+      const view = app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view;
+      const { id: _, ...rest } = app.metadataCache.getFileCache(view.file)?.frontmatter ?? {};
+      view.saveFrontmatter(rest);
+    });
+    assert.equal(await ui.evaluate(editorText), before);
+    const shown = await ui.waitFor("the row to show the id again", (at: string, id: string) => {
+      const el = app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.containerEl.querySelector(at) as HTMLElement | null;
+      return el?.innerText.trim() === id ? true : null;
+    }, [row, ID]);
+    assert.equal(shown, true);
+    await session.restore([note.path]);
   });
 
   test("a required section that is missing is shown as a line to click, and the click writes it", async () => {

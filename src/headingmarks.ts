@@ -17,6 +17,7 @@ import { headingsOf, insertionAt, isEntityText, isHeld, lockedLines, lostLine, m
 import type { HeadingKind } from "./headings.ts";
 import type { TypeVocabulary } from "./vocabulary.ts";
 import { refreshNames } from "./namelinks.ts";
+import { heldAfter, holdsEdit, idOf, lostId } from "./idlock.ts";
 
 // The vocabulary of the entity in the editor, or null where the file is none. Obsidian gives a
 // table cell's own small editor the note's extensions and the note's file, read from the
@@ -218,24 +219,75 @@ export function headingMarks(plugin: CompanyGraphPlugin) {
 // heading and moving a heading whole all pass. Which edits are held is decided in headings.ts,
 // where it is tested. A rename in the file explorer, a sync or another program never reaches the
 // editor; the checks catch what they break.
+//
+// The same filter holds the page's `id` once it has a value: an edit that changes or removes it
+// is refused, whether typed in Source mode or written by the Properties widget, which reaches the
+// editor as a transaction of its own (see widget.ts). What is held and when is idlock.ts's.
 const eventOf = (tr: Transaction) => tr.annotation(Tr.userEvent);
 
-export function headingLock(plugin: CompanyGraphPlugin) {
+// Set by widget.ts while the Properties widget writes the note, which it does through the editor
+// with the event `set`, the event of a reload from disk; `refused` says the lock held that write.
+export const propertiesWrite = { active: false, refused: false };
+
+// The id the lock holds in one editor, and whether the page is an entity's with that id set, which
+// is what makes the Properties widget's row for it read-only. A field, and not a reading of the
+// text, because the id held is the page's as the editor took it from the file: typing into a
+// blank id does not lock it while it is written.
+interface IdHold { held: string | null; locked: boolean; path: string | null }
+
+function holdOf(plugin: CompanyGraphPlugin, state: EditorState, held: string | null): IdHold {
+  const locked = !!held && vocabularyIn(plugin, state) !== null && isEntityText(state.doc.toString());
+  return { held, locked, path: fileIn(state) };
+}
+
+export function idHold(plugin: CompanyGraphPlugin) {
+  return StateField.define<IdHold>({
+    create: (state) => holdOf(plugin, state, idOf(state.doc.toString())),
+    update(hold, tr: Transaction) {
+      const refreshed = tr.effects.some((e) => e.is(refreshNames));
+      if (!tr.docChanged && !refreshed && fileIn(tr.state) === hold.path) return hold;
+      const held = tr.docChanged ? heldAfter(hold.held, eventOf(tr), tr.newDoc.toString()) : hold.held;
+      return holdOf(plugin, tr.state, held);
+    },
+    // Scoped to the editor, which holds its own Properties widget; styles.css draws the row.
+    provide: (field) => EditorView.editorAttributes.from(field, (hold): Record<string, string> =>
+      hold.locked ? { "data-companygraph-id": "locked" } : {}),
+  });
+}
+
+export function headingLock(plugin: CompanyGraphPlugin, ids: StateField<IdHold>) {
   let told = 0;
+  // One notice for a burst of refused keystrokes, not one each.
+  const tell = (message: string) => {
+    if (Date.now() - told > 2000) {
+      told = Date.now();
+      new Notice(message);
+    }
+  };
   const filter = State.transactionFilter.of((tr) => {
-    if (!tr.docChanged || !isHeld(eventOf(tr))) return tr;
+    if (!tr.docChanged) return tr;
+    const event = eventOf(tr);
+    const headings = isHeld(event);
+    const id = holdsEdit(event, propertiesWrite.active);
+    if (!headings && !id) return tr;
     const found = vocabularyIn(plugin, tr.startState);
     if (!found) return tr;
     const before = tr.startState.doc.toString();
     if (!isEntityText(before)) return tr;
-    const lost = lostLine(lockedLines(before.split("\n"), found.vocabulary), lockedLines(tr.newDoc.toString().split("\n"), found.vocabulary));
-    if (lost === null) return tr;
-    // One notice for a burst of refused keystrokes, not one each.
-    if (Date.now() - told > 2000) {
-      told = Date.now();
-      new Notice(`"${lost.slice(3).trim()}" is the schema's heading and cannot be edited here.`);
+    const after = tr.newDoc.toString();
+    if (headings) {
+      const lost = lostLine(lockedLines(before.split("\n"), found.vocabulary), lockedLines(after.split("\n"), found.vocabulary));
+      if (lost !== null) {
+        tell(`"${lost.slice(3).trim()}" is the schema's heading and cannot be edited here.`);
+        return [];
+      }
     }
-    return [];
+    if (id && lostId(tr.startState.field(ids, false)?.held ?? null, after) !== null) {
+      if (propertiesWrite.active) propertiesWrite.refused = true;
+      tell(`"id" is the entity's identity and cannot be edited here.`);
+      return [];
+    }
+    return tr;
   });
   return filter;
 }
