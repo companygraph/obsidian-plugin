@@ -269,9 +269,20 @@ export class FreshId extends Modal {
       if (!cm) throw new Error("the page's editor could not be reached");
       cm.dispatch({ changes: freshIdChange(cm.state.doc.toString(), id), userEvent: "input.id" });
     }
-    await view.save();
-    if (idOf(view.getViewData()) !== id || idOf(await this.app.vault.read(file)) !== id)
-      throw new Error("the new id did not reach the file");
+    if (idOf(view.getViewData()) !== id) throw new Error("the new id did not reach the page");
+    // The page holds it from here on, so a save that fails, or one already under way that writes
+    // it a moment later, is said as such and not as an id left unchanged; nor is it copied then.
+    let saved = false;
+    try {
+      await view.save();
+      saved = idOf(await this.app.vault.read(file)) === id;
+    } catch {
+      saved = false;
+    }
+    if (!saved) {
+      new Notice(`The new id ${id} is in the page but has not reached the file yet.`);
+      return;
+    }
     copyId(id, "the page's new id");
   }
 

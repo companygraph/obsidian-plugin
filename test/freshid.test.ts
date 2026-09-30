@@ -48,3 +48,18 @@ test("the text with a fresh id is the text with that one change made", () => {
   assert.equal(withFreshId(PAGE, NEW), PAGE.replace(OLD, NEW));
   assert.equal(withFreshId("# Reviewer\n", NEW), `---\nid: ${NEW}\n---\n\n# Reviewer\n`);
 });
+
+test("a page with carriage returns keeps them, and gains no second frontmatter", () => {
+  const crlf = PAGE.replaceAll("\n", "\r\n");
+  assert.equal(withFreshId(crlf, NEW), crlf.replace(OLD, NEW));
+  const none = crlf.replace(`id: ${OLD}\r\n`, "");
+  const gained = withFreshId(none, NEW);
+  assert.equal(gained, crlf.replace(OLD, NEW));
+  assert.equal(gained.split("\r\n").filter((l) => l === "---").length, 2);
+  assert.ok(!/(^|[^\r])\n/.test(gained), "every line ends as the page's do");
+  // A page with no frontmatter gains one that ends as its first line does.
+  assert.equal(withFreshId("# Reviewer\r\n", NEW), `---\r\nid: ${NEW}\r\n---\r\n\r\n# Reviewer\r\n`);
+  // A line ending that differs from the first is not rewritten.
+  const mixed = crlf.replace("# Reviewer\r\n", "# Reviewer\n");
+  assert.equal(withFreshId(mixed, NEW), mixed.replace(OLD, NEW));
+});

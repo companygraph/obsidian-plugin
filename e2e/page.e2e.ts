@@ -224,28 +224,32 @@ describe("the page of an entity", { skip }, () => {
     await waitForNotice(ui, `new id copied \\(${fresh}\\)`);
     await ui.waitFor("the new id to be held", () =>
       app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.containerEl.getAttribute("data-companygraph-id") === "locked");
-    await sourceMode(ui, true);
-    assert.equal(await ui.evaluate(cursorOn, [`id: ${fresh}`]), true);
-    await ui.type("x");
-    // Read from the text and not a notice: the lock's notice is told once for a burst, and the
-    // widget's refusals above are within it.
     const after = before.replace(`id: ${ID}`, `id: ${fresh}`);
-    await ui.never("the new id to take the typing", (text: string) =>
-      app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor.getValue() !== text, [after], 1000);
-    // The positive control, in the same state: typing on a free line, the end of the body, is
-    // taken, so the refusal above was the lock's and not keys that reached nothing. Then taken back.
-    await ui.evaluate(() => {
-      const cm = app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor.cm;
-      cm.contentDOM.focus();
-      cm.dispatch({ selection: { anchor: cm.state.doc.length }, scrollIntoView: true });
-      cm.focus();
-    });
-    await ui.type("z");
-    await ui.waitFor("the end of the body to take the typing", (text: string) =>
-      app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor.getValue() === `${text}z`, [after]);
-    await ui.press("Backspace");
-    await ui.waitFor("the typing to be taken back", (text: string) =>
-      app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor.getValue() === text, [after]);
+    // Typing on the id line is refused, read from the text and not a notice: the lock's notice is
+    // told once for a burst, and refusals just before fall inside it. The positive control, in the
+    // same state: typing at the end of the body is taken, so the refusal was the lock's and not
+    // keys that reached nothing. Then taken back. Ends in Live Preview.
+    const lockedOn = async (id: string, text: string) => {
+      await sourceMode(ui, true);
+      assert.equal(await ui.evaluate(cursorOn, [`id: ${id}`]), true);
+      await ui.type("x");
+      await ui.never("the id to take the typing", (want: string) =>
+        app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor.getValue() !== want, [text], 1000);
+      await ui.evaluate(() => {
+        const cm = app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor.cm;
+        cm.contentDOM.focus();
+        cm.dispatch({ selection: { anchor: cm.state.doc.length }, scrollIntoView: true });
+        cm.focus();
+      });
+      await ui.type("z");
+      await ui.waitFor("the end of the body to take the typing", (want: string) =>
+        app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor.getValue() === `${want}z`, [text]);
+      await ui.press("Backspace");
+      await ui.waitFor("the typing to be taken back", (want: string) =>
+        app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor.getValue() === want, [text]);
+      await sourceMode(ui, false);
+    };
+    await lockedOn(fresh, after);
 
     // In Reading view no editor holds the text that is saved; the new id still reaches the file.
     await ui.evaluate(async () => {
@@ -264,7 +268,9 @@ describe("the page of an entity", { skip }, () => {
     assert.equal(await onDisk(ui, note.path), after.replace(`id: ${fresh}`, `id: ${again}`));
     await waitForNotice(ui, `new id copied \\(${again}\\)`);
     await sourceMode(ui, false);
-    assert.equal(await ui.evaluate(editorText), after.replace(`id: ${fresh}`, `id: ${again}`));
+    const last = after.replace(`id: ${fresh}`, `id: ${again}`);
+    assert.equal(await ui.evaluate(editorText), last);
+    await lockedOn(again, last);
     await session.restore([note.path]);
   });
 
