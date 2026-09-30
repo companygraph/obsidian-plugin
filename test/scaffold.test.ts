@@ -196,6 +196,15 @@ test("under a declared pattern the id is left blank, and what is owed says so", 
   assert.match(broken.owes!, /"guid"/);
 });
 
+// New entity reads the identifier file from the vault, and a read can fail: the page is still
+// made, its id blank and the reason owed, as for a file that does not read.
+test("an identifier file that could not be read leaves the id blank and says why", () => {
+  const { text, owes } = scaffoldOf(vocabulary.get("skill")!, "Pricing", { source: "Local" }, { unread: "EACCES: permission denied" });
+  assert.equal(text.split("\n")[1], "id:");
+  assert.equal(owes, "Its id is left blank: model/identifier.md does not read (EACCES: permission denied).");
+  assert.match(text, /^# Pricing$/m, "the page is made all the same");
+});
+
 test("a scaffolded page passes R18, and under a pattern once its author writes the id", () => {
   const files = example();
   const path = "example/model/skills/pricing.md";
@@ -209,7 +218,8 @@ test("a scaffolded page passes R18, and under a pattern once its author writes t
   // Only this page's findings are read, so the other pages keep their UUIDs.
   files.set(IDENTIFIER, withFormat(files.get(IDENTIFIER)!, "format: pattern\npattern: ^[A-Z]{2}-[0-9]{4}$"));
   const patterned = scaffoldOf(vocabulary.get("skill")!, "Pricing", { source: "Local" }, files.get(IDENTIFIER)!);
-  assert.equal(r18(files.set(path, patterned.text)).length, 1, "a blank id fails until it is written");
+  files.set(path, patterned.text);
+  assert.equal(r18(files).length, 1, "a blank id fails until it is written");
   files.set(path, patterned.text.replace(/^id:$/m, "id: SK-0001"));
   assert.deepEqual(r18(files), []);
 });

@@ -109,7 +109,11 @@ test("a row naming an owned entity resolves within an owner that carries a stabl
   const resolved = resolveRow(named, schemas, row);
   if (!resolved.entity) assert.fail(resolved.error);
   assert.ok(resolved.entity.path.startsWith("example/model/profiles/mira-halvorsen/experiences/"));
-  // The same name under another owner names nothing there.
+  // The same name under another owner names nothing there: the owner is found, by the folder its
+  // address gives and not its UUID, and the value is what fails.
   const tomas = named.find((n) => n.path === TOMAS)!;
-  assert.ok(resolveRow(named, schemas, { ...row, owner: tomas.name }).error);
+  const elsewhere = resolveRow(named, schemas, { ...row, owner: tomas.name });
+  if (elsewhere.entity) assert.fail(`resolved to ${elsewhere.entity.path}`);
+  assert.equal(elsewhere.subject, "value");
+  assert.equal(elsewhere.error, `names no experience of ${tomas.address}`);
 });

@@ -9,7 +9,7 @@ import type { TypeVocabulary } from "./vocabulary.ts";
 import { refusedHere, refusedName } from "./names.ts";
 import type { Named } from "./scope.ts";
 import { scaffoldOf } from "./scaffold.ts";
-import type { Target } from "./scaffold.ts";
+import type { Identifier, Target } from "./scaffold.ts";
 
 export class PickType extends FuzzySuggestModal<Target> {
   targets: Target[];
@@ -102,9 +102,17 @@ class NameEntity extends Modal {
     let tagline: number;
     let owes: string | null;
     try {
-      // Read inside the guard, since a read waits and a second Enter may land meanwhile.
+      // Read inside the guard, since a read waits and a second Enter may land meanwhile. A file
+      // that cannot be read writes nothing wrong, so the page is still made, its id left blank
+      // and the notice saying why.
       const identifierFile = vault.getAbstractFileByPath(`${this.model}/identifier.md`);
-      const identifier = identifierFile instanceof TFile ? await vault.read(identifierFile) : null;
+      let identifier: Identifier = null;
+      if (identifierFile instanceof TFile)
+        try {
+          identifier = await vault.read(identifierFile);
+        } catch (error) {
+          identifier = { unread: error instanceof Error ? error.message : String(error) };
+        }
       const scaffold = scaffoldOf(this.vocabulary, name, values, identifier);
       tagline = scaffold.tagline;
       owes = scaffold.owes;

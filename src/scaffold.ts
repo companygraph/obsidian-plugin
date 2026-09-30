@@ -83,8 +83,13 @@ export function targetsFor(model: string, activePath: string | null, exists: (pa
 // then not the instance's choice to make and every tool makes that one. A pattern is the
 // instance's own and says nothing of how an id is made, so none is; nor where the file does not
 // read, which the checks report on the file itself. `owes` is then what the author is told.
-function newId(identifier: string | null): { id: string | null; owes: string | null } {
+// An identifier file that is there and could not be read is handed in as why, and is owed as one
+// that does not read.
+export type Identifier = string | null | { unread: string };
+
+function newId(identifier: Identifier): { id: string | null; owes: string | null } {
   if (identifier === null) return { id: uuidv7(), owes: null };
+  if (typeof identifier !== "string") return { id: null, owes: `Its id is left blank: model/identifier.md does not read (${identifier.unread}).` };
   const declared = idFormatOf(identifier);
   if (declared.format === "uuidv7") return { id: uuidv7(), owes: null };
   if (declared.format === "pattern")
@@ -100,7 +105,7 @@ export function scaffoldOf(
   vocabulary: TypeVocabulary,
   name: string,
   values: Record<string, string> = {},
-  identifier: string | null = null,
+  identifier: Identifier = null,
 ): { text: string; tagline: number; owes: string | null } {
   const lines: string[] = [];
   const fields = vocabulary.fields.filter((f) => f.required);
