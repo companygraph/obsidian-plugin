@@ -140,7 +140,7 @@ export class BriefPane extends ItemView {
     }
     this.contentEl.createDiv({
       cls: "companygraph-brief-foot",
-      text: "Writing rules are a judgment: no check reads them, and the agent pass holds a page to them.",
+      text: "Writing rules are a judgment, and no check reads them.",
     });
   }
 
