@@ -364,6 +364,9 @@
   -webkit-user-select: text;
   padding: var(--size-4-3);
   line-height: var(--line-height-normal);
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-4);
 }
 
 .companygraph-brief p {
@@ -377,6 +380,9 @@
 
 /* Where the cursor is, and what the schema says of it. */
 .companygraph-brief-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-2);
   padding: var(--size-4-3);
   border: 1px solid var(--background-modifier-border);
   border-radius: var(--radius-m);
@@ -388,7 +394,6 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--size-4-2);
-  margin-bottom: var(--size-4-2);
 }
 
 .companygraph-brief-type {
@@ -400,14 +405,6 @@
   font-weight: var(--font-semibold);
   letter-spacing: 0.04em;
   text-transform: uppercase;
-}
-
-.companygraph-brief-place {
-  font-family: var(--font-monospace);
-  font-size: var(--font-ui-small);
-  color: var(--text-normal);
-  background: none;
-  padding: 0;
 }
 
 /* Required, optional or the page's own, told apart by the dot's fill as well as its colour. */
@@ -440,6 +437,35 @@
   border-style: dashed;
 }
 
+/* The place by what it is and its name: Section Why, Field decided. */
+.companygraph-brief-where {
+  display: flex;
+  align-items: baseline;
+  gap: var(--size-4-2);
+}
+
+.companygraph-brief-kind {
+  flex: none;
+  min-width: 3.6em;
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-semibold);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.companygraph-brief-place {
+  color: var(--text-normal);
+  font-size: var(--font-ui-large);
+  font-weight: var(--font-semibold);
+  text-wrap: balance;
+}
+
+.companygraph-brief-place.is-field {
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-medium);
+}
+
 .companygraph-brief-lead {
   font-size: var(--font-ui-medium);
   color: var(--text-normal);
@@ -450,12 +476,25 @@
   font-size: var(--font-ui-small);
 }
 
-/* The rules: those for this place set off by the accent, the rest quieter. */
-.companygraph-brief-rules {
-  margin-top: var(--size-4-4);
+.companygraph-brief-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--size-2-3);
+}
+
+.companygraph-brief-meta span {
+  padding: 0 var(--size-2-3);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  color: var(--text-muted);
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-smaller);
 }
 
 .companygraph-brief-label {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2);
   margin-bottom: var(--size-4-1);
   color: var(--text-muted);
   font-size: var(--font-ui-smaller);
@@ -464,24 +503,36 @@
   text-transform: uppercase;
 }
 
+.companygraph-brief-toggle {
+  margin-inline-start: auto;
+  padding: 0 var(--size-2-3);
+  height: auto;
+  background: none;
+  box-shadow: none;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-normal);
+  letter-spacing: 0;
+  text-transform: none;
+  cursor: pointer;
+}
+
+.companygraph-brief-toggle:hover {
+  background-color: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
 .companygraph-brief-rules ul {
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.companygraph-brief-rules li {
-  padding: var(--size-4-2) 0;
-  border-bottom: 1px solid var(--background-modifier-border);
-  font-size: var(--font-ui-small);
-  color: var(--text-muted);
-}
-
-.companygraph-brief-rules li:last-child {
-  border-bottom: none;
-}
-
+/* The rules for this place, set off by the accent. */
 .companygraph-brief-rules.is-named ul {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-2);
   padding-inline-start: var(--size-4-3);
   border-inline-start: 3px solid var(--interactive-accent);
 }
@@ -491,27 +542,167 @@
   font-size: var(--font-ui-medium);
 }
 
+.companygraph-brief-none {
+  color: var(--text-faint);
+  font-size: var(--font-ui-small);
+  font-style: italic;
+}
+
+/* The rest, folded under the place each names first: collapsed, the rows read as the page's
+   outline. */
+.companygraph-brief-groups {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  overflow: hidden;
+}
+
+.companygraph-brief-group + .companygraph-brief-group {
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.companygraph-brief-group > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2);
+  padding: var(--size-2-3) var(--size-4-2);
+  list-style: none;
+  cursor: pointer;
+  font-size: var(--font-ui-small);
+  color: var(--text-normal);
+}
+
+.companygraph-brief-group > summary::-webkit-details-marker {
+  display: none;
+}
+
+.companygraph-brief-group > summary:hover {
+  background-color: var(--background-secondary);
+}
+
+.companygraph-brief-chevron {
+  display: flex;
+  color: var(--text-faint);
+  transition: transform 0.15s ease;
+}
+
+.companygraph-brief-chevron svg {
+  width: var(--icon-xs);
+  height: var(--icon-xs);
+}
+
+.companygraph-brief-group[open] .companygraph-brief-chevron {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .companygraph-brief-chevron {
+    transition: none;
+  }
+}
+
+/* Wide enough for the widest kind, so the names line up down the outline. */
+.companygraph-brief-group .companygraph-brief-kind {
+  min-width: 5.6em;
+}
+
+.companygraph-brief-count {
+  margin-inline-start: auto;
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+  font-variant-numeric: tabular-nums;
+}
+
+.companygraph-brief-group ul {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-2);
+  padding: var(--size-2-1) var(--size-4-3) var(--size-4-3) calc(var(--size-4-8) + var(--size-2-1));
+}
+
+.companygraph-brief-group li {
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+}
+
+/* A section or field a rule names, by its name: a chip, a button where the note has it. */
+.companygraph-brief-mention {
+  display: inline;
+  height: auto;
+  padding: 0 var(--size-2-2);
+  border-radius: var(--radius-s);
+  box-shadow: none;
+  font-size: 0.92em;
+  line-height: inherit;
+  white-space: nowrap;
+}
+
+.companygraph-brief-mention.is-section {
+  background-color: hsla(var(--interactive-accent-hsl), 0.12);
+  color: var(--text-accent);
+  font-weight: var(--font-medium);
+}
+
+.companygraph-brief-mention.is-section::before {
+  content: "§ ";
+  opacity: 0.7;
+  font-weight: var(--font-normal);
+}
+
+.companygraph-brief-mention.is-field {
+  background-color: var(--background-modifier-hover);
+  color: var(--text-normal);
+  font-family: var(--font-monospace);
+  font-size: 0.86em;
+}
+
+button.companygraph-brief-mention {
+  cursor: pointer;
+}
+
+button.companygraph-brief-mention:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.companygraph-brief code {
+  font-size: 0.88em;
+}
+
+.companygraph-brief-example {
+  color: var(--text-normal);
+  font-style: italic;
+}
+
+/* The purpose: its first sentence always, the rest on a click. */
 .companygraph-brief-purpose {
-  margin-top: var(--size-4-4);
+  padding-top: var(--size-4-3);
+  border-top: 1px solid var(--background-modifier-border);
   font-size: var(--font-ui-small);
   color: var(--text-muted);
 }
 
-.companygraph-brief-purpose summary {
+.companygraph-brief-purpose > summary {
+  list-style: none;
   cursor: pointer;
-  color: var(--text-muted);
-  font-size: var(--font-ui-smaller);
-  font-weight: var(--font-semibold);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
 }
 
-.companygraph-brief-purpose > div {
+.companygraph-brief-purpose > summary::-webkit-details-marker {
+  display: none;
+}
+
+.companygraph-brief-more {
+  color: var(--text-accent);
+}
+
+.companygraph-brief-purpose[open] .companygraph-brief-more {
+  display: none;
+}
+
+.companygraph-brief-rest {
   margin-top: var(--size-4-2);
 }
 
 .companygraph-brief-foot {
-  margin-top: var(--size-4-4);
   color: var(--text-faint);
   font-size: var(--font-ui-smaller);
   font-style: italic;

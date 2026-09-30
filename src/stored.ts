@@ -13,9 +13,15 @@ export interface Settings {
   // find it off, take it for the owner's doing, and never put it back — not when the setting goes
   // off, not on unload, not on uninstall.
   suppressedPanes: string[];
+  // Which of the writing brief's folded groups of rules are open, by type, so a group a person
+  // keeps open stays open from one note of that type to the next and across a restart.
+  briefOpen: Record<string, string[]>;
 }
 
-export const DEFAULT_SETTINGS: Settings = { replaceObsidianPanes: true, referencesInDocument: false, suppressedPanes: [] };
+export const DEFAULT_SETTINGS: Settings = { replaceObsidianPanes: true, referencesInDocument: false, suppressedPanes: [], briefOpen: {} };
+
+const strings = (value: unknown): string[] =>
+  Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 
 // The settings as this release declares them, read from whatever `loadData` gives back. Only the
 // declared keys are taken and each is held to its type: settings used to be spread, so a vault
@@ -29,9 +35,11 @@ export function settingsOf(stored: unknown): Settings {
   return {
     replaceObsidianPanes: flag("replaceObsidianPanes", DEFAULT_SETTINGS.replaceObsidianPanes),
     referencesInDocument: flag("referencesInDocument", DEFAULT_SETTINGS.referencesInDocument),
-    suppressedPanes: Array.isArray(held.suppressedPanes)
-      ? (held.suppressedPanes as unknown[]).filter((id): id is string => typeof id === "string")
-      : [],
+    suppressedPanes: strings(held.suppressedPanes),
+    briefOpen:
+      held.briefOpen && typeof held.briefOpen === "object" && !Array.isArray(held.briefOpen)
+        ? Object.fromEntries(Object.entries(held.briefOpen as Record<string, unknown>).map(([type, keys]) => [type, strings(keys)]))
+        : {},
   };
 }
 

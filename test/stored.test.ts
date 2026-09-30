@@ -15,6 +15,7 @@ test("what is stored is read, and each key held to its type", () => {
     replaceObsidianPanes: false,
     referencesInDocument: true,
     suppressedPanes: ["backlink", "tag-pane"],
+    briefOpen: {},
   });
   // A key of the wrong type means nothing this plugin can act on, so the default stands.
   assert.equal(settingsOf({ replaceObsidianPanes: "yes" }).replaceObsidianPanes, true);
@@ -24,7 +25,7 @@ test("what is stored is read, and each key held to its type", () => {
 
 test("a key no release declares is dropped rather than carried forward", () => {
   const settings = settingsOf({ replaceObsidianPanes: true, agentCommand: "claude", agentSkill: "companygraph-validate" });
-  assert.deepEqual(Object.keys(settings).sort(), ["referencesInDocument", "replaceObsidianPanes", "suppressedPanes"]);
+  assert.deepEqual(Object.keys(settings).sort(), ["briefOpen", "referencesInDocument", "replaceObsidianPanes", "suppressedPanes"]);
 });
 
 test("only a vault written before the panes were remembered is repaired", () => {
@@ -36,4 +37,12 @@ test("only a vault written before the panes were remembered is repaired", () => 
   // A first run: a pane that is off there was off before this plugin ever ran.
   assert.equal(forgotPanes(null), false);
   assert.equal(forgotPanes(undefined), false);
+});
+
+test("the brief's open groups are read by type, and anything else in them dropped", () => {
+  assert.deepEqual(settingsOf({ briefOpen: { decision: ["## Why", 3, "page"], role: "no" } }).briefOpen, { decision: ["## Why", "page"], role: [] });
+  assert.deepEqual(settingsOf({ briefOpen: ["decision"] }).briefOpen, {});
+  // Its own object: the defaults are one object, and a type's list is set into it.
+  settingsOf(null).briefOpen.decision = ["page"];
+  assert.deepEqual(DEFAULT_SETTINGS.briefOpen, {});
 });
