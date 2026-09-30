@@ -63,7 +63,7 @@ function wrapSave(plugin: CompanyGraphPlugin, proto: object, make: (original: Sa
 }
 
 // Whether a file is an entity's page, as the heading lock decides it for an editor.
-function isEntityFile(plugin: CompanyGraphPlugin, path: string, text: string): boolean {
+export function isEntityFile(plugin: CompanyGraphPlugin, path: string, text: string): boolean {
   const layout = plugin.layout;
   if (!layout || !path.startsWith(`${layout.model}/`)) return false;
   const type = typeOfPath(path, layout.model);

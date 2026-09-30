@@ -40,7 +40,7 @@ import { absentFields } from "./candidates.ts";
 import { AddField } from "./addfield.ts";
 import { BRIEF_VIEW, BriefPane } from "./briefpane.ts";
 import { headingLock, headingMarks, idHold, removeSection } from "./headingmarks.ts";
-import { copyId, holdIdInProperties, idIn } from "./widget.ts";
+import { copyId, holdIdInProperties, idIn, isEntityFile } from "./widget.ts";
 import { pictureMark } from "./picturemark.ts";
 import { AddSection } from "./addsection.ts";
 import { addableSections } from "./headings.ts";
@@ -380,8 +380,9 @@ export default class CompanyGraphPlugin extends Plugin {
       id: "copy-entity-id",
       name: "Copy entity id",
       checkCallback: (checking) => {
+        // Offered on an entity's page only, as the lock holds only those.
         const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-        const id = view ? idIn(view) : null;
+        const id = view?.file && isEntityFile(this, view.file.path, view.getViewData()) ? idIn(view) : null;
         if (!id) return false;
         if (!checking) copyId(id);
         return true;

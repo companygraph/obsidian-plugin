@@ -8,7 +8,9 @@ import { isHeld } from "./headings.ts";
 
 // The id a page carries: its value, with one pair of YAML's quotes and a trailing comment set
 // aside; "" where the line is there and blank; null where the frontmatter has no top-level `id:`
-// line, or the page no frontmatter that has closed. A line may end in a carriage return.
+// line, or the page no frontmatter that has closed. A line may end in a carriage return. Not the
+// package's `idOf` from companygraph-meta-model/ids: that one reads the scalar as written, and the
+// lock must read it as YAML and the widget do, quotes, a comment and YAML's null set aside.
 export function idOf(text: string): string | null {
   const lines = text.split(/\r?\n/);
   const end = frontmatterEnd(lines);
@@ -35,13 +37,14 @@ export function lostId(held: string | null, after: string): string | null {
 
 // Whether a write of the Properties widget, the frontmatter it would save, loses the id held. The
 // widget writes this way in every view, Reading view included, where no editor sees the write, so
-// this is decided before it is made. YAML hands a bare number over as one, and a numeric id is
-// compared as a number for that reason.
+// this is decided before it is made. YAML hands a bare number over as one, and the widget saves
+// back what it parsed, so a number keeps the id only where it prints as the id is written: `123`
+// does, `0042`, `+42` or `0x2A` would go to disk as `42`, and is refused.
 export function lostInProperties(held: string | null, frontmatter: unknown): boolean {
   if (!held) return false;
   const id = frontmatter && typeof frontmatter === "object" ? (frontmatter as Record<string, unknown>).id : undefined;
   if (typeof id === "string") return id.trim() !== held;
-  if (typeof id === "number") return id !== Number(held);
+  if (typeof id === "number") return String(id) !== held;
   return true;
 }
 

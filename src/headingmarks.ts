@@ -276,11 +276,16 @@ function ownView(v: EditorView): MarkdownView | null {
 function markContainer(field: StateField<IdHold>) {
   return ViewPlugin.define((view) => {
     let container: Element | null = null;
+    // What was last done, so an update that changes nothing touches no markup: this runs on every
+    // transaction of the editor.
+    let last: "set" | "remove" | null = null;
     const mark = (v: EditorView) => {
       const own = ownView(v);
       const action = containerMark(!!v.state.field(field, false)?.locked, own !== null);
       if (action === "leave") return;
+      if (action === last && container === own!.containerEl) return;
       container = own!.containerEl;
+      last = action;
       if (action === "set") container.setAttribute(LOCKED, "locked");
       else container.removeAttribute(LOCKED);
     };

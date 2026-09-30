@@ -82,8 +82,13 @@ test("a write of the Properties widget that drops or changes a held id is refuse
   assert.equal(lostInProperties(ID, null), true);
   assert.equal(lostInProperties(ID, { id: ID, source: "Elsewhere" }), false);
   assert.equal(lostInProperties(ID, { id: ` ${ID} ` }), false);
-  // YAML reads a bare number as one; a pattern's numeric id is still the same id.
-  assert.equal(lostInProperties("0123", { id: 123 }), false);
+  // YAML reads a bare number as one. It is the same id only where it prints as the id is
+  // written: the widget saves back what it parsed, so `0123` would go to disk as `123`.
+  assert.equal(lostInProperties("123", { id: 123 }), false);
+  assert.equal(lostInProperties("0123", { id: 123 }), true);
+  assert.equal(lostInProperties("+42", { id: 42 }), true);
+  assert.equal(lostInProperties("0x2A", { id: 42 }), true);
+  assert.equal(lostInProperties("4.2e1", { id: 42 }), true);
   assert.equal(lostInProperties("0123", { id: 124 }), true);
   // Nothing held, nothing refused: a blank id may be filled and a page may gain one.
   assert.equal(lostInProperties("", { id: ID }), false);
