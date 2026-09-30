@@ -67,10 +67,12 @@ const rowsOf = (table: Table | undefined) =>
 export function vocabularyOf(schemas: Map<string, string>): Map<string, TypeVocabulary> {
   const vocabulary = new Map<string, TypeVocabulary>();
   const entities = parseSchemas(schemas).entities;
-  const types = entities.map((e) => e.id.slice("core/".length)).sort((a, b) => a.localeCompare(b));
+  // A schema entity's `id` is its own stable id (R18, a UUID since meta-model 0.66.0); `address`
+  // is where it sits, `core/<type>`, which is what names the type here.
+  const types = entities.map((e) => e.address.slice("core/".length)).sort((a, b) => a.localeCompare(b));
   const owners = ownerTypesOf(schemas);
   for (const e of entities) {
-    const type = e.id.slice("core/".length);
+    const type = e.address.slice("core/".length);
     const frontmatter = e.sections.find((s) => s.heading === "Frontmatter");
     const fields = rowsOf(frontmatter?.table).map((r) => ({
       name: bare(r.Field),
