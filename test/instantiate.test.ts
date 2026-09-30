@@ -5,6 +5,7 @@ import { checkInstance } from "companygraph-meta-model/checks";
 import { carryOut, folderChoices, planInstance, planMove, present } from "../src/instantiate.ts";
 import type { Disk, Release } from "../src/instantiate.ts";
 import { sha256Hex } from "../src/sha256.ts";
+import { UUIDV7 } from "companygraph-meta-model/ids";
 // @ts-expect-error: a build script, plain JavaScript with no types.
 import { releaseFiles } from "../scripts/release.mjs";
 
@@ -130,6 +131,54 @@ test("moving the core of an instance on this release does nothing, and of an old
   assert.equal(disk.files.get(skill), release.skills["companygraph-validate/SKILL.md"]);
   assert.equal(JSON.parse(disk.files.get(".companygraph/manifest.json")!).tooling, release.version);
   assert.ok(disk.files.get(".github/workflows/companygraph.yml")!.includes(`@v${release.version}`));
+});
+
+// R18: model/identity.md and model/localization.md are the instance's own and carry no hash, so
+// the manifest never names them; `planMove` still has to read them off disk into `held`, the same
+// way companygraph's own `upgrade` does, or the planner takes the instance's own page for one it
+// was never given and overwrites it with a fresh id on every move.
+test("a move never overwrites the localization page a vault already has", async () => {
+  const disk = memoryDisk();
+  const made = await planInstance(disk, release, { name: "Acme" });
+  assert.ok("writes" in made);
+  await carryOut(disk, made.writes, made.removes);
+
+  const own = "---\nid: 01965a3e-0000-7000-8000-000000000000\nsource: Local\n---\n\n# Languages\n\n" +
+    "> Everyone who reads this model, people and agents alike, reads it in American English.\n\n" +
+    "## Locales\n\n| Locale | Role |\n| --- | --- |\n| en-US | primary |\n";
+  disk.files.set("model/localization.md", own);
+
+  const move = await planMove(disk, release);
+  assert.ok("writes" in move);
+  assert.ok(!move.writes.has("model/localization.md"));
+  await carryOut(disk, move.writes, move.removes);
+  assert.equal(disk.files.get("model/localization.md"), own);
+});
+
+test("a move gives a vault from before the localization page one, once, with identity's source", async () => {
+  const disk = memoryDisk();
+  const made = await planInstance(disk, release, { name: "Acme" });
+  assert.ok("writes" in made);
+  await carryOut(disk, made.writes, made.removes);
+
+  // An instance from before localization-schema.md existed: no model/localization.md, and its
+  // own identity naming a source other than the stub init wrote.
+  disk.files.delete("model/localization.md");
+  const identity = disk.files.get("model/identity.md")!.replace(/^source: Local$/m, "source: Google Workspace");
+  disk.files.set("model/identity.md", identity);
+
+  const move = await planMove(disk, release);
+  assert.ok("writes" in move);
+  const page = move.writes.get("model/localization.md");
+  assert.ok(page, "the move gives the vault a localization page");
+  assert.match(page!.split("\n")[1].slice("id: ".length), UUIDV7);
+  assert.ok(page!.includes("\nsource: Google Workspace\n"));
+  await carryOut(disk, move.writes, move.removes);
+
+  // Given one, a second move leaves it exactly as the first one wrote it.
+  const again = await planMove(disk, release);
+  assert.ok("writes" in again);
+  assert.ok(!again.writes.has("model/localization.md"));
 });
 
 test("a vendored file edited in the vault refuses the move, and force takes it", async () => {
