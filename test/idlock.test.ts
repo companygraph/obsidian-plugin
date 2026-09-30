@@ -52,7 +52,7 @@ test("an edit anywhere else passes, as does writing the same id in quotes", () =
 });
 
 test("the edits that pass the heading lock pass this one, and the Properties widget's own write is held", () => {
-  for (const passed of ["set", "undo", "redo", "input.section", "delete.section", "input.form", "input.type.compose"])
+  for (const passed of ["set", "undo", "redo", "input.section", "delete.section", "input.form", "input.id", "input.type.compose"])
     assert.equal(holdsEdit(passed, false), false, passed);
   for (const held of [undefined, "input", "input.type", "input.paste", "delete.backward", "delete.cut", "move.line"])
     assert.equal(holdsEdit(held, false), true, String(held));
@@ -156,4 +156,12 @@ test("a refusal says so once for a burst, and a refusal of another thing says so
   assert.equal(tells({ message: ID_REFUSED, at: 1000 }, ID_REFUSED, 3001), true);
   // A heading held a moment before says nothing of the id: the id's refusal is told at once.
   assert.equal(tells({ message: HEADING, at: 1000 }, ID_REFUSED, 1100), true);
+});
+
+test("the plugin's own fresh id moves what is held to the new id, so the page is locked on it", () => {
+  const NEW = "0199a0c4-8000-7c11-9a2f-3c5e8d1f2a41";
+  const moved = heldAfter({ held: ID, before: ID }, "input.id", PAGE.replace(ID, NEW));
+  assert.deepEqual(moved, { held: NEW, before: ID });
+  assert.equal(lostId(moved.held, PAGE.replace(ID, NEW)), null);
+  assert.equal(lostId(moved.held, PAGE), NEW);
 });
