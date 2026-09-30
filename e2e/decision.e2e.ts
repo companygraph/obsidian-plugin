@@ -82,7 +82,7 @@ describe("the decision type", { skip }, () => {
       await ui.press("Escape");
       return items as string[];
     };
-    assert.deepEqual([...(await offeredOn("kind: "))].sort(), ["Career", "Portfolio", "Spending"]);
+    assert.deepEqual([...(await offeredOn("kind: "))].sort(), ["Architecture", "Career", "Portfolio", "Spending"]);
     assert.deepEqual([...(await offeredOn("status: "))].sort(), ["Dropped", "Proposed", "Revised", "Standing"]);
     await sourceMode(ui, false);
     await session.restore([ROLE]);

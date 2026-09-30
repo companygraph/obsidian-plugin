@@ -14,28 +14,39 @@ const lines = files.get(MIRA)!.split("\n");
 const refs = referencesIn(lines, vocabulary.get("profile")!);
 // Lines are counted from zero, as the module counts them.
 const at = (line: number) => refs.filter((r) => r.line === line).map((r) => [r.name, r.target, lines[line].slice(r.from, r.to)]);
+// A line of the fixture found by how it opens, so the tests read where it sits off the data and
+// hold true when a field, such as the `id` R18 put first, moves the lines below it.
+const L = (opening: string) => {
+  const i = lines.findIndex((l) => l.startsWith(opening));
+  assert.ok(i >= 0, `${MIRA} has no line opening "${opening}"`);
+  return i;
+};
 
 // Which spans of a file are references is decided from the vocabulary: a field, a list entry
 // or a table cell whose declaration names a type. The span is the name as written, so a
 // decoration covers it exactly and nothing beside it.
 test("a reference field's value is a reference, and a string field's is not", () => {
-  assert.deepEqual(at(1), [["Google Workspace", "source", "Google Workspace"]]);
-  assert.deepEqual(at(2), [], "source-id is a string");
-  assert.deepEqual(at(6), [], "email is a string");
+  assert.deepEqual(at(L("source: ")), [["Google Workspace", "source", "Google Workspace"]]);
+  assert.deepEqual(at(L("source-id: ")), [], "source-id is a string");
+  assert.deepEqual(at(L("email: ")), [], "email is a string");
+  assert.deepEqual(at(L("id: ")), [], "id is a string");
 });
 
 test("each entry of a list of references is a reference, and its key line is not", () => {
-  assert.deepEqual(at(4), []);
-  assert.deepEqual(at(5), [["Backend Engineer", "role", "Backend Engineer"]]);
+  assert.deepEqual(at(L("roles:")), []);
+  assert.deepEqual(at(L("  - Backend Engineer")), [["Backend Engineer", "role", "Backend Engineer"]]);
 });
 
 test("a table cell is a reference by its column's declaration, a qualifier as much as a reference", () => {
-  assert.deepEqual(at(18), [["Java Programming", "skill", "Java Programming"], ["Proficient", "proficiency-level", "Proficient"]]);
-  assert.deepEqual(at(25), [["Java Programming", "skill", "Java Programming"], ["Rebuilding the order pipeline", "experience", "Rebuilding the order pipeline"]]);
+  assert.deepEqual(at(L("| Java Programming | Proficient |")), [["Java Programming", "skill", "Java Programming"], ["Proficient", "proficiency-level", "Proficient"]]);
+  assert.deepEqual(at(L("| Java Programming | Owned ")), [["Java Programming", "skill", "Java Programming"], ["Rebuilding the order pipeline", "experience", "Rebuilding the order pipeline"]]);
 });
 
 test("a header row, a separator row, a prose column and a table no column of which is a reference give none", () => {
-  for (const line of [16, 17, 23, 24, 36, 37, 38]) assert.deepEqual(at(line), [], `line ${line}`);
+  const skills = L("| Skill | Level |");
+  const evidence = L("| Skill | What it shows |");
+  const also = L("| Where | URL |");
+  for (const line of [skills, skills + 1, evidence, evidence + 1, also, also + 1, also + 2]) assert.deepEqual(at(line), [], `line ${line}`);
 });
 
 test("quotes around a value are not part of the name, and an empty value is no reference", () => {

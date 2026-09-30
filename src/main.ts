@@ -39,13 +39,15 @@ import { typeOfPath } from "companygraph-meta-model/checks";
 import { absentFields } from "./candidates.ts";
 import { AddField } from "./addfield.ts";
 import { BRIEF_VIEW, BriefPane } from "./briefpane.ts";
-import { headingLock, headingMarks, removeSection } from "./headingmarks.ts";
+import { headingLock, headingMarks, idHold, removeSection } from "./headingmarks.ts";
+import { copyId, holdIdInProperties, idIn, isEntityFile } from "./widget.ts";
 import { pictureMark } from "./picturemark.ts";
 import { AddSection } from "./addsection.ts";
 import { addableSections } from "./headings.ts";
 import { PickType } from "./newentity.ts";
 import { targetsFor } from "./scaffold.ts";
-import { DeleteEntity, RenameEntity } from "./entitycommands.ts";
+import { DeleteEntity, FreshId, RenameEntity } from "./entitycommands.ts";
+import { freshIdOffered } from "./freshid.ts";
 import { MakeInstance, MoveCore } from "./instancecommands.ts";
 import type { Release } from "./instantiate.ts";
 import { cliProfile } from "./cli.ts";
@@ -156,7 +158,9 @@ export default class CompanyGraphPlugin extends Plugin {
     this.registerEditorExtension(marksField);
     this.registerEditorExtension(nameLinks(this));
     this.registerEditorExtension(headingMarks(this));
-    this.registerEditorExtension(headingLock(this));
+    const ids = idHold(this);
+    this.registerEditorExtension(ids);
+    this.registerEditorExtension(headingLock(this, ids));
     this.registerEditorExtension(pictureMark(this));
     // Every editor extension is registered before the first await of this method. Obsidian reads
     // them when it builds an editor, and the editors of the notes already open are built before a
@@ -172,6 +176,7 @@ export default class CompanyGraphPlugin extends Plugin {
     const suggest = new Suggest(this.app, this);
     this.registerEditorSuggest(suggest);
     watchPropertyInputs(this);
+    holdIdInProperties(this);
     this.addCommand({
       id: "add-field",
       name: "Add a field",
@@ -324,6 +329,25 @@ export default class CompanyGraphPlugin extends Plugin {
         return true;
       },
     });
+    // Offered where the plugin may make the id, as New entity makes one: the type declares `id`,
+    // and the instance declares UUID version 7 or has no identifier file. Under a declared pattern
+    // it is not offered, as a command that cannot apply is not offered elsewhere here.
+    this.addCommand({
+      id: "fresh-id",
+      name: "Give this page a fresh id",
+      checkCallback: (checking) => {
+        const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+        const layout = this.layout;
+        if (!view?.file || !layout || !isEntityFile(this, view.file.path, view.getViewData())) return false;
+        const type = typeOfPath(view.file.path, layout.model);
+        const declaresId = !!type && !!this.vocabulary.get(type)?.fields.some((f) => f.name === "id");
+        const path = `${layout.model}/identifier.md`;
+        const identifier = this.app.vault.getAbstractFileByPath(path) ? (this.textOf(path) ?? undefined) : null;
+        if (!freshIdOffered(declaresId, identifier)) return false;
+        if (!checking) new FreshId(this.app, view).open();
+        return true;
+      },
+    });
     this.addCommand({
       id: "write-form",
       name: "Write this note in the family's Markdown form",
@@ -367,6 +391,20 @@ export default class CompanyGraphPlugin extends Plugin {
         const adapter = this.app.vault.adapter;
         if (!Platform.isDesktopApp || !terminal || !(adapter instanceof FileSystemAdapter)) return false;
         if (!checking) void this.openCli(terminal, adapter.getBasePath());
+        return true;
+      },
+    });
+    // An id cannot be edited, and is what a person copies to name the entity elsewhere; the
+    // locked row in the Properties widget copies it on a press as well.
+    this.addCommand({
+      id: "copy-entity-id",
+      name: "Copy entity id",
+      checkCallback: (checking) => {
+        // Offered on an entity's page only, as the lock holds only those.
+        const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+        const id = view?.file && isEntityFile(this, view.file.path, view.getViewData()) ? idIn(view) : null;
+        if (!id) return false;
+        if (!checking) copyId(id);
         return true;
       },
     });

@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { available, start } from "./obsidian.ts";
 import type { Session } from "./obsidian.ts";
 import { PROFILE, editorText, openNote } from "./notes.ts";
-import { clearNotices, command, onDisk, pick, promptItems, waitForNotice, waitForPrompt } from "./ui.ts";
+import { clearNotices, command, modalText, onDisk, pick, pressButton, promptItems, waitForModal, waitForNotice, waitForPrompt } from "./ui.ts";
 
 const skip = available() ? false : "Obsidian is not installed here; set OBSIDIAN_BIN to run this suite";
 
@@ -26,6 +26,16 @@ const cursorOn = (text: string) => {
   cm.dispatch({ selection: { anchor: cm.state.doc.line(line + 1).to }, scrollIntoView: true });
   cm.focus();
   return true;
+};
+
+// Switches the note in front between Source mode and Live Preview.
+const sourceMode = async (ui: Session["ui"], on: boolean) => {
+  await ui.evaluate(async (source: boolean) => {
+    const view = app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view;
+    await view.setState({ ...view.getState(), mode: "source", source }, { history: false });
+  }, [on]);
+  await ui.waitFor(`the editor to be in ${on ? "Source mode" : "Live Preview"}`, (source: boolean) =>
+    app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.getState().source === source, [on]);
 };
 
 // Leaves a live-preview table the way a person does, by clicking the heading nearest the cursor,
@@ -124,6 +134,144 @@ describe("the page of an entity", { skip }, () => {
       (app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor.getValue() as string).split("\n").includes(line), [`${h1}x`]);
     await ui.press("Backspace");
     await ui.waitFor("the H1 to be as it was", (text: string) => app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor.getValue() === text, [before]);
+  });
+
+  // The fixture is on core 0.49.0, where every page carries an id (R18): the note's own is the one held.
+  test("an id that has a value cannot be typed into in Source mode, nor edited in the Properties widget", async () => {
+    const { ui } = session;
+    const ID = (await onDisk(ui, note.path))!.match(/^---\n(?:.*\n)*?id: ([0-9a-f-]{36})\n/)?.[1];
+    assert.ok(ID, "the note carries an id");
+    await openNote(ui, note.path);
+    await ui.waitFor("the id to be held", () =>
+      app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.containerEl.getAttribute("data-companygraph-id") === "locked");
+    const before = await ui.evaluate(editorText);
+
+    await sourceMode(ui, true);
+    await clearNotices(ui);
+    assert.equal(await ui.evaluate(cursorOn, [`id: ${ID}`]), true);
+    await ui.type("x");
+    await waitForNotice(ui, "is the entity's identity and cannot be edited here");
+    assert.equal(await ui.evaluate(editorText), before);
+    await ui.press("Backspace");
+    assert.equal(await ui.evaluate(editorText), before);
+
+    await sourceMode(ui, false);
+    const row = '.metadata-property[data-property-key="id"] .metadata-property-value';
+    const drawn = (what: string) => ui.waitFor(what, (at: string) => {
+      const el = app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.containerEl.querySelector(at) as HTMLElement | null;
+      return !!el && el.offsetParent !== null;
+    }, [row]);
+    const showsId = () => ui.waitFor("the row to show the id", (at: string, id: string) => {
+      const el = app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.containerEl.querySelector(at) as HTMLElement | null;
+      return el?.innerText.trim() === id ? true : null;
+    }, [row, ID]);
+    // Deleting the property through the widget: its own write, the frontmatter without the id.
+    const deleteThroughWidget = () => ui.evaluate(() => {
+      const view = app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view;
+      const { id: _, ...rest } = app.metadataCache.getFileCache(view.file)?.frontmatter ?? {};
+      view.saveFrontmatter(rest);
+    });
+    await drawn("the id's row to be drawn in Live Preview");
+
+    // A press on the locked value copies the id and takes no focus.
+    await clearNotices(ui);
+    await ui.click((at: string) => app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.containerEl.querySelector(at), [row]);
+    await waitForNotice(ui, `id copied \\(${ID}\\)`);
+    assert.equal(await ui.evaluate((at: string) => !!document.activeElement?.closest(at), [row]), false);
+
+    await deleteThroughWidget();
+    assert.equal(await ui.evaluate(editorText), before);
+    assert.equal(await showsId(), true);
+
+    // Reading view: the widget's write goes to no editor, and is refused before it is made.
+    await ui.evaluate(async () => {
+      const view = app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view;
+      await view.setState({ ...view.getState(), mode: "preview" }, { history: false });
+    });
+    await ui.waitFor("the note to be in Reading view", () => app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.getMode() === "preview");
+    await drawn("the id's row to be drawn in Reading view");
+    assert.equal(await ui.evaluate(() =>
+      app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.containerEl.getAttribute("data-companygraph-id")), "locked");
+    await deleteThroughWidget();
+    assert.ok(((await onDisk(ui, note.path)) ?? "").includes(`id: ${ID}`));
+    assert.equal(await showsId(), true);
+    await clearNotices(ui);
+    await ui.click((at: string) => app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.containerEl.querySelector(at), [row]);
+    await waitForNotice(ui, `id copied \\(${ID}\\)`);
+
+    // And from the command palette, for the note in front.
+    await clearNotices(ui);
+    await command(ui, "copy-entity-id");
+    await waitForNotice(ui, `id copied \\(${ID}\\)`);
+    await ui.evaluate(async () => {
+      const view = app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view;
+      await view.setState({ ...view.getState(), mode: "source", source: false }, { history: false });
+    });
+
+    // Give this page a fresh id: asked first, then the id line alone changes, the new id is
+    // copied, and the page is locked again on it.
+    await clearNotices(ui);
+    await command(ui, "fresh-id");
+    await waitForModal(ui, "Give this page a fresh id");
+    assert.match(await modalText(ui), new RegExp(`${ID}.*will no longer find this page`));
+    await pressButton(ui, "Confirm");
+    const fresh = await ui.waitFor("the page to carry a new id", (was: string) => {
+      const found = (app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor.getValue() as string).match(/^---\n(?:.*\n)*?id: ([0-9a-f-]{36})\n/)?.[1];
+      return found && found !== was ? found : null;
+    }, [ID]);
+    assert.match(fresh, /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    assert.equal(await ui.evaluate(editorText), before.replace(`id: ${ID}`, `id: ${fresh}`));
+    await waitForNotice(ui, `new id copied \\(${fresh}\\)`);
+    await ui.waitFor("the new id to be held", () =>
+      app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.containerEl.getAttribute("data-companygraph-id") === "locked");
+    const after = before.replace(`id: ${ID}`, `id: ${fresh}`);
+    // Typing on the id line is refused, read from the text and not a notice: the lock's notice is
+    // told once for a burst, and refusals just before fall inside it. The positive control, in the
+    // same state: typing at the end of the body is taken, so the refusal was the lock's and not
+    // keys that reached nothing. Then taken back. Ends in Live Preview.
+    const lockedOn = async (id: string, text: string) => {
+      await sourceMode(ui, true);
+      assert.equal(await ui.evaluate(cursorOn, [`id: ${id}`]), true);
+      await ui.type("x");
+      await ui.never("the id to take the typing", (want: string) =>
+        app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor.getValue() !== want, [text], 1000);
+      await ui.evaluate(() => {
+        const cm = app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor.cm;
+        cm.contentDOM.focus();
+        cm.dispatch({ selection: { anchor: cm.state.doc.length }, scrollIntoView: true });
+        cm.focus();
+      });
+      await ui.type("z");
+      await ui.waitFor("the end of the body to take the typing", (want: string) =>
+        app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor.getValue() === `${want}z`, [text]);
+      await ui.press("Backspace");
+      await ui.waitFor("the typing to be taken back", (want: string) =>
+        app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor.getValue() === want, [text]);
+      await sourceMode(ui, false);
+    };
+    await lockedOn(fresh, after);
+
+    // In Reading view no editor holds the text that is saved; the new id still reaches the file.
+    await ui.evaluate(async () => {
+      const view = app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view;
+      await view.setState({ ...view.getState(), mode: "preview" }, { history: false });
+    });
+    await ui.waitFor("the note to be in Reading view", () => app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.getMode() === "preview");
+    await clearNotices(ui);
+    await command(ui, "fresh-id");
+    await waitForModal(ui, "Give this page a fresh id");
+    await pressButton(ui, "Confirm");
+    const again = await ui.waitFor("the file to carry another new id", async (at: string, was: string) => {
+      const found = ((await app.vault.adapter.read(at)) as string).match(/^---\n(?:.*\n)*?id: ([0-9a-f-]{36})\n/)?.[1];
+      return found && found !== was ? found : null;
+    }, [note.path, fresh]);
+    assert.equal(await onDisk(ui, note.path), after.replace(`id: ${fresh}`, `id: ${again}`));
+    await waitForNotice(ui, `new id copied \\(${again}\\)`);
+    await sourceMode(ui, false);
+    const last = after.replace(`id: ${fresh}`, `id: ${again}`);
+    assert.equal(await ui.evaluate(editorText), last);
+    await lockedOn(again, last);
+    await session.restore([note.path]);
   });
 
   test("a required section that is missing is shown as a line to click, and the click writes it", async () => {

@@ -6,10 +6,10 @@
 // field, so this is one, rebuilt when the text changes, when a rebuild sends `refreshNames`, and
 // when the editor turns out to hold another file. The tooltip is Obsidian's, shown for any
 // element with an aria-label.
-import { Notice, editorEditorField, editorInfoField, setIcon } from "obsidian";
+import { MarkdownView, Notice, editorEditorField, editorInfoField, setIcon } from "obsidian";
 import { EditorState as State, RangeSetBuilder, StateField, Transaction as Tr } from "@codemirror/state";
 import type { EditorState, Transaction } from "@codemirror/state";
-import { Decoration, EditorView, WidgetType } from "@codemirror/view";
+import { Decoration, EditorView, ViewPlugin, WidgetType } from "@codemirror/view";
 import type { DecorationSet } from "@codemirror/view";
 import { typeOfPath } from "companygraph-meta-model/checks";
 import type CompanyGraphPlugin from "./main.ts";
@@ -17,6 +17,8 @@ import { headingsOf, insertionAt, isEntityText, isHeld, lockedLines, lostLine, m
 import type { HeadingKind } from "./headings.ts";
 import type { TypeVocabulary } from "./vocabulary.ts";
 import { refreshNames } from "./namelinks.ts";
+import { containerMark, heldAfter, holdsEdit, idOf, lostId, tells } from "./idlock.ts";
+import type { Held, Told } from "./idlock.ts";
 
 // The vocabulary of the entity in the editor, or null where the file is none. Obsidian gives a
 // table cell's own small editor the note's extensions and the note's file, read from the
@@ -218,24 +220,124 @@ export function headingMarks(plugin: CompanyGraphPlugin) {
 // heading and moving a heading whole all pass. Which edits are held is decided in headings.ts,
 // where it is tested. A rename in the file explorer, a sync or another program never reaches the
 // editor; the checks catch what they break.
+//
+// The same filter holds the page's `id` once it has a value: an edit that changes or removes it
+// is refused, whether typed in Source mode or written by the Properties widget, which reaches the
+// editor as a transaction of its own (see widget.ts). What is held and when is idlock.ts's.
 const eventOf = (tr: Transaction) => tr.annotation(Tr.userEvent);
 
-export function headingLock(plugin: CompanyGraphPlugin) {
-  let told = 0;
+// Set by widget.ts while the Properties widget writes the note, which it does through the editor
+// with the event `set`, the event of a reload from disk; `refused` says the lock held that write.
+export const propertiesWrite = { active: false, refused: false };
+
+// The notice of either lock, once for a burst of refused keystrokes and not once each. One record
+// for the editor, the widget and its row, so one refusal seen from two sides says so once; when
+// it is told is idlock.ts's `tells`.
+let told: Told | null = null;
+export function tellLocked(message: string) {
+  const now = Date.now();
+  if (tells(told, message, now)) {
+    told = { message, at: now };
+    new Notice(message);
+  }
+}
+export const ID_REFUSED = `"id" is the entity's identity and cannot be edited here.`;
+
+// The id the lock holds in one editor, and whether the page is an entity's with that id set, which
+// is what makes the Properties widget's row for it read-only. A field, and not a reading of the
+// text, because the id held is the page's as the editor took it from the file: typing into a
+// blank id does not lock it while it is written.
+interface IdHold extends Held { locked: boolean; path: string | null }
+
+function holdOf(plugin: CompanyGraphPlugin, state: EditorState, hold: Held): IdHold {
+  const locked = !!hold.held && vocabularyIn(plugin, state) !== null && isEntityText(state.doc.toString());
+  return { ...hold, locked, path: fileIn(state) };
+}
+
+const LOCKED = "data-companygraph-id";
+
+// The row is drawn locked by an attribute on the view's container, which holds the widget in
+// Live Preview and in Reading view alike; styles.css draws it and widget.ts guards its focus. Set
+// only by the editor of a note's own view: the editor field names the view, and the view's editor
+// must be this one. A canvas's node editors share one container and a table cell's editor sits
+// inside the note's, and neither touches it.
+function ownView(v: EditorView): MarkdownView | null {
+  const info = v.state.field(editorInfoField, false);
+  if (!(info instanceof MarkdownView)) return null;
+  let cm: EditorView | undefined;
+  try {
+    cm = (info.editor as unknown as { cm?: EditorView } | undefined)?.cm;
+  } catch {
+    cm = undefined;
+  }
+  return cm === v ? info : null;
+}
+
+function markContainer(field: StateField<IdHold>) {
+  return ViewPlugin.define((view) => {
+    let container: Element | null = null;
+    // What was last done, so an update that changes nothing touches no markup: this runs on every
+    // transaction of the editor.
+    let last: "set" | "remove" | null = null;
+    const mark = (v: EditorView) => {
+      const own = ownView(v);
+      const action = containerMark(!!v.state.field(field, false)?.locked, own !== null);
+      if (action === "leave") return;
+      if (action === last && container === own!.containerEl) return;
+      container = own!.containerEl;
+      last = action;
+      if (action === "set") container.setAttribute(LOCKED, "locked");
+      else container.removeAttribute(LOCKED);
+    };
+    mark(view);
+    return {
+      update: (update) => mark(update.view),
+      destroy: () => container?.removeAttribute(LOCKED),
+    };
+  });
+}
+
+export function idHold(plugin: CompanyGraphPlugin) {
+  return StateField.define<IdHold>({
+    create: (state) => {
+      const held = idOf(state.doc.toString());
+      return holdOf(plugin, state, { held, before: held });
+    },
+    update(hold, tr: Transaction) {
+      const refreshed = tr.effects.some((e) => e.is(refreshNames));
+      if (!tr.docChanged && !refreshed && fileIn(tr.state) === hold.path) return hold;
+      const next = tr.docChanged ? heldAfter(hold, eventOf(tr), tr.newDoc.toString()) : hold;
+      return holdOf(plugin, tr.state, { held: next.held, before: next.before });
+    },
+    provide: (field) => markContainer(field),
+  });
+}
+
+export function headingLock(plugin: CompanyGraphPlugin, ids: StateField<IdHold>) {
   const filter = State.transactionFilter.of((tr) => {
-    if (!tr.docChanged || !isHeld(eventOf(tr))) return tr;
+    if (!tr.docChanged) return tr;
+    const event = eventOf(tr);
+    const headings = isHeld(event);
+    const id = holdsEdit(event, propertiesWrite.active);
+    if (!headings && !id) return tr;
     const found = vocabularyIn(plugin, tr.startState);
     if (!found) return tr;
     const before = tr.startState.doc.toString();
     if (!isEntityText(before)) return tr;
-    const lost = lostLine(lockedLines(before.split("\n"), found.vocabulary), lockedLines(tr.newDoc.toString().split("\n"), found.vocabulary));
-    if (lost === null) return tr;
-    // One notice for a burst of refused keystrokes, not one each.
-    if (Date.now() - told > 2000) {
-      told = Date.now();
-      new Notice(`"${lost.slice(3).trim()}" is the schema's heading and cannot be edited here.`);
+    const after = tr.newDoc.toString();
+    if (headings) {
+      const lost = lostLine(lockedLines(before.split("\n"), found.vocabulary), lockedLines(after.split("\n"), found.vocabulary));
+      if (lost !== null) {
+        tellLocked(`"${lost.slice(3).trim()}" is the schema's heading and cannot be edited here.`);
+        return [];
+      }
     }
-    return [];
+    if (id && lostId(tr.startState.field(ids, false)?.held ?? null, after) !== null) {
+      if (propertiesWrite.active) propertiesWrite.refused = true;
+      tellLocked(ID_REFUSED);
+      return [];
+    }
+    return tr;
   });
   return filter;
 }

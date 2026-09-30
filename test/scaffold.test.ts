@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { checkInstance } from "companygraph-meta-model/checks";
+import { UUIDV7 } from "companygraph-meta-model/ids";
 import { schemasOf } from "../src/model.ts";
 import { vocabularyOf } from "../src/vocabulary.ts";
 import { scaffoldOf, targetsFor } from "../src/scaffold.ts";
@@ -115,6 +116,7 @@ test("every type scaffolded into the reference instance owes only what its notic
     /is missing (phases|tracks|experiences)\//,
     /does not list/,
   ];
+  assert.ok(files.has(`${REFERENCE.model}/identifier.md`), "the reference instance declares its ids");
   const seen = new Set<string>();
   for (const active of ["model/processes/delivery/delivery.md", "model/profiles/robert-blust/robert-blust.md"]) {
     for (const target of targetsFor(REFERENCE.model, active, (p) => files.has(p))) {
@@ -122,8 +124,12 @@ test("every type scaffolded into the reference instance owes only what its notic
       seen.add(target.type);
       const trial = new Map(files);
       const path = target.pathFor("Zeta Probe Thing", "2031-04")!;
-      trial.set(path, scaffoldOf(refVocabulary.get(target.type)!, "Zeta Probe Thing", target.asks ? { [target.asks]: "2031-04" } : {}).text);
-      const asked = target.asks ? [target.asks] : [];
+      // Handed the instance's own identifier file, as New entity hands it: since core 0.49.0 it
+      // declares uuidv7, so the scaffold writes the id and leaves it to no author.
+      const scaffold = scaffoldOf(refVocabulary.get(target.type)!, "Zeta Probe Thing", target.asks ? { [target.asks]: "2031-04" } : {}, files.get(`${REFERENCE.model}/identifier.md`) ?? null);
+      assert.equal(scaffold.owes, null, `${target.type}: the id owed`);
+      trial.set(path, scaffold.text);
+      const asked = target.asks ? [target.asks, "id"] : ["id"];
       const failures = checkInstance(whole(trial), REFERENCE).failures;
       const blank = failures.map((f) => f.startsWith(`${path}: `) ? f.match(/^[^:]+: `([^`]+)` is blank, which [a-z-]+-schema\.md requires(?: — one of .+)?$/)?.[1] : undefined).filter((f) => f !== undefined);
       const left = refVocabulary.get(target.type)!.fields.filter((f) => f.required && !f.list && !asked.includes(f.name)).map((f) => f.name);
@@ -149,4 +155,76 @@ test("a question is offered from anywhere, named by the slug of its question, an
   const path = "example/model/questions/who-wrote-the-pricing-rules.md";
   files.set(path, text.replace("> \n", "> The pricing rules say who owns them.\n"));
   assert.deepEqual(checkInstance(files, EXAMPLE).failures.filter((f) => f.startsWith(path)), []);
+});
+
+// R18 (core 0.49.0): every page carries an id, first in its frontmatter, in the format
+// `model/identifier.md` declares. A new page takes a fresh UUID version 7 where the file declares
+// that format, and where an instance has no identifier file yet and its core declares `id`; a
+// pattern is the instance's own, which the tooling cannot make, so the id is left for its author.
+const IDENTIFIER = "example/model/identifier.md";
+const withFormat = (text: string, format: string) => text.replace(/^format: .*$/m, format);
+
+test("a new page's first line is a fresh UUID v7 where the identifier file declares one", () => {
+  const identifier = example().get(IDENTIFIER)!;
+  const a = scaffoldOf(vocabulary.get("skill")!, "Pricing", { source: "Local" }, identifier);
+  const b = scaffoldOf(vocabulary.get("skill")!, "Pricing", { source: "Local" }, identifier);
+  const first = (text: string) => text.split("\n")[1];
+  assert.match(first(a.text), /^id: /);
+  assert.match(first(a.text).slice("id: ".length), UUIDV7);
+  assert.notEqual(first(a.text), first(b.text), "each page its own id");
+  assert.equal(a.text.match(/^id:/gm)!.length, 1, "the id is written once");
+  assert.equal(a.owes, null);
+});
+
+test("an instance with no identifier file yet takes a UUID v7 where its core declares an id", () => {
+  const { text, owes } = scaffoldOf(vocabulary.get("skill")!, "Pricing", { source: "Local" }, null);
+  assert.match(text.split("\n")[1].slice("id: ".length), UUIDV7);
+  assert.equal(owes, null);
+});
+
+test("a core that declares no id gets none written", () => {
+  const skill = vocabulary.get("skill")!;
+  const older = { ...skill, fields: skill.fields.filter((f) => f.name !== "id") };
+  const { text } = scaffoldOf(older, "Pricing", { source: "Local" }, null);
+  assert.doesNotMatch(text, /^id:/m);
+});
+
+test("under a declared pattern the id is left blank, and what is owed says so", () => {
+  const identifier = withFormat(example().get(IDENTIFIER)!, "format: pattern\npattern: ^SK-[0-9]{4}$");
+  const { text, owes } = scaffoldOf(vocabulary.get("skill")!, "Pricing", { source: "Local" }, identifier);
+  assert.equal(text.split("\n")[1], "id:");
+  assert.match(owes!, /pattern/);
+  assert.match(owes!, /model\/identifier\.md/);
+  // An identifier file that does not read makes no id either, and says why.
+  const broken = scaffoldOf(vocabulary.get("skill")!, "Pricing", { source: "Local" }, withFormat(identifier, "format: guid"));
+  assert.equal(broken.text.split("\n")[1], "id:");
+  assert.match(broken.owes!, /"guid"/);
+});
+
+// New entity reads the identifier file from the vault, and a read can fail: the page is still
+// made, its id blank and the reason owed, as for a file that does not read.
+test("an identifier file that could not be read leaves the id blank and says why", () => {
+  const { text, owes } = scaffoldOf(vocabulary.get("skill")!, "Pricing", { source: "Local" }, { unread: "EACCES: permission denied" });
+  assert.equal(text.split("\n")[1], "id:");
+  assert.equal(owes, "Its id is left blank: model/identifier.md does not read (EACCES: permission denied).");
+  assert.match(text, /^# Pricing$/m, "the page is made all the same");
+});
+
+test("a scaffolded page passes R18, and under a pattern once its author writes the id", () => {
+  const files = example();
+  const path = "example/model/skills/pricing.md";
+  files.set(path, scaffoldOf(vocabulary.get("skill")!, "Pricing", { source: "Local" }, files.get(IDENTIFIER)!).text);
+  const r18 = (m: Map<string, string>) => checkInstance(whole(m), EXAMPLE).failures.filter((f) => f.startsWith(path) && /`id`|R18/.test(f));
+  assert.deepEqual(r18(files), []);
+  // The positive control: the same page without its id fails R18.
+  files.set(path, files.get(path)!.replace(/^id: .*\n/m, ""));
+  assert.equal(r18(files).length, 1);
+  // Under a pattern the page is written with its id blank, and passes once its author fills it.
+  // Only this page's findings are read, so the other pages keep their UUIDs.
+  files.set(IDENTIFIER, withFormat(files.get(IDENTIFIER)!, "format: pattern\npattern: ^[A-Z]{2}-[0-9]{4}$"));
+  const patterned = scaffoldOf(vocabulary.get("skill")!, "Pricing", { source: "Local" }, files.get(IDENTIFIER)!);
+  files.set(path, patterned.text);
+  assert.equal(r18(files).length, 1, "a blank id fails until it is written");
+  files.set(path, patterned.text.replace(/^id:$/m, "id: SK-0001"));
+  assert.deepEqual(r18(files), []);
 });

@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { uuidv7 } from "companygraph-meta-model/ids";
 import { buildModel, namesByType } from "../src/model.ts";
 import { example, EXAMPLE, reference, REFERENCE, edited, whole } from "./helpers.ts";
 
@@ -63,13 +64,15 @@ test("two processes whose phases share their names are valid, as core 0.31.0 has
   // type is unique within its owner, so it parses and passes, and the parser and the checks agree
   // by design; no real input is known any more on which the parser alone speaks. buildModel still
   // shows the parser's own message when the checks found nothing, as a defence and not a case.
+  // A page copied to start another takes an id of its own (R18), as `companygraph id` gives it.
   const files = example();
   const from = "example/model/processes/delivery/";
+  const fresh = (text: string) => text.replace(/^id: .*$/m, `id: ${uuidv7()}`);
   for (const [path, text] of [...files])
     if (path.startsWith(from))
       files.set(
         path.replace(from, "example/model/processes/review/").replace("/delivery.md", "/review.md"),
-        path.endsWith("/delivery.md") ? text.replace("# Delivery", "# Review") : text,
+        fresh(path.endsWith("/delivery.md") ? text.replace("# Delivery", "# Review") : text),
       );
   const m = buildModel(whole(files), EXAMPLE);
   assert.deepEqual(m.failures, []);

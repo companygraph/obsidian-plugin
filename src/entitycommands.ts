@@ -12,6 +12,11 @@ import { namedOf } from "./scope.ts";
 import { deletePlan, renamePlan } from "./refactor.ts";
 import type { Mention } from "./refactor.ts";
 import type { Named } from "./scope.ts";
+import { uuidv7 } from "companygraph-meta-model/ids";
+import type { EditorView } from "@codemirror/view";
+import { freshIdChange, withFreshId } from "./freshid.ts";
+import { idOf } from "./idlock.ts";
+import { copyId } from "./widget.ts";
 
 async function saveOpenNotes(app: App) {
   const saves: Promise<void>[] = [];
@@ -210,6 +215,75 @@ export class DeleteEntity extends Modal {
           }
         }),
       );
+  }
+
+  onClose() { this.contentEl.empty(); }
+}
+
+// Give this page a fresh id (spec §8). The one way the plugin changes an id, which R18 otherwise
+// never does, so it asks first and says what is at stake. On the author's word it replaces the
+// value of the page's `id:` line in the editor, with the event `input.id` the lock lets through
+// and follows, so the page is locked again on the new id, and puts the new id on the clipboard.
+export class FreshId extends Modal {
+  view: MarkdownView;
+
+  constructor(app: App, view: MarkdownView) {
+    super(app);
+    this.view = view;
+  }
+
+  onOpen() {
+    this.titleEl.setText("Give this page a fresh id");
+    const current = idOf(this.view.getViewData());
+    this.contentEl.createEl("p", {
+      text: current
+        ? `Its id ${current} is replaced by a new one, and anything outside the model that holds the old id will no longer find this page.`
+        : "It is given an id where it has none, and anything outside the model will find it by that id from now on.",
+    });
+    new Setting(this.contentEl)
+      .addButton((b) => b.setButtonText("Cancel").onClick(() => this.close()))
+      .addButton((b) =>
+        b.setButtonText("Confirm").setWarning().onClick(() => {
+          this.close();
+          void this.write().catch((error: unknown) =>
+            new Notice(`The page's id is unchanged: ${error instanceof Error ? error.message : String(error)}`));
+        }),
+      );
+  }
+
+  // Written as the view writes: in Reading view no editor holds the text that is saved, so it goes
+  // the way the Properties widget's own write goes there, into the view and then to the file,
+  // which no lock of this plugin's stands in; elsewhere into the editor with `input.id`. The new
+  // id is announced and copied only once the view holds it and the file does.
+  async write() {
+    const view = this.view;
+    const file = view.file;
+    if (!file) throw new Error("the note has no file");
+    const id = uuidv7();
+    if (view.getMode() === "preview") {
+      const internal = view as unknown as { onInternalDataChange?: () => void };
+      view.setViewData(withFreshId(view.getViewData(), id), false);
+      internal.onInternalDataChange?.();
+    } else {
+      const cm = (view.editor as unknown as { cm?: EditorView }).cm;
+      if (!cm) throw new Error("the page's editor could not be reached");
+      cm.dispatch({ changes: freshIdChange(cm.state.doc.toString(), id), userEvent: "input.id" });
+    }
+    if (idOf(view.getViewData()) !== id) throw new Error("the new id did not reach the page");
+    // The page holds it from here on, so a save that fails, or one already under way that writes
+    // it a moment later, is said as such and not as an id left unchanged; nor is it copied then.
+    let saved = false;
+    try {
+      await view.save();
+      saved = idOf(await this.app.vault.read(file)) === id;
+    } catch {
+      saved = false;
+    }
+    if (!saved) {
+      new Notice(`The new id ${id} is in the page but has not reached the file yet.`);
+      return;
+    }
+    copyId(id, "the page's new id");
   }
 
   onClose() { this.contentEl.empty(); }
