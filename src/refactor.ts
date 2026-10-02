@@ -5,6 +5,7 @@
 // grouped. A name in prose is a fact and is left as written. Pure: the vault's files, the
 // vocabulary and the parsed names in, a plan out.
 import { TYPES, slug, typeOfPath } from "companygraph-meta-model/checks";
+import type { TypeEntry } from "companygraph-meta-model/checks";
 import type { TypeVocabulary } from "./vocabulary.ts";
 import { referencesIn, resolveIn } from "./references.ts";
 import { refusedHere, refusedName } from "./names.ts";
@@ -20,16 +21,17 @@ export function referencesTo(
   named: Named[],
   model: string,
   target: Named,
+  types: TypeEntry[] = TYPES,
 ): Mention[] {
   const out: Mention[] = [];
   for (const [path, text] of [...files].sort(([a], [b]) => a.localeCompare(b))) {
     if (!path.startsWith(`${model}/`) || !path.endsWith(".md")) continue;
-    const type = typeOfPath(path, model);
+    const type = typeOfPath(path, model, types);
     const v = type ? vocabulary.get(type) : undefined;
     if (!v) continue;
     const lines = text.split("\n");
     for (const ref of referencesIn(lines, v))
-      if (ref.target === target.type && ref.name === target.name && resolveIn(named, path, model, ref.target, ref.name, ref.row) === target.path)
+      if (ref.target === target.type && ref.name === target.name && resolveIn(named, path, model, ref.target, ref.name, ref.row, types) === target.path)
         out.push({ path, line: ref.line, from: ref.from, to: ref.to });
   }
   return out;
@@ -55,8 +57,8 @@ function h1Line(lines: string[]): number {
 
 type Kind = "singular" | "owner" | "chosen" | "derived";
 
-function kindOf(type: string): Kind | null {
-  const t = TYPES.find((x) => x.type === type);
+function kindOf(type: string, types: TypeEntry[] = TYPES): Kind | null {
+  const t = types.find((x) => x.type === type);
   if (!t) return null;
   if (t.file) return "singular";
   if (t.filename) return "chosen";
@@ -79,20 +81,21 @@ export function renamePlan(
   model: string,
   target: Named,
   newName: string,
+  types: TypeEntry[] = TYPES,
 ): RenamePlan {
   const name = newName.trim();
-  const kind = kindOf(target.type);
+  const kind = kindOf(target.type, types);
   if (!kind) return { refused: `${target.type} is not a type this plugin knows.` };
   if (name === target.name) return { refused: "The new name is the name it has." };
   // The same guard New entity asks, so that a name one refuses the other never writes.
-  const wrong = refusedName(name) ?? refusedHere(named, model, target.type, target.path, name, target.path);
+  const wrong = refusedName(name) ?? refusedHere(named, model, target.type, target.path, name, target.path, types);
   if (wrong) return { refused: wrong };
   const own = files.get(target.path);
   if (own === undefined) return { refused: `${target.path} is not in the vault.` };
   const at = h1Line(own.split("\n"));
   if (at === -1) return { refused: `${target.path} has no H1 to rename.` };
 
-  const mentions = referencesTo(files, vocabulary, named, model, target);
+  const mentions = referencesTo(files, vocabulary, named, model, target, types);
   const texts = new Map<string, string>();
   const byPath = new Map<string, Mention[]>();
   for (const m of mentions) byPath.set(m.path, [...(byPath.get(m.path) ?? []), m]);
@@ -135,15 +138,16 @@ export function deletePlan(
   named: Named[],
   model: string,
   target: Named,
+  types: TypeEntry[] = TYPES,
 ): DeletePlan {
-  const kind = kindOf(target.type);
+  const kind = kindOf(target.type, types);
   if (kind === "singular") return { refused: `The model holds exactly one ${target.type}; its file cannot be deleted.` };
   const owner = kind === "owner";
   const remove = owner ? target.path.slice(0, target.path.lastIndexOf("/")) : target.path;
   const removed = owner ? [...paths].filter((p) => p.startsWith(`${remove}/`)).sort() : [target.path];
   const gone = named.filter((n) => removed.includes(n.path));
   const mentions = gone
-    .flatMap((n) => referencesTo(files, vocabulary, named, model, n))
+    .flatMap((n) => referencesTo(files, vocabulary, named, model, n, types))
     .filter((m) => !removed.includes(m.path));
   return { remove, removed, mentions };
 }

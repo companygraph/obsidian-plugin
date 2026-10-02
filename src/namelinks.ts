@@ -8,7 +8,7 @@ import { MarkdownView, editorInfoField } from "obsidian";
 import { RangeSetBuilder, StateEffect } from "@codemirror/state";
 import { Decoration, ViewPlugin } from "@codemirror/view";
 import type { DecorationSet, EditorView, ViewUpdate } from "@codemirror/view";
-import { typeOfPath } from "companygraph-meta-model/checks";
+import { typeOf, typesOf } from "./model.ts";
 import type CompanyGraphPlugin from "./main.ts";
 import { cellAt, referencesIn, resolveIn } from "./references.ts";
 import type { Reference } from "./references.ts";
@@ -24,14 +24,14 @@ const PATH = "data-companygraph-path";
 function resolverFor(plugin: CompanyGraphPlugin, path: string | undefined) {
   const layout = plugin.layout;
   if (!path || !layout || !path.startsWith(`${layout.model}/`)) return null;
-  const type = typeOfPath(path, layout.model);
+  const type = typeOf(path, layout);
   const vocabulary = type ? plugin.vocabulary.get(type) : undefined;
   if (!vocabulary) return null;
   // What the file may name is worked out once per pass, not once per name.
-  const visible = visibleIn(plugin.named, path, layout.model);
+  const visible = visibleIn(plugin.named, path, layout.model, typesOf(layout));
   // A `by` reference names its owner in its own row, so it is resolved among every entity.
   const resolve = (target: string, name: string, row?: Reference["row"]) =>
-    resolveIn(row ? plugin.named : visible, path, layout.model, target, name, row);
+    resolveIn(row ? plugin.named : visible, path, layout.model, target, name, row, typesOf(layout));
   return { vocabulary, resolve };
 }
 

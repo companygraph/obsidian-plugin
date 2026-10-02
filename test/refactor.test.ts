@@ -1,13 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { checkInstance } from "companygraph-meta-model/checks";
-import { buildModel, schemasOf } from "../src/model.ts";
+import { buildModel, schemasOf, typesOf } from "../src/model.ts";
 import type { Files } from "../src/model.ts";
 import { vocabularyOf } from "../src/vocabulary.ts";
 import { namedOf } from "../src/scope.ts";
 import { deletePlan, referencesTo, renamePlan } from "../src/refactor.ts";
 import type { RenamePlan } from "../src/refactor.ts";
-import { edited, example, EXAMPLE, reference, REFERENCE, whole } from "./helpers.ts";
+import { edited, example, EXAMPLE, reference, REFERENCE, whole, withSoftware, WITH_SOFTWARE } from "./helpers.ts";
 
 const setup = (files: Map<string, string>, layout: typeof EXAMPLE) => {
   const named = namedOf(buildModel(whole(files), layout).graph!);
@@ -297,4 +297,18 @@ test("deleting what a question rests on lists the question's row among what woul
   const owner = deletePlan(files, paths, vocabulary, named, model, entity(named, "profile", "Mira Halvorsen"));
   assert.ok(!("refused" in owner));
   assert.equal(owner.mentions.filter((m) => m.path === WHO && m.line === row).length, 2);
+});
+
+test("a bounded context is renamed as the owner it is, with its folder, once the packs' types are known", () => {
+  const files = withSoftware();
+  const s = setup(files, WITH_SOFTWARE);
+  const target = entity(s.named, "bounded-context", "Resolution");
+  const types = typesOf(WITH_SOFTWARE);
+  const plan = renamePlan(s.files, s.paths, s.vocabulary, s.named, s.model, target, "Naming", types);
+  assert.ok(!("refused" in plan));
+  assert.deepEqual((plan as { moves: unknown[] }).moves, [
+    { from: "model/bounded-contexts/resolution", to: "model/bounded-contexts/naming" },
+    { from: "model/bounded-contexts/naming/resolution.md", to: "model/bounded-contexts/naming/naming.md" },
+  ]);
+  assert.match("refused" in renamePlan(s.files, s.paths, s.vocabulary, s.named, s.model, target, "Naming") ? "refused" : "", /refused/);
 });

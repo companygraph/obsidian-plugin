@@ -10,7 +10,7 @@
 // so nothing is lost today.
 import { AbstractInputSuggest, MarkdownView } from "obsidian";
 import { IMAGE_FILE } from "companygraph-meta-model/instance";
-import { typeOfPath } from "companygraph-meta-model/checks";
+import { typeOf, typesOf } from "./model.ts";
 import type CompanyGraphPlugin from "./main.ts";
 import { propertyCandidates } from "./candidates.ts";
 import { namesIn } from "./scope.ts";
@@ -65,7 +65,7 @@ class PropertySuggest extends AbstractInputSuggest<string> {
   getSuggestions(typed: string): string[] {
     const layout = this.plugin.layout;
     if (!layout) return [];
-    const names = namesIn(this.plugin.named, this.path, layout.model);
+    const names = namesIn(this.plugin.named, this.path, layout.model, typesOf(layout));
     // What the list holds already, read off the pills the widget draws now: the row is found
     // from the input each time, since the widget redraws its rows and a row kept from the
     // attaching would be the one before the edit.
@@ -112,7 +112,7 @@ function attachIn(plugin: CompanyGraphPlugin, view: MarkdownView) {
   const path = view.file?.path;
   const layout = plugin.layout;
   if (!path || !layout) return;
-  const type = typeOfPath(path, layout.model);
+  const type = typeOf(path, layout);
   const vocabulary = type ? plugin.vocabulary.get(type) : undefined;
   if (!vocabulary) return;
   for (const row of Array.from(view.containerEl.querySelectorAll<HTMLElement>(".metadata-property[data-property-key]"))) {

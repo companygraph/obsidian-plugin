@@ -69,6 +69,8 @@ export function withSoftware(): Map<string, string> {
       "id: 01a0f94d-f9e9-70c4-a498-9e19505fd58e",
       "source: Local",
       "classification: core",
+      "realizes:",
+      "  - Portfolio",
       "---",
       "",
       "# Resolution",

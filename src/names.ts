@@ -3,6 +3,7 @@
 // entity has no business writing, and a file written with it would fail the checks the moment it
 // is saved. Pure.
 import { slug } from "companygraph-meta-model/checks";
+import type { TypeEntry } from "companygraph-meta-model/checks";
 import { visibleIn } from "./scope.ts";
 import type { Named } from "./scope.ts";
 
@@ -30,8 +31,9 @@ export function refusedHere(
   at: string,
   name: string,
   except?: string,
+  types?: TypeEntry[],
 ): string | null {
-  return visibleIn(named, at, model).some((n) => n.type === type && n.name === name && n.path !== except)
+  return visibleIn(named, at, model, types).some((n) => n.type === type && n.name === name && n.path !== except)
     ? `Another ${type} is named "${name}" already.`
     : null;
 }

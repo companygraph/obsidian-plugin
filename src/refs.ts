@@ -4,6 +4,7 @@
 // worked out here, from the vault's files and the last parse, so the pane and the section under a
 // note show one thing. Pure.
 import { typeOfPath } from "companygraph-meta-model/checks";
+import type { TypeEntry } from "companygraph-meta-model/checks";
 import type { TypeVocabulary } from "./vocabulary.ts";
 import { referencesIn, resolveIn } from "./references.ts";
 import type { Named } from "./scope.ts";
@@ -25,16 +26,17 @@ export interface World {
   vocabulary: Map<string, TypeVocabulary>;
   named: Named[];
   model: string;
+  types?: TypeEntry[]; // the instance's types with its packs'; core's where absent
 }
 
 // Every reference written in one file that resolves, with what declares each.
 function mentionsIn(world: World, path: string, text: string): Mention[] {
-  const type = typeOfPath(path, world.model);
+  const type = typeOfPath(path, world.model, world.types);
   const vocabulary = type ? world.vocabulary.get(type) : undefined;
   if (!vocabulary) return [];
   const out: Mention[] = [];
   for (const ref of referencesIn(text.split("\n"), vocabulary)) {
-    const target = resolveIn(world.named, path, world.model, ref.target, ref.name, ref.row);
+    const target = resolveIn(world.named, path, world.model, ref.target, ref.name, ref.row, world.types);
     if (target) out.push({ path, line: ref.line, name: ref.name, declared: ref.declared, target });
   }
   return out;

@@ -1,10 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildModel, schemasOf } from "../src/model.ts";
+import { buildModel, schemasOf, typesOf } from "../src/model.ts";
 import { vocabularyOf } from "../src/vocabulary.ts";
 import { namedOf } from "../src/scope.ts";
 import { countOf, referencesFor } from "../src/refs.ts";
-import { example, EXAMPLE, reference, REFERENCE } from "./helpers.ts";
+import { example, EXAMPLE, reference, REFERENCE, withSoftware, WITH_SOFTWARE, CONTEXT, whole } from "./helpers.ts";
 
 const worldOf = (files: Map<string, string>, layout: typeof EXAMPLE) => ({
   files,
@@ -87,4 +87,18 @@ test("what a question names is what its rows name, and a row naming another owne
   const now = referencesFor({ ...world, files }, WHO).out.map((g) => g.path);
   assert.ok(!now.some((p) => p.includes("/experiences/")), "Tomas has no experience of that name");
   assert.ok(now.includes("example/model/profiles/tomas-reyes/tomas-reyes.md"));
+});
+
+// A note of a pack's type is read like a core one once the world carries the packs' types: the
+// names it writes resolve, and what names it is listed.
+test("the names a pack note writes are listed with what declares them, and only when the world has the packs' types", () => {
+  const files = withSoftware();
+  const base = { files, vocabulary: vocabularyOf(schemasOf(files, WITH_SOFTWARE)), named: namedOf(buildModel(whole(files), WITH_SOFTWARE).graph!), model: WITH_SOFTWARE.model };
+  const out = referencesFor({ ...base, types: typesOf(WITH_SOFTWARE) }, CONTEXT).out;
+  assert.deepEqual(out.map((g) => g.path), ["model/domains/portfolio.md", "model/sources/local.md"]);
+  assert.deepEqual(out[0].mentions.map((m) => m.declared), ["realizes"]);
+  assert.deepEqual(referencesFor(base, CONTEXT).out, []);
+  // And what names a domain includes the context.
+  const into = referencesFor({ ...base, types: typesOf(WITH_SOFTWARE) }, "model/domains/portfolio.md").in.map((g) => g.path);
+  assert.ok(into.includes(CONTEXT));
 });

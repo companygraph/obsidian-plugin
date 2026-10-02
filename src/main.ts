@@ -7,7 +7,7 @@ import type { Debouncer } from "obsidian";
 import { EditorView as EditorViewClass } from "@codemirror/view";
 import type { EditorView } from "@codemirror/view";
 import { guard } from "./manifest.ts";
-import { buildModel, concerns, textOf } from "./model.ts";
+import { buildModel, concerns, textOf, typeOf, typesOf } from "./model.ts";
 import { namedOf } from "./scope.ts";
 import { linksOf, merge, mergePath, rename } from "./links.ts";
 import type { Added, Links } from "./links.ts";
@@ -35,7 +35,6 @@ import { fieldOfLine, propertyRules } from "./properties.ts";
 import { cellEditorOf, editingCell, openCell, tintRows } from "./livetable.ts";
 import { chOfCell } from "./references.ts";
 import { until } from "./until.ts";
-import { typeOfPath } from "companygraph-meta-model/checks";
 import { absentFields } from "./candidates.ts";
 import { AddField } from "./addfield.ts";
 import { BRIEF_VIEW, BriefPane } from "./briefpane.ts";
@@ -297,8 +296,8 @@ export default class CompanyGraphPlugin extends Plugin {
         if (!layout || this.vocabulary.size === 0) return false;
         if (checking) return true;
         const active = this.app.workspace.getActiveFile()?.path ?? null;
-        const targets = targetsFor(layout.model, active, (path) => this.app.vault.getAbstractFileByPath(path) !== null);
-        new PickType(this.app, targets, this.vocabulary, this.named, layout.model).open();
+        const targets = targetsFor(layout.model, active, (path) => this.app.vault.getAbstractFileByPath(path) !== null, typesOf(layout));
+        new PickType(this.app, targets, this.vocabulary, this.named, layout.model, typesOf(layout)).open();
         return true;
       },
     });
@@ -339,7 +338,7 @@ export default class CompanyGraphPlugin extends Plugin {
         const view = this.app.workspace.getActiveViewOfType(MarkdownView);
         const layout = this.layout;
         if (!view?.file || !layout || !isEntityFile(this, view.file.path, view.getViewData())) return false;
-        const type = typeOfPath(view.file.path, layout.model);
+        const type = typeOf(view.file.path, layout);
         const declaresId = !!type && !!this.vocabulary.get(type)?.fields.some((f) => f.name === "id");
         const path = `${layout.model}/identifier.md`;
         const identifier = this.app.vault.getAbstractFileByPath(path) ? (this.textOf(path) ?? undefined) : null;
@@ -758,7 +757,7 @@ export default class CompanyGraphPlugin extends Plugin {
     const file = view.file;
     const layout = this.layout;
     if (!file || !layout || !file.path.startsWith(layout.model + "/")) return null;
-    const type = typeOfPath(file.path, layout.model);
+    const type = typeOf(file.path, layout);
     const vocabulary = type ? this.vocabulary.get(type) : undefined;
     if (!type || !vocabulary) return null;
     return { file, type, fields: absentFields(vocabulary, view.editor.getValue().split("\n")) };
@@ -965,11 +964,11 @@ export default class CompanyGraphPlugin extends Plugin {
   referencesAt(path: string | null): References | null {
     const layout = this.layout;
     if (!layout || !path || !path.startsWith(`${layout.model}/`)) return null;
-    const type = typeOfPath(path, layout.model);
+    const type = typeOf(path, layout);
     if (!type || !this.vocabulary.has(type)) return null;
     const text = this.textOf(path);
     const files = text === null ? this.files : new Map(this.files).set(path, text);
-    return referencesFor({ files, vocabulary: this.vocabulary, named: this.named, model: layout.model }, path);
+    return referencesFor({ files, vocabulary: this.vocabulary, named: this.named, model: layout.model, types: typesOf(layout) }, path);
   }
 
   // The references pane, for the note in front, refreshed exactly when the brief is: the pane

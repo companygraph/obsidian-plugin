@@ -1,7 +1,7 @@
 // Completion: the cursor's context, the file's type from its path, the candidates for both.
 import { EditorSuggest } from "obsidian";
 import type { App, Editor, EditorPosition, EditorSuggestContext, EditorSuggestTriggerInfo, TFile } from "obsidian";
-import { typeOfPath } from "companygraph-meta-model/checks";
+import { typeOf, typesOf } from "./model.ts";
 import type CompanyGraphPlugin from "./main.ts";
 import { contextAt, mayHoldContext } from "./context.ts";
 import type { Context } from "./context.ts";
@@ -88,7 +88,7 @@ export class Suggest extends EditorSuggest<Candidate> {
   find(cursor: EditorPosition, editor: Editor, file: TFile | null, asked = false) {
     const layout = this.plugin.layout;
     if (!layout || !file || !file.path.startsWith(layout.model + "/")) return null;
-    const type = typeOfPath(file.path, layout.model);
+    const type = typeOf(file.path, layout);
     const vocabulary = type ? this.plugin.vocabulary.get(type) : undefined;
     if (!vocabulary) return null;
 
@@ -99,7 +99,7 @@ export class Suggest extends EditorSuggest<Candidate> {
       const context = cellContextOf({ ...cell, lines: editor.lineCount(), line: editor.getLine(cursor.line), ch: cursor.ch });
       if (!context) return null;
       if (entersThrough(context) && !this.enterFirst && !asked) return null;
-      const candidates = candidatesFor(context, vocabulary, namesIn(this.plugin.named, file.path, layout.model), [], this.plugin.named);
+      const candidates = candidatesFor(context, vocabulary, namesIn(this.plugin.named, file.path, layout.model, typesOf(layout)), [], this.plugin.named);
       return candidates.length ? { context, candidates } : null;
     }
 
@@ -116,7 +116,7 @@ export class Suggest extends EditorSuggest<Candidate> {
     // An empty entry shows its names only where its Enter can be let through.
     if (entersThrough(context) && !this.enterFirst && !asked) return null;
     // The names this file may use: an owned type's are its owner's own, as core 0.30.1 holds.
-    const candidates = candidatesFor(context, vocabulary, namesIn(this.plugin.named, file.path, layout.model), lines, this.plugin.named);
+    const candidates = candidatesFor(context, vocabulary, namesIn(this.plugin.named, file.path, layout.model, typesOf(layout)), lines, this.plugin.named);
     return candidates.length ? { context, candidates } : null;
   }
 

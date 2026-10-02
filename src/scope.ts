@@ -4,6 +4,7 @@
 // Every other type is offered whole. What is owned by what is read from the package's own list
 // of types, never restated here. Pure.
 import { TYPES } from "companygraph-meta-model/checks";
+import type { TypeEntry } from "companygraph-meta-model/checks";
 import type { Graph } from "companygraph-meta-model/instance";
 
 // `id` is the parser's own id for the entity: since meta-model 0.65.0 the stable one its page
@@ -26,15 +27,15 @@ const sorted = (names: Iterable<string>) => [...new Set(names)].sort((a, b) => a
 
 // The entities a file at `path`, under the container `model`, may name: of an owned type, those
 // of the owner the file is in, and of every other type, all of them.
-export function visibleIn(named: Named[], path: string, model: string): Named[] {
+export function visibleIn(named: Named[], path: string, model: string, types: TypeEntry[] = TYPES): Named[] {
   // An owner's subtree is `<container>/<owner folder>/<owner>/`: every owner the conventions
   // allow sits one level under the container, as the checks read it.
   const rel = path.startsWith(`${model}/`) ? path.slice(model.length + 1).split("/") : [];
   const scoped = new Map<string, string>();
   if (rel.length >= 3)
-    for (const owned of TYPES) {
+    for (const owned of types) {
       if (!owned.owner || !owned.folder) continue;
-      const owner = TYPES.find((t) => t.type === owned.owner);
+      const owner = types.find((t) => t.type === owned.owner);
       if (!owner?.folder || rel[0] !== owner.folder.split("/")[0]) continue;
       scoped.set(owned.type, `${model}/${rel[0]}/${rel[1]}/${owned.folder.split("/").pop()}/`);
     }
@@ -42,9 +43,9 @@ export function visibleIn(named: Named[], path: string, model: string): Named[] 
 }
 
 // The names by type that a file at `path` may use.
-export function namesIn(named: Named[], path: string, model: string): Map<string, string[]> {
+export function namesIn(named: Named[], path: string, model: string, types: TypeEntry[] = TYPES): Map<string, string[]> {
   const byType = new Map<string, string[]>();
   for (const n of named) byType.set(n.type, byType.get(n.type) ?? []);
-  for (const n of visibleIn(named, path, model)) byType.get(n.type)!.push(n.name);
+  for (const n of visibleIn(named, path, model, types)) byType.get(n.type)!.push(n.name);
   return new Map([...byType].map(([type, names]) => [type, sorted(names)]));
 }

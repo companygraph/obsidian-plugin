@@ -5,6 +5,7 @@
 // `model/identifier.md` as it stands when the file is written.
 import { FuzzySuggestModal, MarkdownView, Modal, Notice, Setting, TFile } from "obsidian";
 import type { App } from "obsidian";
+import type { TypeEntry } from "companygraph-meta-model/checks";
 import type { TypeVocabulary } from "./vocabulary.ts";
 import { refusedHere, refusedName } from "./names.ts";
 import type { Named } from "./scope.ts";
@@ -18,9 +19,11 @@ export class PickType extends FuzzySuggestModal<Target> {
   // held to R2 the way Rename entity holds one.
   named: Named[];
   model: string;
+  types?: TypeEntry[];
 
-  constructor(app: App, targets: Target[], vocabulary: Map<string, TypeVocabulary>, named: Named[], model: string) {
+  constructor(app: App, targets: Target[], vocabulary: Map<string, TypeVocabulary>, named: Named[], model: string, types?: TypeEntry[]) {
     super(app);
+    this.types = types;
     this.targets = targets;
     this.vocabulary = vocabulary;
     this.named = named;
@@ -30,7 +33,7 @@ export class PickType extends FuzzySuggestModal<Target> {
   getItems() { return this.targets.filter((t) => this.vocabulary.has(t.type)); }
   getItemText(target: Target) { return `${target.type} — ${target.where}`; }
   onChooseItem(target: Target) {
-    new NameEntity(this.app, target, this.vocabulary.get(target.type)!, this.named, this.model).open();
+    new NameEntity(this.app, target, this.vocabulary.get(target.type)!, this.named, this.model, this.types).open();
   }
 }
 
@@ -39,13 +42,15 @@ class NameEntity extends Modal {
   vocabulary: TypeVocabulary;
   named: Named[];
   model: string;
+  types?: TypeEntry[];
   name = "";
   asked = "";
   // Set while a file is being written, so a second Enter or a click does not write it twice.
   busy = false;
 
-  constructor(app: App, target: Target, vocabulary: TypeVocabulary, named: Named[], model: string) {
+  constructor(app: App, target: Target, vocabulary: TypeVocabulary, named: Named[], model: string, types?: TypeEntry[]) {
     super(app);
+    this.types = types;
     this.target = target;
     this.vocabulary = vocabulary;
     this.named = named;
@@ -84,7 +89,7 @@ class NameEntity extends Modal {
     // a leading `#` would break the first cell or field that names this entity, and a name
     // already taken breaks R2. The file's own path is where the name is read from, which is what
     // scopes an owned type's name to its owner.
-    const wrong = refusedName(name) ?? refusedHere(this.named, this.model, this.target.type, path, name);
+    const wrong = refusedName(name) ?? refusedHere(this.named, this.model, this.target.type, path, name, undefined, this.types);
     if (wrong) {
       new Notice(wrong);
       return;

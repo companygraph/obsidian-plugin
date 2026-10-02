@@ -2,6 +2,7 @@
 import { checkInstance, typeOfPath, vocabularyOf } from "companygraph-meta-model/checks";
 import { parseInstance } from "companygraph-meta-model/instance";
 import type { Graph } from "companygraph-meta-model/instance";
+import type { TypeEntry } from "companygraph-meta-model/checks";
 
 export interface Layout {
   core: string;   // where the vendored schemas sit, e.g. "meta/core"
@@ -21,9 +22,11 @@ export const concerns = (path: string, layout: Layout) =>
   path.startsWith(layout.core + "/") ||
   (layout.packs ?? []).some((p) => path.startsWith(p.dir + "/"));
 
+// Every type the instance has: core's and its packs', each with the folder or file it sits at.
+export const typesOf = (layout: Layout): TypeEntry[] => vocabularyOf({ core: layout.core, packs: layout.packs }).types;
+
 // The type of a note by its path, with the packs' types beside core's.
-export const typeOf = (path: string, layout: Layout): string | null =>
-  typeOfPath(path, layout.model, vocabularyOf({ core: layout.core, packs: layout.packs }).types);
+export const typeOf = (path: string, layout: Layout): string | null => typeOfPath(path, layout.model, typesOf(layout));
 
 // The key a type's schema sits under in `schemasOf`: bare for core's, `<pack>/` for a pack's.
 export function schemaKeyOf(type: string, layout: Layout): string | null {

@@ -7,7 +7,7 @@ import { RangeSetBuilder, StateField } from "@codemirror/state";
 import type { EditorState, Transaction } from "@codemirror/state";
 import { Decoration, EditorView, WidgetType } from "@codemirror/view";
 import type { DecorationSet } from "@codemirror/view";
-import { typeOfPath } from "companygraph-meta-model/checks";
+import { typeOf } from "./model.ts";
 import type CompanyGraphPlugin from "./main.ts";
 import { pictureOf } from "./picture.ts";
 import { refreshNames } from "./namelinks.ts";
@@ -39,7 +39,7 @@ function draw(plugin: CompanyGraphPlugin, state: EditorState): Drawn {
   const path = fileIn(state);
   const layout = plugin.layout;
   if (!path || !layout) return NONE(path);
-  const type = typeOfPath(path, layout.model);
+  const type = typeOf(path, layout);
   const vocabulary = type ? plugin.vocabulary.get(type) : undefined;
   if (!vocabulary) return NONE(path);
   const picture = pictureOf(state.doc.toString(), path, vocabulary);

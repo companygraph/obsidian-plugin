@@ -8,6 +8,7 @@
 // and first of all an id (R18), made by the package's own maker. Pure but for the random bytes a
 // new id takes.
 import { DATE, TYPES, slug } from "companygraph-meta-model/checks";
+import type { TypeEntry } from "companygraph-meta-model/checks";
 import { idFormatOf, uuidv7 } from "companygraph-meta-model/ids";
 import type { TypeVocabulary } from "./vocabulary.ts";
 import { tableStart } from "./headings.ts";
@@ -26,10 +27,10 @@ export interface Target {
   owes: string | null;
 }
 
-export function targetsFor(model: string, activePath: string | null, exists: (path: string) => boolean): Target[] {
+export function targetsFor(model: string, activePath: string | null, exists: (path: string) => boolean, types: TypeEntry[] = TYPES): Target[] {
   const rel = activePath?.startsWith(`${model}/`) ? activePath.slice(model.length + 1).split("/") : [];
   const out: Target[] = [];
-  for (const t of TYPES) {
+  for (const t of types) {
     if (t.file) {
       const path = `${model}/${t.file}`;
       if (!exists(path)) out.push({ type: t.type, where: path, asks: null, pathFor: () => path, owes: null });
@@ -52,7 +53,7 @@ export function targetsFor(model: string, activePath: string | null, exists: (pa
       dir = `${model}/${[...prefix, rel[placeholder], ...parts.slice(placeholder + 1)].join("/")}`;
     }
     const asks = t.filename?.year ?? null;
-    const owned = TYPES.filter((o) => o.owner === t.type).map((o) => o.type);
+    const owned = types.filter((o) => o.owner === t.type).map((o) => o.type);
     const owes = own && owned.length
       ? `A ${t.type} needs ${owned.map((o) => `its first ${o}`).join(" and ")}: run New entity from it next.`
       : t.owner && placeholder !== -1 && placeholder !== parts.length - 1
