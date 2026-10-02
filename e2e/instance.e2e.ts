@@ -49,6 +49,10 @@ describe("making an instance and moving its core", { skip }, () => {
     assert.match(shown, /\.companygraph\/manifest\.json/);
     assert.match(shown, /Core 0\.40\.0 → /);
     assert.match(shown, shownInPlan("meta/core/kpi-schema.md"));
+    // The reference instance's localization page is in the form before one language per model, so
+    // the move rewrites it, and the plan says so rather than that the model is not touched.
+    assert.match(shown, /model\/localization\.md is rewritten into the form core [0-9.]+ reads\./);
+    assert.doesNotMatch(shown, /The model is not touched/);
     await pressButton(ui, "Move it");
     await noModal(ui);
     await waitForNotice(ui, "^Core ");

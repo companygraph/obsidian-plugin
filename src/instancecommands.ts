@@ -3,7 +3,7 @@
 // on a press. What is written is instantiate.ts's, and through it the meta-model's own planner.
 import { Modal, Notice, Setting } from "obsidian";
 import type { App, DataAdapter } from "obsidian";
-import { carryOut, folderChoices, planInstance, planMove } from "./instantiate.ts";
+import { carryOut, folderChoices, moveScope, planInstance, planMove } from "./instantiate.ts";
 import type { Disk, Release } from "./instantiate.ts";
 
 // Obsidian's adapter as the Disk instantiate.ts takes. The adapter lists the root as "/" and
@@ -136,7 +136,7 @@ export class MoveCore extends Modal {
     if (plan.removes.length) this.contentEl.createEl("p", { text: `Removes ${plan.removes.join(", ")}.` });
     this.contentEl.createEl("p", {
       cls: "setting-item-description",
-      text: "Only the vendored core, the skills the tooling installed, the manifest and the workflow's tag move. The model is not touched.",
+      text: moveScope(plan),
     });
     new Setting(this.contentEl).addButton((button) =>
       button.setButtonText("Move it").setCta().onClick(async () => {
