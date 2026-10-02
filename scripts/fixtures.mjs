@@ -1,8 +1,9 @@
-// Fetches the two repositories the suite runs against into test/fixtures/: companygraph/
-// meta-model at the tag package.json pins, for its worked example and core/, and the reference
+// Fetches the three repositories the suite runs against into test/fixtures/: companygraph/
+// meta-model at the tag package.json pins, for its worked example and core/; the reference
 // instance robertblust/mental-model at one commit, for an instance in the layout every real one
-// has. Neither is in node_modules: the package ships lib/ and bin/ only, and an instance is
-// content, not a dependency. And the three files of one release of the Terminal plugin, which
+// has; and companygraph/mental-model at another, for an instance that takes the software pack.
+// None is in node_modules: the package ships lib/ and bin/ only, and an instance is content, not
+// a dependency. And the three files of one release of the Terminal plugin, which
 // only the e2e test of Open the command line puts into its vault.
 import fs from "node:fs";
 import path from "node:path";
@@ -15,13 +16,16 @@ const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"))
 const [, metaRepo, tag] = pkg.dependencies["companygraph-meta-model"].match(/^github:([^#]+)#(.+)$/);
 
 // The instance commit is test data and lives here.
-const INSTANCE_COMMIT = "61bde0aa170f682cd3657e6bfe994025cdcbfd5b";
+const INSTANCE_COMMIT = "85fa09b7a33ad3212e4dd1964a1ec90b8121e5f7";
+// The instance that takes the software pack and holds its first bounded context, at core 0.51.0.
+const PACK_COMMIT = "aad33b559522f7e603873466f8f81471c439f123";
 // The Terminal release whose view state src/main.ts's openCli hands a profile to.
 const TERMINAL_RELEASE = "3.27.2";
 
 const FIXTURES = [
   { repo: metaRepo, ref: tag, url: `https://codeload.github.com/${metaRepo}/tar.gz/refs/tags/${tag}`, dir: "meta-model" },
   { repo: "robertblust/mental-model", ref: INSTANCE_COMMIT, url: `https://codeload.github.com/robertblust/mental-model/tar.gz/${INSTANCE_COMMIT}`, dir: "mental-model" },
+  { repo: "companygraph/mental-model", ref: PACK_COMMIT, url: `https://codeload.github.com/companygraph/mental-model/tar.gz/${PACK_COMMIT}`, dir: "pack-instance" },
 ];
 
 for (const f of FIXTURES) {

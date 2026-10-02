@@ -1,10 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildModel, schemasOf } from "../src/model.ts";
+import { buildModel, schemasOf, typesOf } from "../src/model.ts";
 import { vocabularyOf } from "../src/vocabulary.ts";
 import { namedOf } from "../src/scope.ts";
 import { countOf, referencesFor } from "../src/refs.ts";
-import { example, EXAMPLE, reference, REFERENCE } from "./helpers.ts";
+import { example, EXAMPLE, reference, REFERENCE, packed, PACKED, CONTEXT, whole, wholePacked } from "./helpers.ts";
 
 const worldOf = (files: Map<string, string>, layout: typeof EXAMPLE) => ({
   files,
@@ -87,4 +87,18 @@ test("what a question names is what its rows name, and a row naming another owne
   const now = referencesFor({ ...world, files }, WHO).out.map((g) => g.path);
   assert.ok(!now.some((p) => p.includes("/experiences/")), "Tomas has no experience of that name");
   assert.ok(now.includes("example/model/profiles/tomas-reyes/tomas-reyes.md"));
+});
+
+// A note of a pack's type is read like a core one once the world carries the packs' types: the
+// names it writes resolve, and what names it is listed.
+test("the names a pack note writes are listed with what declares them, and only when the world has the packs' types", () => {
+  const files = packed();
+  const base = { files, vocabulary: vocabularyOf(schemasOf(files, PACKED)), named: namedOf(buildModel(wholePacked(files), PACKED).graph!), model: PACKED.model };
+  const out = referencesFor({ ...base, types: typesOf(PACKED) }, CONTEXT).out;
+  assert.deepEqual(out.map((g) => g.path), ["model/decisions/2026-typed-resolution.md", "model/domains/core.md", "model/sources/local.md"]);
+  assert.deepEqual(out[1].mentions.map((m) => m.declared), ["realizes"]);
+  assert.deepEqual(referencesFor(base, CONTEXT).out, []);
+  // And what names a domain includes the context.
+  const into = referencesFor({ ...base, types: typesOf(PACKED) }, "model/domains/core.md").in.map((g) => g.path);
+  assert.ok(into.includes(CONTEXT));
 });

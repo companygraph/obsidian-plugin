@@ -1,10 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildModel, namesByType, schemasOf } from "../src/model.ts";
+import { buildModel, namesByType, schemasOf, typeOf, typesOf } from "../src/model.ts";
 import { vocabularyOf } from "../src/vocabulary.ts";
 import { absentFields, candidatesFor, cursorAfter, entersThrough, propertyCandidates } from "../src/candidates.ts";
-import { namedOf } from "../src/scope.ts";
-import { example, EXAMPLE } from "./helpers.ts";
+import { namedOf, namesIn } from "../src/scope.ts";
+import { example, EXAMPLE, packed, PACKED, CONTEXT, whole, wholePacked } from "./helpers.ts";
 
 const files = example();
 const vocabulary = vocabularyOf(schemasOf(files, EXAMPLE));
@@ -232,4 +232,26 @@ test("the Owner column offers the names of the type that owns the row's type, an
 test("a Rests on cell with no row read, or no entities handed in, offers no names rather than guess", () => {
   assert.deepEqual(labels(candidatesFor({ kind: "cell", section: "Rests on", column: "Entity", typed: "", start: 0 }, question, names, [], every)), []);
   assert.deepEqual(labels(candidatesFor({ kind: "cell", section: "Rests on", column: "Entity", typed: "", start: 0, row: { Type: "experience", Owner: "Mira Halvorsen" } }, question, names, [])), []);
+});
+
+// A note of a pack's type (software, meta-model 0.68.0) is completed like a core one: its type is
+// found from its path, its fields are the pack schema's, and the names offered are those it may
+// use, where an owned type's names stay within the context the note is in.
+test("a pack note is completed from its pack schema, and an owned type's names stay within their context", () => {
+  const notes = packed();
+  const pv = vocabularyOf(schemasOf(notes, PACKED));
+  const type = typeOf(CONTEXT, PACKED)!;
+  assert.equal(type, "bounded-context");
+  const pnames = namesByType(buildModel(wholePacked(notes), PACKED).graph!);
+  const value = candidatesFor({ kind: "value", field: "realizes", typed: "co", start: 4, item: true, glued: false }, pv.get(type)!, pnames, []);
+  assert.deepEqual(labels(value), ["Core"]);
+  const enumValue = candidatesFor({ kind: "value", field: "classification", typed: "", start: 16, item: false, glued: false }, pv.get(type)!, pnames, []);
+  assert.deepEqual(labels(enumValue), ["core", "supporting", "generic"]);
+  const named = [
+    { id: "1", address: "a", type: "aggregate", name: "Lookup", path: "model/bounded-contexts/a/aggregates/lookup.md" },
+    { id: "2", address: "b", type: "aggregate", name: "Billing Run", path: "model/bounded-contexts/b/aggregates/billing-run.md" },
+  ];
+  const from = "model/bounded-contexts/a/concept-designs/edge.md";
+  assert.deepEqual(namesIn(named, from, "model", typesOf(PACKED)).get("aggregate"), ["Lookup"]);
+  assert.deepEqual(namesIn(named, from, "model").get("aggregate"), ["Billing Run", "Lookup"]);
 });

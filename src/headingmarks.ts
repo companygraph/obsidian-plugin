@@ -11,7 +11,7 @@ import { EditorState as State, RangeSetBuilder, StateField, Transaction as Tr } 
 import type { EditorState, Transaction } from "@codemirror/state";
 import { Decoration, EditorView, ViewPlugin, WidgetType } from "@codemirror/view";
 import type { DecorationSet } from "@codemirror/view";
-import { typeOfPath } from "companygraph-meta-model/checks";
+import { typeOf } from "./model.ts";
 import type CompanyGraphPlugin from "./main.ts";
 import { headingsOf, insertionAt, isEntityText, isHeld, lockedLines, lostLine, missingOf, removalRange, tableStart } from "./headings.ts";
 import type { HeadingKind } from "./headings.ts";
@@ -41,7 +41,7 @@ function vocabularyIn(plugin: CompanyGraphPlugin, state: EditorState): { path: s
   const path = info?.file?.path;
   const layout = plugin.layout;
   if (!path || !layout || !path.startsWith(`${layout.model}/`)) return null;
-  const type = typeOfPath(path, layout.model);
+  const type = typeOf(path, layout);
   const vocabulary = type ? plugin.vocabulary.get(type) : undefined;
   return vocabulary ? { path, vocabulary } : null;
 }

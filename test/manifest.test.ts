@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { readManifest, guard } from "../src/manifest.ts";
-import { referenceManifest } from "./helpers.ts";
+import { packedManifest, referenceManifest } from "./helpers.ts";
 
 test("the reference instance's manifest names its units folder and its two releases", () => {
   const m = readManifest(referenceManifest());
@@ -13,22 +13,29 @@ test("the reference instance's manifest names its units folder and its two relea
 });
 
 test("units defaults to meta, and a missing release is null rather than a guess", () => {
-  assert.deepEqual(readManifest("{}"), { tooling: null, coreVersion: null, units: "meta" });
+  assert.deepEqual(readManifest("{}"), { tooling: null, coreVersion: null, units: "meta", packs: [] });
+});
+
+test("the packs an instance takes are kept, and an instance that takes none has none", () => {
+  assert.deepEqual(readManifest('{ "packs": ["software"] }').packs, ["software"]);
+  assert.deepEqual(readManifest(referenceManifest()).packs, []);
+  assert.deepEqual(readManifest(packedManifest()).packs, ["software"]);
+  assert.deepEqual(readManifest('{ "packs": "software" }').packs, []);
 });
 
 test("a core newer than the checker is refused, compared as releases and not as text", () => {
-  const g = guard({ tooling: "0.9.0", coreVersion: "0.10.0", units: "meta" }, "0.9.0");
+  const g = guard({ tooling: "0.9.0", coreVersion: "0.10.0", units: "meta", packs: [] }, "0.9.0");
   assert.equal(g.kind, "refuse");
   assert.match((g as { message: string }).message, /0\.10\.0/);
 });
 
 test("a tooling pin naming another release is reported and does not refuse", () => {
-  const g = guard({ tooling: "0.27.0", coreVersion: "0.27.0", units: "meta" }, "0.28.0");
+  const g = guard({ tooling: "0.27.0", coreVersion: "0.27.0", units: "meta", packs: [] }, "0.28.0");
   assert.equal(g.kind, "report");
 });
 
 test("a core behind the checker with a matching pin is fine", () => {
-  assert.deepEqual(guard({ tooling: "0.28.0", coreVersion: "0.27.0", units: "meta" }, "0.28.0"), { kind: "ok" });
+  assert.deepEqual(guard({ tooling: "0.28.0", coreVersion: "0.27.0", units: "meta", packs: [] }, "0.28.0"), { kind: "ok" });
 });
 
 // The plugin's own manifest, and the workflow that holds it to its word. The oldest Obsidian the

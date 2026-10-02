@@ -1,7 +1,7 @@
 // What each type's schema declares, in the shape completion asks for. Every Type cell goes
 // through the package's one reader, declarationOf, and every enum's values through
 // enumTokensOf; this file reads tables by their column names and interprets nothing.
-import { parseSchemas, declarationOf, ownerTypesOf } from "companygraph-meta-model/instance";
+import { parseSchemas, declarationOf, ownerTypesOf, typeOfAddress } from "companygraph-meta-model/instance";
 import type { Table } from "companygraph-meta-model/instance";
 import { enumTokensOf, COLUMN_CAPTION, HEADING_CAPTION } from "companygraph-meta-model/checks";
 
@@ -68,11 +68,11 @@ export function vocabularyOf(schemas: Map<string, string>): Map<string, TypeVoca
   const vocabulary = new Map<string, TypeVocabulary>();
   const entities = parseSchemas(schemas).entities;
   // A schema entity's `id` is its own stable id (R18, a UUID since meta-model 0.66.0); `address`
-  // is where it sits, `core/<type>`, which is what names the type here.
-  const types = entities.map((e) => e.address.slice("core/".length)).sort((a, b) => a.localeCompare(b));
+  // is where it sits, `core/<type>` or `<unit>/<type>`, and the package reads the type from it.
+  const types = entities.map((e) => typeOfAddress(e.address)).sort((a, b) => a.localeCompare(b));
   const owners = ownerTypesOf(schemas);
   for (const e of entities) {
-    const type = e.address.slice("core/".length);
+    const type = typeOfAddress(e.address);
     const frontmatter = e.sections.find((s) => s.heading === "Frontmatter");
     const fields = rowsOf(frontmatter?.table).map((r) => ({
       name: bare(r.Field),

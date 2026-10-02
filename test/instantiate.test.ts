@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 import { checkInstance } from "companygraph-meta-model/checks";
 import { carryOut, folderChoices, planInstance, planMove, present } from "../src/instantiate.ts";
 import type { Disk, Release } from "../src/instantiate.ts";
@@ -221,4 +223,52 @@ test("moving the core of a vault that records no skills and holds none writes th
   for (const path of Object.keys(release.skills))
     assert.equal(disk.files.get(`.claude/skills/${path}`), release.skills[path], path);
   assert.ok(Object.keys(JSON.parse(disk.files.get(".companygraph/manifest.json")!).files).includes(".claude/skills/companygraph-validate/SKILL.md"));
+});
+
+// An instance that takes a pack lists the pack's files in its manifest beside core's. The planner
+// moves them with core's when it is handed the release's packs, and takes them for foreign
+// files when it is not (companygraph/mental-model's case since meta-model 0.68.0).
+const PACK_INSTANCE = path.join(import.meta.dirname, "fixtures", "pack-instance");
+function packDisk(): ReturnType<typeof memoryDisk> {
+  const files: Record<string, string> = {};
+  const walk = (rel: string) => {
+    for (const entry of fs.readdirSync(path.join(PACK_INSTANCE, rel))) {
+      const child = rel ? `${rel}/${entry}` : entry;
+      if (fs.statSync(path.join(PACK_INSTANCE, child)).isDirectory()) walk(child);
+      else if (/^(\.companygraph|meta|\.claude|\.github)\//.test(child) || child === "model/identity.md" || child === "model/localization.md")
+        files[child] = fs.readFileSync(path.join(PACK_INSTANCE, child), "utf8");
+    }
+  };
+  walk("");
+  return memoryDisk(files);
+}
+
+test("the release carries the packs it ships, each as path to text", () => {
+  assert.ok(release.packs.software["bounded-context-schema.md"]);
+  assert.ok(release.packs.software["manifest.json"]);
+});
+
+test("moving the core of an instance that takes a pack moves the pack's files with it, and does not refuse", async () => {
+  const disk = packDisk();
+  const manifest = JSON.parse(disk.files.get(".companygraph/manifest.json")!);
+  assert.deepEqual(manifest.packs, ["software"]);
+  // The release before this one left the pack's aggregate schema out.
+  delete manifest.files["meta/software/aggregate-schema.md"];
+  disk.files.set(".companygraph/manifest.json", JSON.stringify(manifest));
+  disk.files.delete("meta/software/aggregate-schema.md");
+  const move = await planMove(disk, release);
+  assert.ok("writes" in move, "refused" in move ? move.refused : "");
+  assert.equal(move.writes.get("meta/software/aggregate-schema.md"), release.packs.software["aggregate-schema.md"]);
+  assert.ok(JSON.parse(move.writes.get(".companygraph/manifest.json")!).packs.includes("software"));
+});
+
+test("a pack the manifest lists that this release does not ship is refused by name", async () => {
+  const disk = packDisk();
+  const manifest = JSON.parse(disk.files.get(".companygraph/manifest.json")!);
+  manifest.packs = ["software", "finance"];
+  disk.files.set(".companygraph/manifest.json", JSON.stringify(manifest));
+  const move = await planMove(disk, release);
+  assert.ok("refused" in move);
+  assert.match(move.refused, /finance/);
+  assert.match(move.refused, /software/);
 });

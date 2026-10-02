@@ -4,7 +4,7 @@
 // nothing else does.
 import { MarkdownView, Notice } from "obsidian";
 import type { TFile } from "obsidian";
-import { typeOfPath } from "companygraph-meta-model/checks";
+import { typeOf } from "./model.ts";
 import type CompanyGraphPlugin from "./main.ts";
 import { ID_REFUSED, propertiesWrite, tellLocked } from "./headingmarks.ts";
 import { isEntityText } from "./headings.ts";
@@ -66,7 +66,7 @@ function wrapSave(plugin: CompanyGraphPlugin, proto: object, make: (original: Sa
 export function isEntityFile(plugin: CompanyGraphPlugin, path: string, text: string): boolean {
   const layout = plugin.layout;
   if (!layout || !path.startsWith(`${layout.model}/`)) return false;
-  const type = typeOfPath(path, layout.model);
+  const type = typeOf(path, layout);
   return !!type && plugin.vocabulary.has(type) && isEntityText(text);
 }
 

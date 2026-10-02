@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { briefOf, lineOf, partsOf, placeAt } from "../src/brief.ts";
-import { reference } from "./helpers.ts";
+import { schemaKeyOf, schemasOf } from "../src/model.ts";
+import { reference, packed, PACKED } from "./helpers.ts";
 
 const role = reference().get("meta/core/role-schema.md")!;
 const decision = reference().get("meta/core/decision-schema.md")!;
@@ -132,4 +133,13 @@ test("the line a place is on, and none where the page lacks it", () => {
   assert.equal(lineOf(lines, { kind: "field", name: "serves" }), null);
   // A `>` line under a section is a quote, not the tagline.
   assert.equal(lineOf(["# A", "", "## Why", "> quoted"], { kind: "tagline" }), null);
+});
+
+test("the brief of a pack type is made from the pack's schema, found by its type", () => {
+  const schemas = schemasOf(packed(), PACKED);
+  const schema = schemas.get(schemaKeyOf("bounded-context", PACKED)!)!;
+  assert.ok(schema);
+  const b = briefOf(schema, { kind: "field", name: "classification" });
+  assert.equal(b.name, "classification");
+  assert.match(b.description!, /core.*supporting.*generic/);
 });

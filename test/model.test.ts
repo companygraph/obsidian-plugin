@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { uuidv7 } from "companygraph-meta-model/ids";
-import { buildModel, namesByType } from "../src/model.ts";
-import { example, EXAMPLE, reference, REFERENCE, edited, whole } from "./helpers.ts";
+import { buildModel, concerns, namesByType, schemaKeyOf, schemasOf, typeOf } from "../src/model.ts";
+import { example, EXAMPLE, reference, REFERENCE, edited, whole, wholePacked, packed, PACKED, CONTEXT } from "./helpers.ts";
 
 const ROLE = "example/model/roles/backend-engineer.md";
 
@@ -115,4 +115,42 @@ test("a question row whose type is owned and whose owner is blank fails by name"
   const m = buildModel(whole(edited(example(), WHO, (t) => t.replace("| Mira Halvorsen |", "| |"))), EXAMPLE);
   assert.equal(m.failures.length, 1);
   assert.match(m.failures[0], /which a profile owns, and the row names no profile \(R4\)$/);
+});
+
+// The software pack (meta-model 0.68.0): its schemas sit at `<units>/software/`, beside core's.
+test("the pack's schemas are read beside core's, under a key that names the pack", () => {
+  const schemas = schemasOf(packed(), PACKED);
+  assert.ok(schemas.has("software/bounded-context-schema.md"));
+  assert.ok(schemas.has("role-schema.md"));
+  assert.ok(![...schemas.keys()].some((k) => k.startsWith("meta/")));
+});
+
+test("an instance with a bounded context passes the checks with its packs and fails without them", () => {
+  const files = wholePacked(packed());
+  const taken = buildModel(files, PACKED);
+  assert.deepEqual(taken.failures, []);
+  assert.ok(taken.graph?.entities.some((e) => e.type === "bounded-context" && e.name === "Resolution"));
+  const without = buildModel(files, REFERENCE);
+  assert.ok(without.failures.some((f) => f.includes("bounded-contexts")), without.failures.join("\n"));
+});
+
+test("an instance that takes no pack is read as before", () => {
+  assert.deepEqual(buildModel(whole(example()), EXAMPLE).failures, []);
+  assert.deepEqual([...schemasOf(example(), EXAMPLE).keys()].filter((k) => k.includes("/")), []);
+});
+
+test("a pack type is found by its path, and a core type still is", () => {
+  assert.equal(typeOf(CONTEXT, PACKED), "bounded-context");
+  assert.equal(typeOf("model/skills/x.md", PACKED), "skill");
+  assert.equal(typeOf(CONTEXT, REFERENCE), null);
+  assert.equal(schemaKeyOf("bounded-context", PACKED), "software/bounded-context-schema.md");
+  assert.equal(schemaKeyOf("skill", PACKED), "skill-schema.md");
+});
+
+test("a file under a pack's folder concerns the checks, and one outside the three folders does not", () => {
+  assert.ok(concerns("meta/software/aggregate-schema.md", PACKED));
+  assert.ok(!concerns("meta/software/aggregate-schema.md", REFERENCE));
+  assert.ok(concerns("meta/core/role-schema.md", PACKED));
+  assert.ok(concerns(CONTEXT, REFERENCE));
+  assert.ok(!concerns("notes/today.md", PACKED));
 });

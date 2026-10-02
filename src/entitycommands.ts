@@ -7,7 +7,7 @@ import { MarkdownView, Modal, Notice, Setting, TFile } from "obsidian";
 import type { App } from "obsidian";
 import type CompanyGraphPlugin from "./main.ts";
 import { readInstance } from "./vault.ts";
-import { buildModel, textOf } from "./model.ts";
+import { buildModel, textOf, typesOf } from "./model.ts";
 import { namedOf } from "./scope.ts";
 import { deletePlan, renamePlan } from "./refactor.ts";
 import type { Mention } from "./refactor.ts";
@@ -108,7 +108,7 @@ export class RenameEntity extends Modal {
       el.createEl("p", { text: state.refused, cls: "companygraph-notice" });
       return;
     }
-    const plan = renamePlan(state.files, state.paths, this.plugin.vocabulary, state.named, state.layout.model, state.now, this.name);
+    const plan = renamePlan(state.files, state.paths, this.plugin.vocabulary, state.named, state.layout.model, state.now, this.name, typesOf(state.layout));
     if ("refused" in plan) {
       el.createEl("p", { text: plan.refused, cls: "companygraph-notice" });
       return;
@@ -124,7 +124,7 @@ export class RenameEntity extends Modal {
     try {
       const state = await current(this.plugin, this.target);
       if ("refused" in state) return void new Notice(state.refused);
-      const plan = renamePlan(state.files, state.paths, this.plugin.vocabulary, state.named, state.layout.model, state.now, this.name);
+      const plan = renamePlan(state.files, state.paths, this.plugin.vocabulary, state.named, state.layout.model, state.now, this.name, typesOf(state.layout));
       if ("refused" in plan) return void new Notice(plan.refused);
       const vault = this.app.vault;
       // Every move is checked before anything is written, so a rename is refused whole rather
@@ -181,7 +181,7 @@ export class DeleteEntity extends Modal {
       this.contentEl.createEl("p", { text: state.refused, cls: "companygraph-notice" });
       return;
     }
-    const plan = deletePlan(state.files, state.paths, this.plugin.vocabulary, state.named, state.layout.model, state.now);
+    const plan = deletePlan(state.files, state.paths, this.plugin.vocabulary, state.named, state.layout.model, state.now, typesOf(state.layout));
     if ("refused" in plan) {
       this.contentEl.createEl("p", { text: plan.refused, cls: "companygraph-notice" });
       return;

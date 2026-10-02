@@ -4,6 +4,7 @@
 // Obsidian-facing modules' business. A qualifier counts as much as a reference, since both name
 // an entity; what differs is only whether the model draws an edge, which is links.ts's concern.
 import { tableOf } from "companygraph-meta-model/checks";
+import type { TypeEntry } from "companygraph-meta-model/checks";
 import { resolveRow } from "companygraph-meta-model/instance";
 import { frontmatterEnd } from "./context.ts";
 import { bare } from "./vocabulary.ts";
@@ -172,7 +173,7 @@ export function referencesIn(lines: string[], vocabulary: TypeVocabulary): Refer
 // the declared type, and for an owned type within the owner the file is in; or, given a `by`
 // reference's `row`, by the package's `resolveRow`, within the owner its row names and never
 // the file's own place (R4, R9). null: it names none.
-export function resolveIn(named: Named[], path: string, model: string, target: string, name: string, row?: Reference["row"]): string | null {
+export function resolveIn(named: Named[], path: string, model: string, target: string, name: string, row?: Reference["row"], types?: TypeEntry[]): string | null {
   if (row) return resolveRow(named, row.schemas, { type: target, name, owner: row.owner }).entity?.path ?? null;
-  return visibleIn(named, path, model).find((n) => n.type === target && n.name === name)?.path ?? null;
+  return visibleIn(named, path, model, types).find((n) => n.type === target && n.name === name)?.path ?? null;
 }
