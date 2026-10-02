@@ -13,7 +13,10 @@ import type { Connection } from "./cdp.ts";
 import type { Driver } from "./driver.ts";
 
 const ROOT = path.join(import.meta.dirname, "..");
-const FIXTURE = path.join(ROOT, "test", "fixtures", "mental-model");
+const FIXTURES = path.join(ROOT, "test", "fixtures");
+// The instances a suite may start on: the reference instance, and the one that takes a pack.
+export type Fixture = "mental-model" | "pack-instance";
+const fixtureDir = (name: Fixture) => path.join(FIXTURES, name);
 const TERMINAL = path.join(ROOT, "test", "fixtures", "terminal");
 const DEFAULT_BIN = "/Applications/Obsidian.app/Contents/MacOS/Obsidian";
 // Where the plugin's three files are taken from: the working tree, or a folder holding a
@@ -48,8 +51,8 @@ const INSTALLER = process.env.E2E_OBSIDIAN_INSTALLER ?? "latest";
 
 // What will be run, or null where there is nothing to run; a suite asks before it starts and
 // skips on null.
-export function available(): string | null {
-  if (!fs.existsSync(path.join(FIXTURE, ".companygraph"))) return null;
+export function available(fixture: Fixture = "mental-model"): string | null {
+  if (!fs.existsSync(path.join(fixtureDir(fixture), ".companygraph"))) return null;
   if (VERSION) return `Obsidian ${VERSION} from obsidian-launcher`;
   const bin = process.env.OBSIDIAN_BIN ?? DEFAULT_BIN;
   return fs.existsSync(bin) ? bin : null;
@@ -69,10 +72,12 @@ const freePort = () => new Promise<number>((done, fail) => {
 // its plugins, which is where a tab restored before its view is registered shows. That needs the
 // trust dialog, which the installed Obsidian shows; the launcher of another release trusts the
 // vault before it starts, and there the plugins come before the layout.
+// `fixture` names the instance the copy is made of; the reference instance unless a suite needs the one that takes a pack.
 // `terminal` puts the pinned release of the Terminal plugin into the copy and switches it on, as
 // the tooling's `obsidian` does when it is asked for.
-export async function start({ workspace, terminal = false }: { workspace?: string; terminal?: boolean } = {}): Promise<Session> {
-  const bin = available();
+export async function start({ workspace, terminal = false, fixture = "mental-model" }: { workspace?: string; terminal?: boolean; fixture?: Fixture } = {}): Promise<Session> {
+  const FIXTURE = fixtureDir(fixture);
+  const bin = available(fixture);
   if (!bin) throw new Error("Obsidian or the fixture is missing; ask available() first");
   // realpath: macOS hands out /var/… and Obsidian reports /private/var/….
   const home = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "companygraph-e2e-")));

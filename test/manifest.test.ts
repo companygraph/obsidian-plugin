@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { readManifest, guard } from "../src/manifest.ts";
-import { referenceManifest } from "./helpers.ts";
+import { packedManifest, referenceManifest } from "./helpers.ts";
 
 test("the reference instance's manifest names its units folder and its two releases", () => {
   const m = readManifest(referenceManifest());
@@ -19,6 +19,7 @@ test("units defaults to meta, and a missing release is null rather than a guess"
 test("the packs an instance takes are kept, and an instance that takes none has none", () => {
   assert.deepEqual(readManifest('{ "packs": ["software"] }').packs, ["software"]);
   assert.deepEqual(readManifest(referenceManifest()).packs, []);
+  assert.deepEqual(readManifest(packedManifest()).packs, ["software"]);
   assert.deepEqual(readManifest('{ "packs": "software" }').packs, []);
 });
 

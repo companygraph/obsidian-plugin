@@ -7,7 +7,7 @@ import { vocabularyOf } from "../src/vocabulary.ts";
 import { namedOf } from "../src/scope.ts";
 import { deletePlan, referencesTo, renamePlan } from "../src/refactor.ts";
 import type { RenamePlan } from "../src/refactor.ts";
-import { edited, example, EXAMPLE, reference, REFERENCE, whole, withSoftware, WITH_SOFTWARE } from "./helpers.ts";
+import { edited, example, EXAMPLE, reference, REFERENCE, whole, packed, PACKED } from "./helpers.ts";
 
 const setup = (files: Map<string, string>, layout: typeof EXAMPLE) => {
   const named = namedOf(buildModel(whole(files), layout).graph!);
@@ -300,10 +300,10 @@ test("deleting what a question rests on lists the question's row among what woul
 });
 
 test("a bounded context is renamed as the owner it is, with its folder, once the packs' types are known", () => {
-  const files = withSoftware();
-  const s = setup(files, WITH_SOFTWARE);
+  const files = packed();
+  const s = setup(files, PACKED);
   const target = entity(s.named, "bounded-context", "Resolution");
-  const types = typesOf(WITH_SOFTWARE);
+  const types = typesOf(PACKED);
   const plan = renamePlan(s.files, s.paths, s.vocabulary, s.named, s.model, target, "Naming", types);
   assert.ok(!("refused" in plan));
   assert.deepEqual((plan as { moves: unknown[] }).moves, [
