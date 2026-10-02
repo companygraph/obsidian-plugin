@@ -145,9 +145,8 @@ test("a move never overwrites the localization page a vault already has", async 
   assert.ok("writes" in made);
   await carryOut(disk, made.writes, made.removes);
 
-  const own = "---\nid: 01965a3e-0000-7000-8000-000000000000\nsource: Local\n---\n\n# Languages\n\n" +
-    "> Everyone who reads this model, people and agents alike, reads it in American English.\n\n" +
-    "## Locales\n\n| Locale | Role |\n| --- | --- |\n| en-US | primary |\n";
+  const own = "---\nid: 01965a3e-0000-7000-8000-000000000000\nsource: Local\nlocale: de-CH\n---\n\n# Sprache\n\n" +
+    "> Wer dieses Modell liest, liest es auf Deutsch.\n";
   disk.files.set("model/localization.md", own);
 
   const move = await planMove(disk, release);
@@ -155,6 +154,46 @@ test("a move never overwrites the localization page a vault already has", async 
   assert.ok(!move.writes.has("model/localization.md"));
   await carryOut(disk, move.writes, move.removes);
   assert.equal(disk.files.get("model/localization.md"), own);
+});
+
+// meta-model v0.69.0: a model is written in one language, named in `locale`. A vault whose page is
+// still the earlier `## Locales` table has it rewritten once, keeping its id, H1 and statement.
+// meta-model v0.70.0: pins.json is the instance's own once it exists, and the move's plan writes
+// one only where the vault has none. The plan asks whether it is there, so the move has to say.
+test("a move never overwrites the pins.json a vault already has", async () => {
+  const disk = memoryDisk();
+  const made = await planInstance(disk, release, { name: "Acme" });
+  assert.ok("writes" in made);
+  await carryOut(disk, made.writes, made.removes);
+
+  const own = '{\n  "pins": []\n}\n';
+  disk.files.set("pins.json", own);
+  const move = await planMove(disk, release);
+  assert.ok("writes" in move);
+  assert.ok(!move.writes.has("pins.json"));
+  await carryOut(disk, move.writes, move.removes);
+  assert.equal(disk.files.get("pins.json"), own);
+});
+
+test("a move rewrites a localization page in the earlier form into its locale field, once", async () => {
+  const disk = memoryDisk();
+  const made = await planInstance(disk, release, { name: "Acme" });
+  assert.ok("writes" in made);
+  await carryOut(disk, made.writes, made.removes);
+
+  const earlier = "---\nid: 01965a3e-0000-7000-8000-000000000000\nsource: Local\n---\n\n# Languages\n\n" +
+    "> Who reads it.\n\n## Locales\n\n| Locale | Role |\n| --- | --- |\n| en-US | primary |\n";
+  disk.files.set("model/localization.md", earlier);
+
+  const move = await planMove(disk, release);
+  assert.ok("writes" in move);
+  await carryOut(disk, move.writes, move.removes);
+  assert.equal(disk.files.get("model/localization.md"),
+    "---\nid: 01965a3e-0000-7000-8000-000000000000\nsource: Local\nlocale: en-US\n---\n\n# Languages\n\n> Who reads it.\n");
+
+  const again = await planMove(disk, release);
+  assert.ok("writes" in again);
+  assert.ok(!again.writes.has("model/localization.md"));
 });
 
 test("a move gives a vault from before the localization page one, once, with identity's source", async () => {
