@@ -6,6 +6,7 @@ export interface InstanceManifest {
   tooling: string | null;
   coreVersion: string | null;
   units: string;
+  packs: string[];  // the packs the instance took, each vendored at `<units>/<pack>/`
 }
 
 export type Guard =
@@ -21,6 +22,7 @@ export function readManifest(text: string): InstanceManifest {
     tooling: typeof raw.tooling === "string" ? raw.tooling : null,
     coreVersion: typeof raw.core?.version === "string" ? raw.core.version : null,
     units: typeof raw.units === "string" ? raw.units : "meta",
+    packs: Array.isArray(raw.packs) ? raw.packs.filter((p: unknown): p is string => typeof p === "string") : [],
   };
 }
 

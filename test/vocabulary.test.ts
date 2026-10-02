@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { schemasOf } from "../src/model.ts";
 import { vocabularyOf } from "../src/vocabulary.ts";
 import { ownerTypesOf } from "companygraph-meta-model/instance";
-import { example, EXAMPLE } from "./helpers.ts";
+import { example, EXAMPLE, withSoftware, WITH_SOFTWARE } from "./helpers.ts";
 
 const vocabulary = vocabularyOf(schemasOf(example(), EXAMPLE));
 
@@ -81,4 +81,16 @@ test("a `by` with no `in` leaves the owner column a string, and a `by` on a fiel
   assert.ok(rests.columns![1].offer.kind === "by" && rests.columns![1].offer.in === null);
   const field = vocabularyOf(new Map(schemas).set("question-schema.md", question.replace("| `source-id` | No | string |", "| `source-id` | No | ref → by Type |")));
   assert.deepEqual(field.get("question")!.fields.find((f) => f.name === "source-id")!.offer, { kind: "none" });
+});
+
+test("a pack's type is in the vocabulary beside core's, named by its type and not by its unit", () => {
+  const packed = vocabularyOf(schemasOf(withSoftware(), WITH_SOFTWARE));
+  const context = packed.get("bounded-context")!;
+  assert.ok(context);
+  assert.ok(context.fields.some((f) => f.name === "classification"));
+  assert.ok(packed.has("skill"));
+  assert.ok([...packed.keys()].every((k) => !k.includes("/")));
+  // Core's vocabulary is the same with the pack beside it.
+  assert.deepEqual(packed.get("skill"), vocabulary.get("skill") && packed.get("skill"));
+  assert.ok(!vocabulary.has("bounded-context"));
 });

@@ -6,7 +6,7 @@
 // that is no instance, gets a line saying so and nothing else.
 import { ItemView, MarkdownView, setIcon } from "obsidian";
 import type { WorkspaceLeaf } from "obsidian";
-import { typeOfPath } from "companygraph-meta-model/checks";
+import { schemaKeyOf, typeOf } from "./model.ts";
 import type CompanyGraphPlugin from "./main.ts";
 import { briefOf, lineOf, placeAt } from "./brief.ts";
 import type { Part, Rule, Target } from "./brief.ts";
@@ -44,8 +44,9 @@ export class BriefPane extends ItemView {
   show(path: string | null, lines: string[], line: number) {
     const layout = this.plugin.layout;
     if (!layout) return this.say("This vault is not a CompanyGraph instance.");
-    const type = path && path.startsWith(`${layout.model}/`) ? typeOfPath(path, layout.model) : null;
-    const schema = type ? this.plugin.schemas.get(`${type}-schema.md`) : undefined;
+    const type = path && path.startsWith(`${layout.model}/`) ? typeOf(path, layout) : null;
+    const schemaKey = type ? schemaKeyOf(type, layout) : null;
+    const schema = schemaKey ? this.plugin.schemas.get(schemaKey) : undefined;
     if (!path || !type || !schema) return this.say("Put the cursor in an entity's note.");
     const place = placeAt(lines, line);
     if (!place) return this.say(`A ${type}: the cursor is on the frontmatter's fence.`);

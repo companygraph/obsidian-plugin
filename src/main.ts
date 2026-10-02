@@ -7,7 +7,7 @@ import type { Debouncer } from "obsidian";
 import { EditorView as EditorViewClass } from "@codemirror/view";
 import type { EditorView } from "@codemirror/view";
 import { guard } from "./manifest.ts";
-import { buildModel, textOf } from "./model.ts";
+import { buildModel, concerns, textOf } from "./model.ts";
 import { namedOf } from "./scope.ts";
 import { linksOf, merge, mergePath, rename } from "./links.ts";
 import type { Added, Links } from "./links.ts";
@@ -19,7 +19,7 @@ import { locate } from "./locate.ts";
 import type { Located } from "./locate.ts";
 import { vocabularyOf } from "./vocabulary.ts";
 import type { TypeVocabulary } from "./vocabulary.ts";
-import { concerns, loadManifest, readInstance } from "./vault.ts";
+import { loadManifest, readInstance } from "./vault.ts";
 import { Pane, VIEW_TYPE } from "./pane.ts";
 import { REFERENCES_VIEW, RefsPane, openMention, renderReferences } from "./refspane.ts";
 import { referencesFor } from "./refs.ts";
@@ -666,7 +666,11 @@ export default class CompanyGraphPlugin extends Plugin {
       this.relink();
       return this.show(IDLE);
     }
-    this.layout = { core: `${manifest.units}/core`, model: "model" };
+    this.layout = {
+      core: `${manifest.units}/core`,
+      model: "model",
+      packs: manifest.packs.map((name) => ({ name, dir: `${manifest.units}/${name}` })),
+    };
     const verdict = guard(manifest, __CHECKER_VERSION__);
     if (verdict.kind === "refuse") {
       this.links = {};

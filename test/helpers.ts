@@ -52,3 +52,37 @@ export function edited(files: Map<string, string>, file: string, change: (text: 
   next.set(file, change(next.get(file)!));
   return next;
 }
+
+// The reference instance taking the software pack: the pack's schemas from the meta-model
+// fixture under `meta/software/`, beside core, and one bounded context in the model. The layout
+// is what src/main.ts builds from a manifest that lists `"packs": ["software"]`.
+export const WITH_SOFTWARE = { ...REFERENCE, packs: [{ name: "software", dir: "meta/software" }] };
+export const CONTEXT = "model/bounded-contexts/resolution/resolution.md";
+export function withSoftware(): Map<string, string> {
+  const files = reference();
+  const pack = path.join(FIXTURES, "meta-model", "packs", "software");
+  for (const entry of fs.readdirSync(pack)) files.set(`meta/software/${entry}`, fs.readFileSync(path.join(pack, entry), "utf8"));
+  files.set(
+    CONTEXT,
+    [
+      "---",
+      "id: 01a0f94d-f9e9-70c4-a498-9e19505fd58e",
+      "source: Local",
+      "classification: core",
+      "---",
+      "",
+      "# Resolution",
+      "",
+      "> Turns a name into the one entity it means, and leaves how a question is answered to the chat.",
+      "",
+      "## Responsibilities",
+      "",
+      "- Resolve a name to an entity",
+      "",
+    ].join("\n"),
+  );
+  // The context's own folders: the structure check wants each nested type's folder present.
+  for (const folder of ["concept-designs", "aggregates", "domain-events"])
+    files.set(`model/bounded-contexts/resolution/${folder}/README.md`, `# ${folder}\n`);
+  return files;
+}

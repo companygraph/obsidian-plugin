@@ -1,11 +1,35 @@
 // One rebuild: the checks over the whole map, then the parse. Pure.
-import { checkInstance } from "companygraph-meta-model/checks";
+import { checkInstance, typeOfPath, vocabularyOf } from "companygraph-meta-model/checks";
 import { parseInstance } from "companygraph-meta-model/instance";
 import type { Graph } from "companygraph-meta-model/instance";
 
 export interface Layout {
   core: string;   // where the vendored schemas sit, e.g. "meta/core"
   model: string;  // the container, e.g. "model"
+  packs?: Pack[]; // the packs the instance took; none where absent
+}
+
+// A pack beside core: its name and the folder its schemas are vendored in, e.g. "meta/software".
+export interface Pack {
+  name: string;
+  dir: string;
+}
+
+// Whether a file is one the checks and the parser read: the container, core, or a pack's folder.
+export const concerns = (path: string, layout: Layout) =>
+  path.startsWith(layout.model + "/") ||
+  path.startsWith(layout.core + "/") ||
+  (layout.packs ?? []).some((p) => path.startsWith(p.dir + "/"));
+
+// The type of a note by its path, with the packs' types beside core's.
+export const typeOf = (path: string, layout: Layout): string | null =>
+  typeOfPath(path, layout.model, vocabularyOf({ core: layout.core, packs: layout.packs }).types);
+
+// The key a type's schema sits under in `schemasOf`: bare for core's, `<pack>/` for a pack's.
+export function schemaKeyOf(type: string, layout: Layout): string | null {
+  const entry = vocabularyOf({ core: layout.core, packs: layout.packs }).types.find((t) => t.type === type);
+  if (!entry) return null;
+  return entry.unit === "core" ? `${type}-schema.md` : `${entry.unit}/${type}-schema.md`;
 }
 
 // The vault as the checks take it: a path to its text, or to its bytes where the file is an
@@ -32,6 +56,12 @@ export function schemasOf(files: Files, layout: Layout): Map<string, string> {
   const prefix = layout.core + "/";
   for (const [path, text] of files)
     if (typeof text === "string" && path.startsWith(prefix) && path.endsWith("-schema.md")) schemas.set(path.slice(prefix.length), text);
+  // A pack's schemas are keyed `<pack>/<file>`, which is how the parser addresses them.
+  for (const pack of layout.packs ?? []) {
+    const dir = pack.dir + "/";
+    for (const [path, text] of files)
+      if (typeof text === "string" && path.startsWith(dir) && path.endsWith("-schema.md")) schemas.set(`${pack.name}/${path.slice(dir.length)}`, text);
+  }
   return schemas;
 }
 

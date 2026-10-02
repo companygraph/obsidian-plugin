@@ -3,6 +3,7 @@ import type { App } from "obsidian";
 import { IMAGE_FILE } from "companygraph-meta-model/instance";
 import { readManifest } from "./manifest.ts";
 import type { InstanceManifest } from "./manifest.ts";
+import { concerns } from "./model.ts";
 import type { Files, Layout } from "./model.ts";
 
 export const MANIFEST = ".companygraph/manifest.json";
@@ -18,9 +19,6 @@ export async function loadManifest(app: App): Promise<InstanceManifest | null> {
   if (!(await app.vault.adapter.exists(MANIFEST))) return null;
   return readManifest(await app.vault.adapter.read(MANIFEST));
 }
-
-export const concerns = (path: string, layout: Layout) =>
-  path.startsWith(layout.model + "/") || path.startsWith(layout.core + "/");
 
 export async function readInstance(app: App, layout: Layout): Promise<Files> {
   const files: Files = new Map();
