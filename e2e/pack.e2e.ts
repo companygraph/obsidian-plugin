@@ -6,9 +6,9 @@ import assert from "node:assert/strict";
 import { available, start } from "./obsidian.ts";
 import type { Session } from "./obsidian.ts";
 import { mentionsOf, openNote } from "./notes.ts";
-import { command, waitForChecks } from "./ui.ts";
+import { command, modalText, noModal, waitForChecks, waitForModal } from "./ui.ts";
 
-const skip = available("pack-instance") ? false : "Obsidian is not installed here; set OBSIDIAN_BIN to run this suite";
+const skip = available("pack-instance") ? false : "Obsidian or the pack fixture is missing; set OBSIDIAN_BIN, and run npm test once to fetch the fixtures";
 const CONTEXT = "model/bounded-contexts/resolution/resolution.md";
 const EDGE = "model/bounded-contexts/resolution/concept-designs/edge.md";
 const DECLARATION = "model/bounded-contexts/resolution/concept-designs/declaration.md";
@@ -69,5 +69,26 @@ describe("an instance that takes the software pack", { skip }, () => {
     assert.ok(under.some((m) => m.path === EDGE && m.declared === "refines"));
     const underDeclaration = await mentionsOf(ui, DECLARATION);
     assert.ok(underDeclaration.some((m) => m.path === EDGE && m.declared.includes("Concept")));
+  });
+
+  test("Move this vault's core plans the move of a pack vault and does not take the pack's files for foreign ones", async () => {
+    const { ui } = session;
+    // As the release before this one left the vault: the pack's aggregate schema not there, on disk
+    // or in the manifest, so that the move has one file of the pack's to write.
+    await ui.evaluate(async () => {
+      const manifest = ".companygraph/manifest.json";
+      const was = JSON.parse(await app.vault.adapter.read(manifest));
+      delete was.files["meta/software/aggregate-schema.md"];
+      await app.vault.adapter.write(manifest, `${JSON.stringify(was, null, 2)}\n`);
+      await app.vault.adapter.remove("meta/software/aggregate-schema.md");
+    });
+    await command(ui, "move-core");
+    await waitForModal(ui, "Move this vault's core");
+    await ui.waitFor("the plan to be shown", () => /Writes /.test(document.querySelector<HTMLElement>(".modal .modal-content")?.innerText ?? "") || null);
+    const shown = await modalText(ui);
+    assert.doesNotMatch(shown, /nothing was trusted/);
+    assert.match(shown, /meta\/software\/aggregate-schema\.md/);
+    await ui.press("Escape");
+    await noModal(ui);
   });
 });

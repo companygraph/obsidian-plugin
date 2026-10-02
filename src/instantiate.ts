@@ -19,6 +19,7 @@ export interface Disk {
 export interface Release {
   version: string;
   core: Record<string, string>;
+  packs: Record<string, Record<string, string>>; // each pack the release ships, by name
   skills: Record<string, string>;
 }
 
@@ -93,8 +94,17 @@ export async function planMove(disk: Disk, release: Release, force = false): Pro
   // vault already holds with a fresh id every time it moved core).
   for (const path of ["model/identity.md", "model/localization.md"])
     if (await disk.exists(path)) held.set(path, await disk.read(path));
+  // The packs the instance took move with its core. One this release does not ship cannot be
+  // moved by it, and is refused by name rather than read as foreign files.
+  const listed: string[] = Array.isArray(manifest.packs) ? manifest.packs : [];
+  const unknown = listed.filter((name) => !Object.hasOwn(release.packs, name));
+  if (unknown.length)
+    return {
+      refused: `This vault takes ${unknown.length === 1 ? "the pack" : "the packs"} ${unknown.join(", ")}, which release ${release.version} does not ship; it ships ${Object.keys(release.packs).join(", ") || "none"}. Take a plugin release that ships ${unknown.length === 1 ? "it" : "them"}, or move the core with the command line.`,
+    };
   const plan = upgradePlan({
     core: asMap(release.core),
+    packs: new Map(listed.map((name) => [name, asMap(release.packs[name])])),
     skills: asMap(release.skills),
     tooling: release.version,
     tag: `v${release.version}`,
