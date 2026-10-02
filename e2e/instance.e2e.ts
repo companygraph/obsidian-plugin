@@ -10,8 +10,10 @@ import { clearNotices, command, intoField, modalText, noModal, onDisk, pressButt
 
 const skip = available() ? false : "Obsidian is not installed here; set OBSIDIAN_BIN to run this suite";
 const MANIFEST = ".companygraph/manifest.json";
-// The reference instance keeps skills of its own under the names the tooling writes, and its
-// manifest records none of them: a move must leave them as they are.
+// A vault whose manifest records none of the tooling's skills, and which keeps skills of its own
+// under the names the tooling writes, wrote them itself: a move must leave them as they are. The
+// reference instance has since taken the tooling's skills, and its manifest records them, so the
+// test makes the copy that vault: no skill recorded, and the validate skill its own text.
 const OWN_SKILL = ".claude/skills/companygraph-validate/SKILL.md";
 
 describe("making an instance and moving its core", { skip }, () => {
@@ -26,16 +28,18 @@ describe("making an instance and moving its core", { skip }, () => {
     // a core or two behind it. Either way the copy is set back to an older release, as that release
     // left an instance: the manifest and the workflow name 0.46.1 and core 0.40.0, and the kpi
     // schema 0.41.0 added is not there, on disk or in the manifest.
-    await ui.evaluate(async (manifest: string) => {
+    await ui.evaluate(async (manifest: string, skill: string) => {
       const was = JSON.parse(await app.vault.adapter.read(manifest));
       was.tooling = "0.46.1";
       was.core.version = "0.40.0";
       delete was.files["meta/core/kpi-schema.md"];
+      for (const path of Object.keys(was.files)) if (path.startsWith(".claude/skills/")) delete was.files[path];
+      await app.vault.adapter.write(skill, "---\nname: companygraph-validate\ndescription: This vault's own way of validating.\n---\n\nRun the vault's own checks.\n");
       await app.vault.adapter.write(manifest, `${JSON.stringify(was, null, 2)}\n`);
       await app.vault.adapter.remove("meta/core/kpi-schema.md");
       const workflow = ".github/workflows/companygraph.yml";
       await app.vault.adapter.write(workflow, (await app.vault.adapter.read(workflow)).replace(/instance-check\.yml@v[0-9.]+/, "instance-check.yml@v0.46.1"));
-    }, [MANIFEST]);
+    }, [MANIFEST, OWN_SKILL]);
     const own = await onDisk(ui, OWN_SKILL);
     const before = JSON.parse((await onDisk(ui, MANIFEST))!);
     await command(ui, "move-core");
