@@ -112,6 +112,9 @@ export async function planMove(disk: Disk, release: Release, force = false): Pro
     held,
     workflow: (await disk.exists(WORKFLOW)) ? await disk.read(WORKFLOW) : null,
     force,
+    // pins.json is the vault's own once it exists, and the plan writes one only where there is
+    // none; whether it is there is all the plan asks, as companygraph's own `upgrade` tells it.
+    present: new Set((await disk.exists("pins.json")) ? ["pins.json"] : []),
   });
   if (!("writes" in plan)) return { refused: plan.refused };
   return { writes: plan.writes, removes: plan.removes, from: plan.from, to: plan.to, edited: plan.edited };
