@@ -2,10 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { checkInstance } from "companygraph-meta-model/checks";
 import { UUIDV7 } from "companygraph-meta-model/ids";
-import { schemasOf } from "../src/model.ts";
+import { schemasOf, typesOf } from "../src/model.ts";
 import { vocabularyOf } from "../src/vocabulary.ts";
 import { scaffoldOf, targetsFor } from "../src/scaffold.ts";
-import { example, EXAMPLE, reference, REFERENCE, whole } from "./helpers.ts";
+import { example, EXAMPLE, reference, REFERENCE, whole, PACKED } from "./helpers.ts";
 
 const vocabulary = vocabularyOf(schemasOf(example(), EXAMPLE));
 const MODEL = "model";
@@ -227,4 +227,17 @@ test("a scaffolded page passes R18, and under a pattern once its author writes t
   assert.equal(r18(files).length, 1, "a blank id fails until it is written");
   files.set(path, patterned.text.replace(/^id:$/m, "id: SK-0001"));
   assert.deepEqual(r18(files), []);
+});
+
+test("New entity offers a pack's types where they sit: a context anywhere, its owned types only inside one", () => {
+  const types = typesOf(PACKED);
+  const outside = targetsFor("model", "model/skills/x.md", () => false, types).map((t) => t.type);
+  assert.ok(outside.includes("bounded-context"));
+  assert.ok(!outside.includes("aggregate"));
+  const inside = targetsFor("model", "model/bounded-contexts/resolution/resolution.md", () => false, types);
+  assert.ok(inside.some((t) => t.type === "aggregate" && t.where === "model/bounded-contexts/resolution/aggregates/"));
+  const context = targetsFor("model", null, () => false, types).find((t) => t.type === "bounded-context")!;
+  assert.match(context.owes ?? "", /first concept-design/);
+  // A vault that takes no pack is offered none of them.
+  assert.ok(!targetsFor("model", null, () => false).some((t) => t.type === "bounded-context"));
 });

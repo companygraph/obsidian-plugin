@@ -4,7 +4,7 @@ import { buildModel, namesByType, schemasOf, typeOf, typesOf } from "../src/mode
 import { vocabularyOf } from "../src/vocabulary.ts";
 import { absentFields, candidatesFor, cursorAfter, entersThrough, propertyCandidates } from "../src/candidates.ts";
 import { namedOf, namesIn } from "../src/scope.ts";
-import { example, EXAMPLE, packed, PACKED, CONTEXT, whole } from "./helpers.ts";
+import { example, EXAMPLE, packed, PACKED, CONTEXT, whole, wholePacked } from "./helpers.ts";
 
 const files = example();
 const vocabulary = vocabularyOf(schemasOf(files, EXAMPLE));
@@ -242,7 +242,7 @@ test("a pack note is completed from its pack schema, and an owned type's names s
   const pv = vocabularyOf(schemasOf(notes, PACKED));
   const type = typeOf(CONTEXT, PACKED)!;
   assert.equal(type, "bounded-context");
-  const pnames = namesByType(buildModel(whole(notes), PACKED).graph!);
+  const pnames = namesByType(buildModel(wholePacked(notes), PACKED).graph!);
   const value = candidatesFor({ kind: "value", field: "realizes", typed: "co", start: 4, item: true, glued: false }, pv.get(type)!, pnames, []);
   assert.deepEqual(labels(value), ["Core"]);
   const enumValue = candidatesFor({ kind: "value", field: "classification", typed: "", start: 16, item: false, glued: false }, pv.get(type)!, pnames, []);

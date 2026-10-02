@@ -31,9 +31,9 @@ function readTree(root: string, folders: string[], pictures = PICTURES): Map<str
 // A map of notes as the vault's reader hands it to the checks: the text, and each picture the
 // fixtures hold as bytes (R9). What asserts that no check fails reads this, since a profile
 // that names a picture fails without the file.
-// A map that holds the pack instance's bounded context gets that instance's pictures.
-export const whole = (text: Map<string, string>): Files =>
-  new Map<string, string | Uint8Array>([...text, ...(text.has(CONTEXT) ? PACKED_PICTURES : PICTURES)]);
+export const whole = (text: Map<string, string>): Files => new Map<string, string | Uint8Array>([...text, ...PICTURES]);
+// The same for the pack instance, whose pictures are its own.
+export const wholePacked = (text: Map<string, string>): Files => new Map<string, string | Uint8Array>([...text, ...PACKED_PICTURES]);
 
 // Where a fixture keeps its schemas and its container: the shape src/model.ts calls a Layout.
 // The meta-model's worked example: a valid instance, core at the repository root.

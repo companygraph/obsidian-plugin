@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { uuidv7 } from "companygraph-meta-model/ids";
 import { buildModel, concerns, namesByType, schemaKeyOf, schemasOf, typeOf } from "../src/model.ts";
-import { example, EXAMPLE, reference, REFERENCE, edited, whole, packed, PACKED, CONTEXT } from "./helpers.ts";
+import { example, EXAMPLE, reference, REFERENCE, edited, whole, wholePacked, packed, PACKED, CONTEXT } from "./helpers.ts";
 
 const ROLE = "example/model/roles/backend-engineer.md";
 
@@ -126,12 +126,12 @@ test("the pack's schemas are read beside core's, under a key that names the pack
 });
 
 test("an instance with a bounded context passes the checks with its packs and fails without them", () => {
-  const files = whole(packed());
+  const files = wholePacked(packed());
   const taken = buildModel(files, PACKED);
   assert.deepEqual(taken.failures, []);
   assert.ok(taken.graph?.entities.some((e) => e.type === "bounded-context" && e.name === "Resolution"));
   const without = buildModel(files, REFERENCE);
-  assert.ok(without.failures.length > 0);
+  assert.ok(without.failures.some((f) => f.includes("bounded-contexts")), without.failures.join("\n"));
 });
 
 test("an instance that takes no pack is read as before", () => {

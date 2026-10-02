@@ -2,7 +2,7 @@
 import { checkInstance, typeOfPath, vocabularyOf } from "companygraph-meta-model/checks";
 import { parseInstance } from "companygraph-meta-model/instance";
 import type { Graph } from "companygraph-meta-model/instance";
-import type { TypeEntry } from "companygraph-meta-model/checks";
+import type { VocabularyEntry } from "companygraph-meta-model/checks";
 
 export interface Layout {
   core: string;   // where the vendored schemas sit, e.g. "meta/core"
@@ -23,14 +23,21 @@ export const concerns = (path: string, layout: Layout) =>
   (layout.packs ?? []).some((p) => path.startsWith(p.dir + "/"));
 
 // Every type the instance has: core's and its packs', each with the folder or file it sits at.
-export const typesOf = (layout: Layout): TypeEntry[] => vocabularyOf({ core: layout.core, packs: layout.packs }).types;
+// Read on every keypress and every decoration pass, so it is kept for the layout it was read for;
+// a new layout, which a rebuild makes, is read again.
+const TYPES_OF = new WeakMap<Layout, VocabularyEntry[]>();
+export function typesOf(layout: Layout): VocabularyEntry[] {
+  let types = TYPES_OF.get(layout);
+  if (!types) TYPES_OF.set(layout, (types = vocabularyOf({ core: layout.core, packs: layout.packs }).types));
+  return types;
+}
 
 // The type of a note by its path, with the packs' types beside core's.
 export const typeOf = (path: string, layout: Layout): string | null => typeOfPath(path, layout.model, typesOf(layout));
 
 // The key a type's schema sits under in `schemasOf`: bare for core's, `<pack>/` for a pack's.
 export function schemaKeyOf(type: string, layout: Layout): string | null {
-  const entry = vocabularyOf({ core: layout.core, packs: layout.packs }).types.find((t) => t.type === type);
+  const entry = typesOf(layout).find((t) => t.type === type);
   if (!entry) return null;
   return entry.unit === "core" ? `${type}-schema.md` : `${entry.unit}/${type}-schema.md`;
 }
