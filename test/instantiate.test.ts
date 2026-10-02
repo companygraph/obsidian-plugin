@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { checkInstance } from "companygraph-meta-model/checks";
-import { carryOut, folderChoices, planInstance, planMove, present } from "../src/instantiate.ts";
+import { carryOut, folderChoices, moveScope, planInstance, planMove, present } from "../src/instantiate.ts";
 import type { Disk, Release } from "../src/instantiate.ts";
 import { sha256Hex } from "../src/sha256.ts";
 import { UUIDV7 } from "companygraph-meta-model/ids";
@@ -194,6 +194,39 @@ test("a move rewrites a localization page in the earlier form into its locale fi
   const again = await planMove(disk, release);
   assert.ok("writes" in again);
   assert.ok(!again.writes.has("model/localization.md"));
+});
+
+test("a move that rewrites the localization page says so, and does not call the model untouched", async () => {
+  const disk = memoryDisk();
+  const made = await planInstance(disk, release, { name: "Acme" });
+  assert.ok("writes" in made);
+  await carryOut(disk, made.writes, made.removes);
+  const plain = await planMove(disk, release);
+  assert.ok("writes" in plain);
+  assert.equal(moveScope(plain),
+    "Only the vendored core, the skills the tooling installed, the manifest and the workflow's tag move. The model is not touched.");
+
+  disk.files.set("model/localization.md", "---\nid: 01965a3e-0000-7000-8000-000000000000\nsource: Local\n---\n\n# Languages\n\n" +
+    "> Who reads it.\n\n## Locales\n\n| Locale | Role |\n| --- | --- |\n| en-US | primary |\n");
+  const move = await planMove(disk, release);
+  assert.ok("writes" in move);
+  const said = moveScope(move);
+  assert.match(said, /model\/localization\.md is rewritten into the form core [0-9.]+ reads\./);
+  assert.doesNotMatch(said, /The model is not touched/);
+  assert.match(said, /Nothing else in the model is touched\.$/);
+});
+
+test("a move that gives the vault a localization page says so, and does not call the model untouched", async () => {
+  const disk = memoryDisk();
+  const made = await planInstance(disk, release, { name: "Acme" });
+  assert.ok("writes" in made);
+  await carryOut(disk, made.writes, made.removes);
+  disk.files.delete("model/localization.md");
+  const move = await planMove(disk, release);
+  assert.ok("writes" in move);
+  const said = moveScope(move);
+  assert.match(said, /model\/localization\.md is written, as the vault has none yet\./);
+  assert.doesNotMatch(said, /The model is not touched/);
 });
 
 test("a move gives a vault from before the localization page one, once, with identity's source", async () => {

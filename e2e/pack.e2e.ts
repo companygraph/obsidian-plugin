@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { available, start } from "./obsidian.ts";
 import type { Session } from "./obsidian.ts";
 import { mentionsOf, openNote } from "./notes.ts";
-import { command, modalText, noModal, waitForChecks, waitForModal } from "./ui.ts";
+import { command, modalText, noModal, onDisk, pressButton, shownInPlan, waitForChecks, waitForModal, waitForNotice } from "./ui.ts";
 
 const skip = available("pack-instance") ? false : "Obsidian or the pack fixture is missing; set OBSIDIAN_BIN, and run npm test once to fetch the fixtures";
 const CONTEXT = "model/bounded-contexts/resolution/resolution.md";
@@ -71,7 +71,7 @@ describe("an instance that takes the software pack", { skip }, () => {
     assert.ok(underDeclaration.some((m) => m.path === EDGE && m.declared.includes("Concept")));
   });
 
-  test("Move this vault's core plans the move of a pack vault and does not take the pack's files for foreign ones", async () => {
+  test("Move this vault's core moves a pack vault and does not take the pack's files for foreign ones", async () => {
     const { ui } = session;
     // As the release before this one left the vault: the pack's aggregate schema not there, on disk
     // or in the manifest, so that the move has one file of the pack's to write.
@@ -87,8 +87,15 @@ describe("an instance that takes the software pack", { skip }, () => {
     await ui.waitFor("the plan to be shown", () => /Writes /.test(document.querySelector<HTMLElement>(".modal .modal-content")?.innerText ?? "") || null);
     const shown = await modalText(ui);
     assert.doesNotMatch(shown, /nothing was trusted/);
-    assert.match(shown, /meta\/software\/aggregate-schema\.md/);
-    await ui.press("Escape");
+    assert.match(shown, shownInPlan("meta/software/aggregate-schema.md"));
+    // The plan shows the aggregate schema inside its folder's count; that the move writes it, and
+    // the manifest records it as the pack's, is read once the move is made.
+    await pressButton(ui, "Move it");
     await noModal(ui);
+    await waitForNotice(ui, "^Core ");
+    assert.ok(await onDisk(ui, "meta/software/aggregate-schema.md"), "the move wrote the pack's aggregate schema");
+    const after = JSON.parse((await onDisk(ui, ".companygraph/manifest.json"))!);
+    assert.ok(after.files["meta/software/aggregate-schema.md"], "the manifest records the aggregate schema");
+    await waitForChecks(ui, "the moved pack vault to be checked", "none");
   });
 });

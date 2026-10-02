@@ -6,12 +6,14 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { available, start } from "./obsidian.ts";
 import type { Session } from "./obsidian.ts";
-import { clearNotices, command, intoField, modalText, noModal, onDisk, pressButton, waitForChecks, waitForModal, waitForNotice } from "./ui.ts";
+import { clearNotices, command, intoField, modalText, noModal, onDisk, pressButton, shownInPlan, waitForChecks, waitForModal, waitForNotice } from "./ui.ts";
 
 const skip = available() ? false : "Obsidian is not installed here; set OBSIDIAN_BIN to run this suite";
 const MANIFEST = ".companygraph/manifest.json";
-// The reference instance keeps skills of its own under the names the tooling writes, and its
-// manifest records none of them: a move must leave them as they are.
+// A vault whose manifest records none of the tooling's skills, and which keeps skills of its own
+// under the names the tooling writes, wrote them itself: a move must leave them as they are. The
+// reference instance has since taken the tooling's skills, and its manifest records them, so the
+// test makes the copy that vault: no skill recorded, and the validate skill its own text.
 const OWN_SKILL = ".claude/skills/companygraph-validate/SKILL.md";
 
 describe("making an instance and moving its core", { skip }, () => {
@@ -22,20 +24,22 @@ describe("making an instance and moving its core", { skip }, () => {
 
   test("Move this vault's core says what it will write, moves the pins, and leaves the vault's own skills", async () => {
     const { ui } = session;
-    // The fixture is already on the core this build carries, and a vault on it has nothing to
-    // move. The copy is set back to the release before it, as that release left an instance: the
-    // manifest and the workflow name 0.46.1 and core 0.40.0, and the kpi schema 0.41.0 added is
-    // not there, on disk or in the manifest.
-    await ui.evaluate(async (manifest: string) => {
+    // The fixture may be on the core this build carries, and a vault on it has nothing to move, or
+    // a core or two behind it. Either way the copy is set back to an older release, as that release
+    // left an instance: the manifest and the workflow name 0.46.1 and core 0.40.0, and the kpi
+    // schema 0.41.0 added is not there, on disk or in the manifest.
+    await ui.evaluate(async (manifest: string, skill: string) => {
       const was = JSON.parse(await app.vault.adapter.read(manifest));
       was.tooling = "0.46.1";
       was.core.version = "0.40.0";
       delete was.files["meta/core/kpi-schema.md"];
+      for (const path of Object.keys(was.files)) if (path.startsWith(".claude/skills/")) delete was.files[path];
+      await app.vault.adapter.write(skill, "---\nname: companygraph-validate\ndescription: This vault's own way of validating.\n---\n\nRun the vault's own checks.\n");
       await app.vault.adapter.write(manifest, `${JSON.stringify(was, null, 2)}\n`);
       await app.vault.adapter.remove("meta/core/kpi-schema.md");
       const workflow = ".github/workflows/companygraph.yml";
       await app.vault.adapter.write(workflow, (await app.vault.adapter.read(workflow)).replace(/instance-check\.yml@v[0-9.]+/, "instance-check.yml@v0.46.1"));
-    }, [MANIFEST]);
+    }, [MANIFEST, OWN_SKILL]);
     const own = await onDisk(ui, OWN_SKILL);
     const before = JSON.parse((await onDisk(ui, MANIFEST))!);
     await command(ui, "move-core");
@@ -44,12 +48,19 @@ describe("making an instance and moving its core", { skip }, () => {
     const shown = await modalText(ui);
     assert.match(shown, /\.companygraph\/manifest\.json/);
     assert.match(shown, /Core 0\.40\.0 → /);
-    assert.match(shown, /meta\/core\/kpi-schema\.md/);
+    assert.match(shown, shownInPlan("meta/core/kpi-schema.md"));
+    // The reference instance's localization page is in the form before one language per model, so
+    // the move rewrites it, and the plan says so rather than that the model is not touched.
+    assert.match(shown, /model\/localization\.md is rewritten into the form core [0-9.]+ reads\./);
+    assert.doesNotMatch(shown, /The model is not touched/);
     await pressButton(ui, "Move it");
     await noModal(ui);
     await waitForNotice(ui, "^Core ");
     const after = JSON.parse((await onDisk(ui, MANIFEST))!);
     assert.notEqual(after.tooling, before.tooling, "the manifest names this build's release");
+    // The plan shows the kpi schema inside its folder's count; that the move wrote it is read here.
+    assert.ok(await onDisk(ui, "meta/core/kpi-schema.md"), "the move wrote the kpi schema");
+    assert.ok(after.files["meta/core/kpi-schema.md"], "the manifest records the kpi schema");
     assert.match((await onDisk(ui, ".github/workflows/companygraph.yml"))!, new RegExp(`instance-check\\.yml@v${after.tooling.replace(/\./g, "\\.")}`));
     assert.equal(await onDisk(ui, OWN_SKILL), own, "a skill the manifest never recorded is the vault's own");
     await waitForChecks(ui, "the moved instance to be checked", "none");

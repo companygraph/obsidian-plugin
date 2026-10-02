@@ -25,6 +25,15 @@ export const pick = (ui: Driver, starts: string) =>
 export const waitForModal = (ui: Driver, title: string) =>
   ui.waitFor(`a modal titled ${title}`, (want: string) => (document.querySelector<HTMLElement>(".modal .modal-title")?.innerText.trim() === want ? want : null), [title]);
 export const modalText = (ui: Driver) => ui.evaluate(() => document.querySelector<HTMLElement>(".modal .modal-content")?.innerText ?? "");
+// A path as a plan's "Writes …" line shows it: by its whole path where it is alone in its folder,
+// and as its folder and a count, `meta/core (8)`, where the plan writes others beside it. How many
+// the plan writes there moves with every core the fixture falls behind, so the count is any.
+export const shownInPlan = (path: string) => {
+  const parts = path.split("/");
+  const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const group = parts.slice(0, Math.min(2, parts.length - 1)).join("/");
+  return new RegExp(`Writes (?:.*, )?(?:${escape(path)}|${escape(group)} \\(\\d+\\))(?:,|\\.\\n)`);
+};
 export const pressButton = (ui: Driver, label: string) =>
   ui.click((text: string) => Array.from(document.querySelectorAll<HTMLElement>(".modal button")).find((b) => b.innerText.trim() === text), [label]);
 // The text field of a modal's setting, by the setting's name, clicked so that typing goes there.

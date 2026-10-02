@@ -51,7 +51,7 @@ const asMap = (record: Record<string, string>) => new Map(Object.entries(record)
 
 export type Outcome =
   | { refused: string }
-  | { writes: Map<string, string>; removes: string[]; from?: string; to?: string; edited?: string[] };
+  | { writes: Map<string, string>; removes: string[]; from?: string; to?: string; edited?: string[]; given?: string[]; rewritten?: string[] };
 
 export async function planInstance(
   disk: Disk,
@@ -117,7 +117,22 @@ export async function planMove(disk: Disk, release: Release, force = false): Pro
     present: new Set((await disk.exists("pins.json")) ? ["pins.json"] : []),
   });
   if (!("writes" in plan)) return { refused: plan.refused };
-  return { writes: plan.writes, removes: plan.removes, from: plan.from, to: plan.to, edited: plan.edited };
+  return { writes: plan.writes, removes: plan.removes, from: plan.from, to: plan.to, edited: plan.edited, given: plan.given, rewritten: plan.rewritten };
+}
+
+// What a move touches beyond its own files, said from the plan rather than assumed: the files it
+// gives a vault that has none of them, the pages it rewrites into the form the new core reads,
+// and whether the model is left as it is. Where the plan does neither, the model is not touched.
+export function moveScope(plan: { to?: string; given?: string[]; rewritten?: string[] }): string {
+  const given = plan.given ?? [];
+  const rewritten = plan.rewritten ?? [];
+  const are = (paths: string[]) => (paths.length === 1 ? "is" : "are");
+  const said = ["Only the vendored core, the skills the tooling installed, the manifest and the workflow's tag move."];
+  if (given.length) said.push(`${given.join(", ")} ${are(given)} written, as the vault has none yet.`);
+  if (rewritten.length) said.push(`${rewritten.join(", ")} ${are(rewritten)} rewritten into the form core ${plan.to} reads.`);
+  const inModel = [...given, ...rewritten].some((path) => path.startsWith("model/"));
+  said.push(inModel ? "Nothing else in the model is touched." : "The model is not touched.");
+  return said.join(" ");
 }
 
 // A plan, carried out: every folder a write needs made first, then the writes, then the removals.
