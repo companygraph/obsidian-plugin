@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { available, start } from "./obsidian.ts";
 import type { Session } from "./obsidian.ts";
-import { clearNotices, command, intoField, modalText, noModal, onDisk, pressButton, waitForChecks, waitForModal, waitForNotice } from "./ui.ts";
+import { clearNotices, command, intoField, modalText, noModal, onDisk, pressButton, shownInPlan, waitForChecks, waitForModal, waitForNotice } from "./ui.ts";
 
 const skip = available() ? false : "Obsidian is not installed here; set OBSIDIAN_BIN to run this suite";
 const MANIFEST = ".companygraph/manifest.json";
@@ -22,10 +22,10 @@ describe("making an instance and moving its core", { skip }, () => {
 
   test("Move this vault's core says what it will write, moves the pins, and leaves the vault's own skills", async () => {
     const { ui } = session;
-    // The fixture is already on the core this build carries, and a vault on it has nothing to
-    // move. The copy is set back to the release before it, as that release left an instance: the
-    // manifest and the workflow name 0.46.1 and core 0.40.0, and the kpi schema 0.41.0 added is
-    // not there, on disk or in the manifest.
+    // The fixture may be on the core this build carries, and a vault on it has nothing to move, or
+    // a core or two behind it. Either way the copy is set back to an older release, as that release
+    // left an instance: the manifest and the workflow name 0.46.1 and core 0.40.0, and the kpi
+    // schema 0.41.0 added is not there, on disk or in the manifest.
     await ui.evaluate(async (manifest: string) => {
       const was = JSON.parse(await app.vault.adapter.read(manifest));
       was.tooling = "0.46.1";
@@ -44,12 +44,15 @@ describe("making an instance and moving its core", { skip }, () => {
     const shown = await modalText(ui);
     assert.match(shown, /\.companygraph\/manifest\.json/);
     assert.match(shown, /Core 0\.40\.0 → /);
-    assert.match(shown, /meta\/core\/kpi-schema\.md/);
+    assert.match(shown, shownInPlan("meta/core/kpi-schema.md"));
     await pressButton(ui, "Move it");
     await noModal(ui);
     await waitForNotice(ui, "^Core ");
     const after = JSON.parse((await onDisk(ui, MANIFEST))!);
     assert.notEqual(after.tooling, before.tooling, "the manifest names this build's release");
+    // The plan shows the kpi schema inside its folder's count; that the move wrote it is read here.
+    assert.ok(await onDisk(ui, "meta/core/kpi-schema.md"), "the move wrote the kpi schema");
+    assert.ok(after.files["meta/core/kpi-schema.md"], "the manifest records the kpi schema");
     assert.match((await onDisk(ui, ".github/workflows/companygraph.yml"))!, new RegExp(`instance-check\\.yml@v${after.tooling.replace(/\./g, "\\.")}`));
     assert.equal(await onDisk(ui, OWN_SKILL), own, "a skill the manifest never recorded is the vault's own");
     await waitForChecks(ui, "the moved instance to be checked", "none");
