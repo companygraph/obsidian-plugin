@@ -208,7 +208,7 @@ export function lockedLines(lines: string[], vocabulary: TypeVocabulary): string
 // what must pass: `set`, which is how Obsidian applies a file reloaded after a change on disk, and
 // refusing it would leave the editor out of step with the file; undo and redo, which only take
 // back what was done; this plugin's own commands, `input.section` and `delete.section`, and its
-// writing of a note in the family's Markdown form, `input.form`; Give this page a fresh id,
+// writing of a note in the Markdown form, `input.form`; Give this page a fresh id,
 // `input.id`, the one way the plugin changes an id, and only once the author has confirmed it; and a
 // character still being composed by an input method, which is refused only at a cost to the
 // screen. Obsidian's own heading commands, Shift+Enter and the Editor API carry no event at all,

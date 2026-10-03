@@ -1,4 +1,4 @@
-// The family's one Markdown form, written back into a note. Obsidian's table editor rewrites a
+// The one Markdown form, written back into a note. Obsidian's table editor rewrites a
 // table in the aligned form the moment a cell is edited, and undo gives back the cell but not the
 // table; this is what puts the table back. Nothing here is a rule of its own: the rule set is the
 // vault's rule set, the one custom rule is the
@@ -16,6 +16,88 @@ import customRules from "../conventions/markdown-rules.cjs";
 // still on v1.20.0 keeps the old path, and a plugin that knew only the new one would write
 // nothing into it and say the vault has no form. A vault without either has not taken the form.
 export const RULE_PATHS = [".markdownlint-cli2.jsonc", "conventions/markdown.markdownlint-cli2.jsonc"];
+
+// The form meta-model holds every repository to since v0.70.0, the same rules as the family's,
+// which it keeps inside its package and writes into no instance. A vault outside the family has
+// no rule file of its own, so the plugin carries meta-model's; a test holds this copy to the file
+// the pinned meta-model release ships, since the package exports no path to read it from.
+export const METAMODEL_FORM: Configuration = {
+  default: false,
+  "paragraph-on-one-line": true,
+  MD004: {
+    style: "dash",
+  },
+  MD009: true,
+  MD010: {
+    code_blocks: false,
+  },
+  MD012: true,
+  MD047: true,
+  MD049: {
+    style: "asterisk",
+  },
+  MD050: {
+    style: "asterisk",
+  },
+  MD055: {
+    style: "leading_and_trailing",
+  },
+  MD060: {
+    style: "compact",
+  },
+  "table-delimiter-row": true,
+  MD022: true,
+  MD031: true,
+  MD032: true,
+  MD058: true,
+  MD003: {
+    style: "atx",
+  },
+  MD005: true,
+  MD007: true,
+  MD011: true,
+  MD018: true,
+  MD019: true,
+  MD020: true,
+  MD021: true,
+  MD023: true,
+  MD027: true,
+  MD030: true,
+  MD035: true,
+  MD037: true,
+  MD039: true,
+  MD048: {
+    style: "backtick",
+  },
+};
+
+// The meta-model manifest a vault holds when it is an instance or an adopted repository.
+export const MANIFEST = ".companygraph/manifest.json";
+
+// Which form a vault is held to, from the files that say so: a rule file of its own first, the
+// family's, with conventions.json's excludes; else, in a vault whose manifest names the meta-model
+// release it takes, meta-model's form with the manifest's `exclude`, as `companygraph form` reads
+// it; else none. `rules` is the text at each of RULE_PATHS, null where there is no file.
+export function formOfVault({ rules, pin, manifest }: { rules: (string | null)[]; pin: string | null; manifest: string | null }):
+  { config: Configuration; excludes: string[]; from: string } | null {
+  for (const [i, text] of rules.entries()) {
+    const config = text === null ? null : formOf(text);
+    if (config) return { config, excludes: excludesOf(pin), from: RULE_PATHS[i]! };
+  }
+  if (manifest === null) return null;
+  try {
+    const parsed = JSON.parse(manifest);
+    if (!parsed || typeof parsed.tooling !== "string") return null;
+    const exclude = Array.isArray(parsed.exclude) ? parsed.exclude : [];
+    return {
+      config: METAMODEL_FORM,
+      excludes: exclude.filter((e: unknown): e is string => typeof e === "string").map((e: string) => e.replace(/\/+$/, "")),
+      from: MANIFEST,
+    };
+  } catch {
+    return null;
+  }
+}
 
 // What to call the rule set when there is none to name.
 export const RULES = RULE_PATHS[0];

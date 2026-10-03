@@ -1,9 +1,11 @@
 // Spec §1, the fourth defect: Cmd+S in a cell of a long table leaves the editor and the file in
-// the family's Markdown form, the same cell open, and the file differing from before by the
+// the Markdown form, the same cell open, and the file differing from before by the
 // typed line alone. Guards against release 0.5.1, which left the table in Obsidian's padding,
 // saved it so, and moved the focus to the table's last row.
 import { after, afterEach, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import { available, start } from "./obsidian.ts";
 import type { Session } from "./obsidian.ts";
 import { PROFILE, focusedCell, openNote, paddedLines, tablesOf } from "./notes.ts";
@@ -87,7 +89,7 @@ describe("the Markdown form, saved from a cell", { skip }, () => {
     await ui.evaluate(() => app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor.focus());
     await clearNotices(ui);
     await command(ui, "write-form");
-    await waitForNotice(ui, "already in the family's Markdown form");
+    await waitForNotice(ui, "already in the Markdown form");
 
     // A table padded the way an editor pads one, put there under the editor.
     const before = await ui.evaluate(async (at: string) => app.vault.adapter.read(at) as string, [PROFILE]);
@@ -120,5 +122,44 @@ describe("the Markdown form, saved from a cell", { skip }, () => {
     }, [PROFILE, before]);
     assert.equal(paddedLines(left), 0);
     assert.equal(left.split("\n").filter((l, i) => l !== before.split("\n")[i]).length, 1, "the typed line and no other");
+  });
+});
+
+// meta-model v0.70.0: a vault outside the family has no rule file of its own and no
+// conventions.json, only the manifest. The plugin then holds it to meta-model's form, as
+// `companygraph form` does in its CI; a vault with neither has none.
+describe("the Markdown form in a vault outside the family", { skip }, () => {
+  let session: Session;
+  before(async () => {
+    session = await start();
+    for (const at of [".markdownlint-cli2.jsonc", "conventions/markdown.markdownlint-cli2.jsonc", "conventions.json"])
+      fs.rmSync(path.join(session.vault, at), { force: true });
+  });
+  afterEach(async (t) => { if (!(t as { passed?: boolean }).passed) await session.record((t as { name: string }).name); });
+  after(async () => { await session?.restore([PROFILE]).catch(() => {}); await session?.stop(); });
+
+  test("a padded table is written back into meta-model's form, and a vault with no manifest has no form", async () => {
+    const { ui } = session;
+    assert.ok(!fs.existsSync(path.join(session.vault, ".markdownlint-cli2.jsonc")), "the vault holds no rule file of its own");
+    await openNote(ui, PROFILE);
+    await ui.evaluate(() => app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor.focus());
+    const before = await ui.evaluate(async (at: string) => app.vault.adapter.read(at) as string, [PROFILE]);
+    const skills = tablesOf(before).find((t) => t.header.join("|") === "Skill|Level")!;
+    const lines = before.split("\n");
+    lines[skills.first + 2] = lines[skills.first + 2].replace(/ \|$/, "      |");
+    await ui.evaluate(async (at: string, text: string) => app.vault.modify(app.vault.getAbstractFileByPath(at), text), [PROFILE, lines.join("\n")]);
+    await ui.waitFor("the editor to hold the padded row", () =>
+      (app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor.getValue() as string).split("\n").some((l) => l.startsWith("|") && / {2,}\|/.test(l)));
+    await command(ui, "write-form");
+    await ui.waitFor("the editor to be in the form again", (text: string) => app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor.getValue() === text, [before]);
+
+    fs.renameSync(path.join(session.vault, ".companygraph", "manifest.json"), path.join(session.vault, ".companygraph", "manifest.away"));
+    try {
+      await clearNotices(ui);
+      await command(ui, "write-form");
+      await waitForNotice(ui, "This vault has no Markdown form");
+    } finally {
+      fs.renameSync(path.join(session.vault, ".companygraph", "manifest.away"), path.join(session.vault, ".companygraph", "manifest.json"));
+    }
   });
 });

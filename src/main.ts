@@ -51,7 +51,7 @@ import { MakeInstance, MoveCore } from "./instancecommands.ts";
 import type { Release } from "./instantiate.ts";
 import { cliProfile } from "./cli.ts";
 import type { Profile } from "./cli.ts";
-import { PIN, RULES, RULE_PATHS, changesOf, channelFor, columnAfter, excludesOf, formOf, formed, inForm } from "./form.ts";
+import { MANIFEST, PIN, RULES, RULE_PATHS, changesOf, channelFor, columnAfter, formOfVault, formed, inForm } from "./form.ts";
 
 // The release of companygraph-meta-model this build bundles; esbuild.config.mjs defines it.
 declare const __CHECKER_VERSION__: string;
@@ -112,7 +112,7 @@ export default class CompanyGraphPlugin extends Plugin {
   // Set in onunload, read by the layout-ready callback: a plugin disabled between the two would
   // otherwise register four vault listeners and run a rebuild after it had been unloaded.
   unloaded = false;
-  // The note open last, written back into the family's Markdown form when another is opened.
+  // The note open last, written back into the Markdown form when another is opened.
   left: TFile | null = null;
   // The last rebuild's files, for references.ts's world; an open editor's own text is read fresh
   // through `textOf`, since it may hold an edit the last rebuild has not seen yet.
@@ -349,10 +349,10 @@ export default class CompanyGraphPlugin extends Plugin {
     });
     this.addCommand({
       id: "write-form",
-      name: "Write this note in the family's Markdown form",
+      name: "Write this note in the Markdown form",
       editorCallback: (_editor, ctx) => { if (ctx.file) void this.writeForm(ctx.file, true); },
     });
-    // A note is written back into the family's Markdown form when it is left, not while it is
+    // A note is written back into the Markdown form when it is left, not while it is
     // edited: Obsidian's table editor rewrites the whole table on every edit in a cell, and a form
     // written under it would be fought over at every keystroke. Leaving is when the diff would
     // otherwise be kept, and quitting is the last way to leave.
@@ -532,27 +532,26 @@ export default class CompanyGraphPlugin extends Plugin {
     if (resolved) mergePath(resolved, this.links, this.added, path);
   }
 
-  // The note in the form the vault's vendored conventions give it; see form.ts. Only in a vault that
-  // carries the rule set, and only a note conventions-format reads there. A note still open in a
+  // The note in the form the vault is held to; see form.ts. The vault's own rule file where it
+  // vendors the conventions, else meta-model's form in a vault whose manifest names a release, and
+  // only a note the form's check reads there. A note still open in a
   // tab is changed through its editor, which saves it as it saves any edit: a write to disk under
   // an open editor would race that editor's own pending save. `loud` is the command's: it says
   // why nothing was written, where leaving a note says nothing.
   async writeForm(file: TFile, loud = false, leaving = false) {
     try {
       const adapter = this.app.vault.adapter;
-      let config = null;
-      for (const at of RULE_PATHS) {
-        if (!(await adapter.exists(at))) continue;
-        config = formOf(await adapter.read(at));
-        if (config) break;
-      }
-      if (!config) {
-        if (loud) new Notice(`This vault has no Markdown form: ${RULES} is missing or does not parse.`);
+      const readIf = async (at: string) => ((await adapter.exists(at)) ? await adapter.read(at) : null);
+      const rules: (string | null)[] = [];
+      for (const at of RULE_PATHS) rules.push(await readIf(at));
+      const form = formOfVault({ rules, pin: await readIf(PIN), manifest: await readIf(MANIFEST) });
+      if (!form) {
+        if (loud) new Notice(`This vault has no Markdown form: neither ${RULES} nor ${MANIFEST} gives one.`);
         return;
       }
-      const excludes = excludesOf((await adapter.exists(PIN)) ? await adapter.read(PIN) : null);
+      const { config, excludes } = form;
       if (!formed(file.path, excludes)) {
-        if (loud) new Notice(`${file.path} is not held to the form here: conventions.json excludes it.`);
+        if (loud) new Notice(`${file.path} is not held to the form here: ${form.from === MANIFEST ? MANIFEST : PIN} excludes it.`);
         return;
       }
       let holder: MarkdownView | null = null;
@@ -579,7 +578,7 @@ export default class CompanyGraphPlugin extends Plugin {
         const before = open.getValue();
         const changes = changesOf(before, inForm(before, config));
         if (!changes.length) {
-          if (loud) new Notice("This note is already in the family's Markdown form.");
+          if (loud) new Notice("This note is already in the Markdown form.");
           return;
         }
         // One run of changed lines at a time, so a line the form leaves alone is never replaced,
@@ -625,13 +624,13 @@ export default class CompanyGraphPlugin extends Plugin {
       // the editor is behind the page and a change dispatched into it goes where nobody looks.
       const text = await this.app.vault.read(file);
       if (inForm(text, config) === text) {
-        if (loud) new Notice("This note is already in the family's Markdown form.");
+        if (loud) new Notice("This note is already in the Markdown form.");
         return;
       }
       await this.app.vault.process(file, (current) => inForm(current, config));
     } catch (error) {
       const why = error instanceof Error ? error.message : String(error);
-      new Notice(`${file.path} was not written in the family's Markdown form: ${why}`);
+      new Notice(`${file.path} was not written in the Markdown form: ${why}`);
     }
   }
 

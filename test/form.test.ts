@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { RULE_PATHS, changesOf, channelFor, columnAfter, excludesOf, formOf, formed, inForm, spanOf } from "../src/form.ts";
+import { METAMODEL_FORM, RULE_PATHS, changesOf, channelFor, columnAfter, excludesOf, formOf, formOfVault, formed, inForm, spanOf } from "../src/form.ts";
 import { reference, referencePin } from "./helpers.ts";
 
 // The rule set this repository vendored, the file a vault that took the form carries.
@@ -240,4 +240,36 @@ test("the editor writes only while it is on screen and the application is stayin
   for (const hasEditor of [true, false])
     for (const showing of [true, false])
       assert.equal(channelFor({ hasEditor, showing, leaving: true }), "leaving", `${hasEditor} ${showing}`);
+});
+
+// meta-model v0.70.0 holds every repository to one Markdown form, the family's, and keeps the
+// rule set inside its package, writing none into an instance. A vault outside the family has no
+// rule file of its own, so the plugin carries meta-model's: these two hold the copy to the file
+// the meta-model release this plugin pins ships, so a form changed there fails here first.
+const META_FORM = path.join(import.meta.dirname, "..", "node_modules", "companygraph-meta-model", "form");
+test("the form the plugin carries is the one its meta-model release ships", () => {
+  assert.deepEqual(METAMODEL_FORM, formOf(fs.readFileSync(path.join(META_FORM, ".markdownlint-cli2.jsonc"), "utf8")));
+  assert.equal(
+    fs.readFileSync(path.join(import.meta.dirname, "..", "conventions", "markdown-rules.cjs"), "utf8"),
+    fs.readFileSync(path.join(META_FORM, "markdown-rules.cjs"), "utf8"),
+  );
+});
+
+const MANIFEST = (extra = "") => `{ "tooling": "0.71.0"${extra} }`;
+
+test("a vault with its own rule file is held to it, with conventions.json's excludes", () => {
+  const got = formOfVault({ rules: [null, RULE_SET], pin: '{ "exclude": ["docs"] }', manifest: MANIFEST(', "exclude": ["dist"]') });
+  assert.deepEqual(got, { config, excludes: ["docs"], from: "conventions/markdown.markdownlint-cli2.jsonc" });
+});
+
+test("a vault outside the family with a meta-model manifest is held to meta-model's form, with the manifest's excludes", () => {
+  const got = formOfVault({ rules: [null, null], pin: null, manifest: MANIFEST(', "exclude": ["dist", "meta/"]') });
+  assert.deepEqual(got, { config: METAMODEL_FORM, excludes: ["dist", "meta"], from: ".companygraph/manifest.json" });
+});
+
+test("a manifest without exclude excludes nothing, and a vault with neither a rule file nor a manifest has no form", () => {
+  assert.deepEqual(formOfVault({ rules: [null, null], pin: null, manifest: MANIFEST() })?.excludes, []);
+  assert.equal(formOfVault({ rules: [null, null], pin: null, manifest: null }), null);
+  assert.equal(formOfVault({ rules: [null, null], pin: null, manifest: "{ not json" }), null);
+  assert.equal(formOfVault({ rules: [null, null], pin: null, manifest: '{ "core": {} }' }), null);
 });
