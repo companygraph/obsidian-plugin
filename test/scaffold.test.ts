@@ -115,6 +115,9 @@ test("every type scaffolded into the reference instance owes only what its notic
     /has no row, and its schema requires the section/,
     /is missing (phases|tracks|experiences)\//,
     /does not list/,
+    // Core 0.56.0: a question-kind gathers at least two questions, and a new one gathers none;
+    // the questions, like the item, are the author's.
+    /question pages name it in `kind`; a question-kind gathers at least 2/,
   ];
   assert.ok(files.has(`${REFERENCE.model}/identifier.md`), "the reference instance declares its ids");
   const seen = new Set<string>();
