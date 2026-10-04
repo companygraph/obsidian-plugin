@@ -115,8 +115,9 @@ test("a table cell whose text also reads inside an earlier row lands on its own 
 
 test("a one-letter entry lands on itself, not on an earlier frontmatter value holding the letter", () => {
   const files = edited(example(), MIRA, (t) => t.replace("  - Backend Engineer", "  - Backend Engineer\n  - G"));
-  // The form without a backticked field: the search has no frontmatter field to scope it.
-  const failure = buildModel(files, EXAMPLE).failures.find((f) => f.includes("resolves to nothing"))!;
+  // Before core 0.56.0 the failure names no field, and the search has nothing to scope it; since,
+  // it names `roles`, and the letter must still be found under it, not in an earlier value.
+  const failure = buildModel(files, EXAMPLE).failures.find((f) => /resolves to nothing|names no entity/.test(f))!;
   const at = locate(failure, files);
   assert.equal(at.path, MIRA);
   assert.equal(at.line, lineIs(files, MIRA, "  - G"));
