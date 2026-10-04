@@ -55,10 +55,10 @@ test("the release the build carries is the one installed: its version, its core 
   assert.ok(release.core["question-schema.md"], "core 0.40.0 carries the question");
   assert.ok(release.core["decision-schema.md"], "core 0.43.0 carries the decision");
   // The skills are the tooling's and move with it; meta-model v0.44.0 added the profile's, and
-  // v0.50.0 the company's and the consent's.
+  // v0.50.0 the company's and the consent's, and v0.77.0 the judge's.
   const skills = new Set(Object.keys(release.skills).map((p) => p.split("/")[0]));
   assert.deepEqual([...skills].sort(), [
-    "companygraph-company", "companygraph-consent", "companygraph-export", "companygraph-profile", "companygraph-surface", "companygraph-validate",
+    "companygraph-company", "companygraph-consent", "companygraph-export", "companygraph-judge", "companygraph-profile", "companygraph-surface", "companygraph-validate",
   ]);
 });
 
