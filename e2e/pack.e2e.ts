@@ -53,6 +53,13 @@ describe("an instance that takes the software pack", { skip }, () => {
   test("a name in a pack note's table, and in its Properties, is marked and carries the entity's path", async () => {
     const { ui } = session;
     await openNote(ui, EDGE);
+    // The table that names another concept is Relations, below Attributes; Live Preview draws a
+    // table's widget only once it is in view, and Attributes is now tall enough to push it out.
+    await ui.evaluate((heading: string) => {
+      const editor = app.workspace.getMostRecentLeaf(app.workspace.rootSplit).view.editor;
+      const at = (editor.getValue() as string).split("\n").indexOf(heading);
+      editor.scrollIntoView({ from: { line: at, ch: 0 }, to: { line: at + 5, ch: 0 } }, true);
+    }, ["## Relations"]);
     const cell = await ui.waitFor("a cell to carry a name's path", () =>
       document.querySelector(".cm-table-widget td.companygraph-ref[data-companygraph-path]")?.getAttribute("data-companygraph-path") ?? null);
     assert.equal(cell, DECLARATION);
