@@ -115,3 +115,20 @@ test("one name written over and over in one place is one row, counted", () => {
   });
   assert.deepEqual(two.out.groups[0].mentions.map((m) => [m.declared, m.count]), [["Skills · Skill", 1], ["Evidence · Skill", 1]]);
 });
+
+// A name that resolves to the page it is written in: the group is the page the reader is on, so
+// it is called so, and its row lands on the line the name stands on rather than on the top.
+test("a page that names itself is a group called this page, whose row shows and opens its line", () => {
+  const shape = "model/processes/delivery/phases/shape.md";
+  const view = viewOf({
+    in: [],
+    out: [{ path: shape, mentions: [{ path: shape, line: 59, name: "Shape", declared: "## If not met · Leads to", target: shape }] }],
+  });
+  assert.deepEqual(view.out.groups[0], {
+    path: shape,
+    name: "this page",
+    folder: "",
+    mentions: [{ line: 60, name: "Shape", declared: "If not met · Leads to", count: 1, path: shape, at: 59 }],
+  });
+  assert.equal(view.out.title, "Refers to · 1");
+});
