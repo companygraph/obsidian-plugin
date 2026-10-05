@@ -102,3 +102,15 @@ test("the names a pack note writes are listed with what declares them, and only 
   const into = referencesFor({ ...base, types: typesOf(PACKED) }, "model/domains/core.md").in.map((g) => g.path);
   assert.ok(into.includes(CONTEXT));
 });
+
+// A phase whose If not met leads back to itself names itself, as the parser's graph says and
+// every other surface draws it; it is listed once, under what it names, since it is one edge.
+test("a phase that leads back to itself names itself, once, under what it names", () => {
+  const files = packed();
+  const world = { files, vocabulary: vocabularyOf(schemasOf(files, PACKED)), named: namedOf(buildModel(wholePacked(files), PACKED).graph!), model: PACKED.model, types: typesOf(PACKED) };
+  const shape = "model/processes/delivery/phases/shape.md";
+  const refs = referencesFor(world, shape);
+  const self = refs.out.find((g) => g.path === shape)!;
+  assert.deepEqual(self.mentions.map((m) => [m.declared, m.name]), [["## If not met · Leads to", "Shape"]]);
+  assert.ok(!refs.in.some((g) => g.path === shape));
+});

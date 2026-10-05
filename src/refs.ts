@@ -52,8 +52,8 @@ const grouped = (mentions: Mention[], by: (m: Mention) => string): Group[] => {
 
 // The two lists for the entity whose file is `path`: what names it, grouped by the file each name
 // is written in, and what it names, grouped by the file each name points at. A name written in
-// the entity's own file that resolves to itself belongs to neither; nothing in core declares one,
-// and a list that showed it would say a thing refers to itself.
+// the entity's own file that resolves to itself is one edge, as the parser's graph has it, so it is
+// listed once, under what the entity names: a phase whose If not met leads back to itself.
 export function referencesFor(world: World, path: string): References {
   const incoming: Mention[] = [];
   for (const [from, text] of world.files) {
@@ -61,7 +61,7 @@ export function referencesFor(world: World, path: string): References {
     for (const m of mentionsIn(world, from, text)) if (m.target === path) incoming.push(m);
   }
   const own = world.files.get(path);
-  const outgoing = own === undefined ? [] : mentionsIn(world, path, own).filter((m) => m.target !== path);
+  const outgoing = own === undefined ? [] : mentionsIn(world, path, own);
   return { in: grouped(incoming, (m) => m.path), out: grouped(outgoing, (m) => m.target) };
 }
 

@@ -66,14 +66,18 @@ const groupsOf = (groups: Group[], outgoing: boolean): FileGroup[] =>
           at: m.line,
         })),
       };
+    // A name that resolves to the page it is written in: the group is the page the reader is on,
+    // so it is called so, and a row lands on the line its name stands on, not on the page's top.
+    const self = g.mentions.every((m) => m.path === g.path);
     const byPlace = new Map<string, MentionRow>();
     for (const m of g.mentions) {
       const key = `${m.name}\u0000${m.declared}`;
       const row = byPlace.get(key);
       if (row) row.count++;
+      else if (self) byPlace.set(key, { line: m.line + 1, name: m.name, declared: readable(m.declared), count: 1, path: g.path, at: m.line });
       else byPlace.set(key, { line: null, name: m.name, declared: readable(m.declared), count: 1, path: m.target, at: 0 });
     }
-    return { path: g.path, ...fileOf(g.path), mentions: [...byPlace.values()] };
+    return { path: g.path, ...(self ? { name: "this page", folder: "" } : fileOf(g.path)), mentions: [...byPlace.values()] };
   });
 
 const directionOf = (title: string, groups: Group[], outgoing: boolean): Direction => ({
