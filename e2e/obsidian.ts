@@ -12,6 +12,18 @@ import { connect } from "./cdp.ts";
 import type { Connection } from "./cdp.ts";
 import type { Driver } from "./driver.ts";
 
+// Obsidian times its own "Indexing vault..." notice from the layout: a second after it, if the
+// metadata index is still being built, the notice goes up at the top right, over the sidebar the
+// plugin's panes sit in, and stays until the index is done and three seconds more to say so.
+// The plugin reads the vault well inside that second, so a test that started then could find the
+// notice over what it was about to press, as the compliance pane's copy button was watched being
+// on Obsidian 1.13.7. Read from that release's app.js, `showIndexingNotice`.
+async function indexed(ui: Driver) {
+  await ui.waitFor("Obsidian to have indexed the vault, and its notice to be gone", () =>
+    app.metadataCache.inProgressTaskCount === 0 &&
+    !Array.from(document.querySelectorAll<HTMLElement>(".notice")).some((n) => n.innerText.startsWith("Indexing")), [], 30000);
+}
+
 const ROOT = path.join(import.meta.dirname, "..");
 const FIXTURES = path.join(ROOT, "test", "fixtures");
 // The instances a suite may start on: the reference instance, and the one that takes a pack.
@@ -142,6 +154,7 @@ export async function start({ workspace, terminal = false, fixture = "mental-mod
       const plugin = (window as unknown as { app?: typeof app }).app?.plugins?.plugins?.companygraph;
       return Boolean(plugin?.layout && plugin.files?.size > 0);
     }, [], 30000);
+    await indexed(ui);
     await ui.evaluate(() => { app.setting?.close?.(); });
   } catch (failure) {
     await stop();
@@ -195,11 +208,12 @@ export async function start({ workspace, terminal = false, fixture = "mental-mod
             const plugin = (window as unknown as { app?: typeof app }).app?.plugins?.plugins?.companygraph;
             return Boolean(plugin?.layout && plugin.files?.size > 0 && !(window as unknown as { __e2eLeaving?: boolean }).__e2eLeaving);
           }, [], 2000);
-          return;
+          break;
         } catch (failure) {
           if (Date.now() > deadline) throw failure;
         }
       }
+      await indexed(ui);
     },
     stop: () => stop(ui, connection),
   };
