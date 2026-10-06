@@ -54,12 +54,21 @@ describe("the question kind", { skip }, () => {
     assert.match(text, /# E2E Probe Kind\n/);
     assert.match(text, /## What it means/);
     // The fixture never held this file, so restore has nothing to read back; it goes the way
-    // Delete entity removes one, as e2e/entities.e2e.ts's probe does.
+    // Delete entity removes one, as e2e/entities.e2e.ts's probe does. The tab it was in goes back
+    // to the career kind, and Obsidian loads that after trashFile has returned: a note opened in
+    // the tab meanwhile is dropped, as Obsidian 1.13.7 was watched doing, so the test ends only
+    // once the career kind has landed.
     await ui.evaluate(async (p: string) => {
+      window.e2eBack = null;
+      const ref = app.workspace.on("file-open", (f: { path: string } | null) => {
+        app.workspace.offref(ref);
+        window.e2eBack = f?.path ?? "";
+      });
       const file = app.vault.getAbstractFileByPath(p);
       if (file) await app.fileManager.trashFile(file);
     }, [at]);
     await ui.waitFor("the probe kind to be gone", (p: string) => !app.vault.getAbstractFileByPath(p), [at]);
+    await ui.waitFor("the tab to be back on the career kind", (p: string) => window.e2eBack === p, [CAREER]);
   });
 
   test("a question's kind completes to the vault's question kinds and nothing else", async () => {
