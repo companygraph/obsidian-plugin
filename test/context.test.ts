@@ -5,7 +5,7 @@ import { contextAt, frontmatterEnd, mayHoldContext } from "../src/context.ts";
 const FILE = [
   "---",            // 0
   "source: Lo",     // 1
-  "roles:",         // 2
+  "seats:",         // 2
   "  - Rev",        // 3
   "nat",            // 4
   "---",            // 5
@@ -28,7 +28,7 @@ test("after a key's colon: the value of that field", () => {
 });
 
 test("on an entry of a block sequence: the value of the key above", () => {
-  assert.deepEqual(at(3), { kind: "value", field: "roles", typed: "Rev", start: 4, item: true, glued: false });
+  assert.deepEqual(at(3), { kind: "value", field: "seats", typed: "Rev", start: 4, item: true, glued: false });
 });
 
 test("at the start of a frontmatter line: a key", () => {
@@ -114,7 +114,7 @@ test("trailing whitespace only after the cursor still yields the context", () =>
 const DOCS = [
   FILE,
   ["# Plain", "", "A note with no frontmatter at all.", "", "## Skills", "", "| Skill | Level |", "| --- | --- |", "| Java | Exp |"],
-  ["---", "source: Local", "roles:", "  - Rev", "", "# Never closed"],
+  ["---", "source: Local", "seats:", "  - Rev", "", "# Never closed"],
   ["---", "a: b", "---", "", "Body text", "", "---", "", "After a rule in the body", "", "## Su"],
   ["## Skills", "", "| Skill | Level |", "| --- | --- |", "| Java | Exp |"],
 ];

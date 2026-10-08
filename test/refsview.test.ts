@@ -6,8 +6,8 @@ import type { References } from "../src/refs.ts";
 const refs: References = {
   in: [
     {
-      path: "model/roles/backend-engineer.md",
-      mentions: [{ path: "model/roles/backend-engineer.md", line: 4, name: "Java Programming", declared: "requires", target: "model/skills/java-programming.md" }],
+      path: "model/seats/backend-engineer.md",
+      mentions: [{ path: "model/seats/backend-engineer.md", line: 4, name: "Java Programming", declared: "requires", target: "model/skills/java-programming.md" }],
     },
     {
       path: "model/profiles/mira-halvorsen/mira-halvorsen.md",
@@ -31,7 +31,7 @@ test("a group's file is its basename without .md, with the folder above it kept 
   assert.deepEqual(
     view.in.groups.map((g) => [g.name, g.folder]),
     [
-      ["backend-engineer", "model/roles"],
+      ["backend-engineer", "model/seats"],
       ["mira-halvorsen", "model/profiles/mira-halvorsen"],
     ],
   );
@@ -44,8 +44,8 @@ test("a top-level file carries no folder", () => {
 
 test("a mention's line is counted from one, and it keeps its name, what declares it and its own file", () => {
   const view = viewOf(refs);
-  const role = view.in.groups.find((g) => g.path === "model/roles/backend-engineer.md")!;
-  assert.deepEqual(role.mentions, [{ line: 5, name: "Java Programming", declared: "requires", count: 1, path: "model/roles/backend-engineer.md", at: 4 }]);
+  const seat = view.in.groups.find((g) => g.path === "model/seats/backend-engineer.md")!;
+  assert.deepEqual(seat.mentions, [{ line: 5, name: "Java Programming", declared: "requires", count: 1, path: "model/seats/backend-engineer.md", at: 4 }]);
 });
 
 test("a group's mentions are drawn in the order refs.ts already put them in, not re-sorted here", () => {
@@ -68,7 +68,7 @@ test("a row that refers out opens the entity it names, from its first line, and 
     in: [],
     out: [{
       path: "model/skills/java-programming.md",
-      mentions: [{ path: "model/roles/backend-engineer.md", line: 4, name: "Java Programming", declared: "requires", target: "model/skills/java-programming.md" }],
+      mentions: [{ path: "model/seats/backend-engineer.md", line: 4, name: "Java Programming", declared: "requires", target: "model/skills/java-programming.md" }],
     }],
   });
   assert.deepEqual(view.out.groups[0].mentions, [

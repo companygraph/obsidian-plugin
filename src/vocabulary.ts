@@ -77,7 +77,8 @@ export function vocabularyOf(schemas: Map<string, string>): Map<string, TypeVoca
     const fields = rowsOf(frontmatter?.table).map((r) => ({
       name: bare(r.Field),
       required: bare(r.Required) === "Yes",
-      list: bare(r.Type).startsWith("array of "),
+      // A bare `array` is a list too, as the checks read it: a data processor's `countries`.
+      list: bare(r.Type) === "array" || bare(r.Type).startsWith("array of "),
       offer: rowless(offerOf(r.Type, r.Description, schemas)),
     }));
 

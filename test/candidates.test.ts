@@ -18,7 +18,7 @@ test("a reference value offers the names of its type, those starting with what i
 });
 
 test("a name of another type is never offered", () => {
-  const c = candidatesFor({ kind: "value", field: "roles", typed: "e", start: 4, item: true, glued: false }, profile, names, []);
+  const c = candidatesFor({ kind: "value", field: "seats", typed: "e", start: 4, item: true, glued: false }, profile, names, []);
   assert.deepEqual(labels(c), ["Backend Engineer", "Reviewer"]);
 });
 
@@ -29,10 +29,10 @@ test("an enum value offers what the schema permits", () => {
 
 test("a key offers what the file lacks, required first, and a list opens its first entry", () => {
   const lines = ["---", "source: Local", "", "---"];
-  // `o` is in source, location and roles; source is in the file, so it is not offered.
-  const o = candidatesFor({ kind: "key", typed: "o", start: 0 }, profile, names, lines);
+  // `e` is in source, seats and others; source is in the file, so it is not offered.
+  const o = candidatesFor({ kind: "key", typed: "e", start: 0 }, profile, names, lines);
   assert.ok(!labels(o).some((l) => l.startsWith("source ")));
-  assert.equal(o.find((x) => x.label === "roles")!.insert, "roles:\n  - ");
+  assert.equal(o.find((x) => x.label === "seats")!.insert, "seats:\n  - ");
   // `a` is in nature and in optional fields; the required one leads.
   const a = candidatesFor({ kind: "key", typed: "a", start: 0 }, profile, names, lines);
   assert.equal(a[0].label, "nature (required)");
@@ -62,21 +62,21 @@ test("a heading already present with two spaces after the ## is not offered agai
 });
 
 test("a list field offers its names on an entry of the list and not on the key's own line", () => {
-  const key = { kind: "value", field: "roles", typed: "", start: 7, item: false, glued: false } as const;
+  const key = { kind: "value", field: "seats", typed: "", start: 7, item: false, glued: false } as const;
   assert.deepEqual(candidatesFor(key, profile, names, []), []);
   assert.deepEqual(labels(candidatesFor({ ...key, typed: "e", item: true }, profile, names, [])), ["Backend Engineer", "Reviewer"]);
 });
 
-const role = vocabulary.get("role")!;
+const seat = vocabulary.get("seat")!;
 const prefixed = new Map([["skill", ["Java", "JavaScript"]]]);
 
 test("a name typed in full leaves nothing to complete, though a longer name still matches it", () => {
-  const c = candidatesFor({ kind: "value", field: "requires", typed: "Java", start: 4, item: true, glued: false }, role, prefixed, []);
+  const c = candidatesFor({ kind: "value", field: "requires", typed: "Java", start: 4, item: true, glued: false }, seat, prefixed, []);
   assert.deepEqual(c, []);
 });
 
 test("a name typed in part still offers every name it could become", () => {
-  const c = candidatesFor({ kind: "value", field: "requires", typed: "Jav", start: 4, item: true, glued: false }, role, prefixed, []);
+  const c = candidatesFor({ kind: "value", field: "requires", typed: "Jav", start: 4, item: true, glued: false }, seat, prefixed, []);
   assert.deepEqual(labels(c), ["Java", "JavaScript"]);
 });
 
@@ -91,7 +91,7 @@ test("a heading typed in part is still offered, though the line it is on already
 
 test("the cursor after an insert sits at its end, on the last line it wrote", () => {
   assert.deepEqual(cursorAfter({ line: 3, ch: 8 }, "Local"), { line: 3, ch: 13 });
-  assert.deepEqual(cursorAfter({ line: 3, ch: 0 }, "roles:\n  - "), { line: 4, ch: 4 });
+  assert.deepEqual(cursorAfter({ line: 3, ch: 0 }, "seats:\n  - "), { line: 4, ch: 4 });
   assert.deepEqual(cursorAfter({ line: 0, ch: 2 }, ""), { line: 0, ch: 2 });
 });
 
@@ -115,7 +115,7 @@ test("a glued value typed in full still leaves nothing to complete", () => {
 // everything they could hold, like any other position, and whether Enter belongs to the editor
 // there is a separate question with its own answer below.
 test("an empty list entry and an empty cell offer everything they could hold", () => {
-  const entry = { kind: "value", field: "roles", typed: "", start: 4, item: true, glued: false } as const;
+  const entry = { kind: "value", field: "seats", typed: "", start: 4, item: true, glued: false } as const;
   assert.deepEqual(labels(candidatesFor(entry, profile, names, [])), ["Backend Engineer", "Reviewer"]);
   const cell = { kind: "cell", section: "Skills", column: "Level", typed: " ", start: 0 } as const;
   assert.equal(candidatesFor(cell, profile, names, []).length, 4);
@@ -125,9 +125,9 @@ test("an empty list entry and an empty cell offer everything they could hold", (
 // writes a name nobody chose. Where nothing is typed on an entry or in a cell, Enter is the
 // editor's, popup or not; everywhere else it accepts.
 test("Enter belongs to the editor on an empty list entry and in an empty cell, and nowhere else", () => {
-  assert.equal(entersThrough({ kind: "value", field: "roles", typed: "", start: 4, item: true, glued: false }), true);
+  assert.equal(entersThrough({ kind: "value", field: "seats", typed: "", start: 4, item: true, glued: false }), true);
   assert.equal(entersThrough({ kind: "cell", section: "Skills", column: "Level", typed: "  ", start: 0 }), true);
-  assert.equal(entersThrough({ kind: "value", field: "roles", typed: "Re", start: 4, item: true, glued: false }), false);
+  assert.equal(entersThrough({ kind: "value", field: "seats", typed: "Re", start: 4, item: true, glued: false }), false);
   assert.equal(entersThrough({ kind: "value", field: "source", typed: "", start: 8, item: false, glued: false }), false);
   assert.equal(entersThrough({ kind: "key", typed: "", start: 0 }), false);
   assert.equal(entersThrough({ kind: "heading", typed: "", start: 3 }), false);
@@ -138,7 +138,7 @@ test("Enter belongs to the editor on an empty list entry and in an empty cell, a
 // both keys: while nothing is typed they are the editor's, until an arrow key has moved in the
 // list, which is choosing, and from then on they accept.
 test("moving in the list with an arrow key is choosing, and then the key accepts even with nothing typed", () => {
-  const entry = { kind: "value", field: "roles", typed: "", start: 4, item: true, glued: false } as const;
+  const entry = { kind: "value", field: "seats", typed: "", start: 4, item: true, glued: false } as const;
   const cell = { kind: "cell", section: "Skills", column: "Level", typed: "", start: 0 } as const;
   assert.equal(entersThrough(entry, false), true);
   assert.equal(entersThrough(entry, true), false);
@@ -154,17 +154,17 @@ test("an empty key line offers every field the file lacks, required first", () =
   const c = candidatesFor({ kind: "key", typed: "", start: 0 }, profile, names, lines);
   assert.equal(c[0].label, "nature (required)");
   assert.ok(!labels(c).some((l) => l.startsWith("source ")));
-  assert.ok(labels(c).includes("roles"));
+  assert.ok(labels(c).includes("seats"));
 });
 
 // One decision, two callers: the key popup in Source mode and the Add a field picker, which is
 // how a field is added from the Properties widget, where Obsidian's own list knows no schema.
 test("the fields a file may still take are those its schema declares and it lacks, required first", () => {
-  const lines = ["---", "id: 01a02f53-2408-7291-ac16-087fcdee4d71", "source: Local", "roles:", "  - Reviewer", "---", "", "# Mira", "nature: not a field down here"];
+  const lines = ["---", "id: 01a02f53-2408-7291-ac16-087fcdee4d71", "source: Local", "seats:", "  - Reviewer", "---", "", "# Mira", "nature: not a field down here"];
   const absent = absentFields(profile, lines);
   assert.equal(absent[0].name, "nature");
   assert.ok(absent[0].required);
-  assert.ok(!absent.some((f) => f.name === "id" || f.name === "source" || f.name === "roles"));
+  assert.ok(!absent.some((f) => f.name === "id" || f.name === "source" || f.name === "seats"));
   assert.ok(absent.some((f) => f.name === "source-id"));
   assert.deepEqual(absentFields(profile, ["# No frontmatter"]).map((f) => f.name), profile.fields.filter((f) => f.required).concat(profile.fields.filter((f) => !f.required)).map((f) => f.name));
 });
@@ -190,10 +190,10 @@ test("a grouped heading typed in full is complete, and nothing replaces it on En
 // The Properties widget in Live Preview: a declared field offers from the schema, less what the
 // list holds, and a plain field is left to Obsidian.
 test("a widget input offers the type's names less the pills it holds, an enum its values, an image the pictures beside the note", () => {
-  const roles = profile.fields.find((f) => f.name === "roles")!;
-  assert.deepEqual(propertyCandidates(roles, "", names, ["Reviewer"], []), ["Backend Engineer"]);
-  assert.deepEqual(propertyCandidates(roles, "rev", names, [], []), ["Reviewer"]);
-  assert.deepEqual(propertyCandidates(roles, "", names, ["Backend Engineer", "Reviewer"], []), []);
+  const seats = profile.fields.find((f) => f.name === "seats")!;
+  assert.deepEqual(propertyCandidates(seats, "", names, ["Reviewer"], []), ["Backend Engineer"]);
+  assert.deepEqual(propertyCandidates(seats, "rev", names, [], []), ["Reviewer"]);
+  assert.deepEqual(propertyCandidates(seats, "", names, ["Backend Engineer", "Reviewer"], []), []);
   const nature = profile.fields.find((f) => f.name === "nature")!;
   assert.deepEqual(propertyCandidates(nature, "", names, [], []), ["human", "agent"]);
   const image = profile.fields.find((f) => f.name === "image")!;

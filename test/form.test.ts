@@ -120,13 +120,13 @@ test("a rule set that does not parse, or holds no rules, writes nothing", () => 
 test("the paths written are the paths conventions-format reads", () => {
   const excludes = excludesOf('{ "repo": "robertblust/conventions", "tag": "v1.19.0", "exclude": ["meta", "docs/superpowers/"] }');
   assert.deepEqual(excludes, ["meta", "docs/superpowers"]);
-  assert.equal(formed("model/roles/writer.md", excludes), true);
+  assert.equal(formed("model/seats/writer.md", excludes), true);
   assert.equal(formed(".claude/agents/writer.md", excludes), true);
-  assert.equal(formed("meta/core/role-schema.md", excludes), false);
+  assert.equal(formed("meta/core/seat-schema.md", excludes), false);
   assert.equal(formed("docs/superpowers/specs/a.md", excludes), false);
   assert.equal(formed("metadata/a.md", excludes), true);
   assert.equal(formed("node_modules/x/README.md", excludes), false);
-  assert.equal(formed("model/roles/writer.json", excludes), false);
+  assert.equal(formed("model/seats/writer.json", excludes), false);
   const own = excludesOf('{ "tag": "v1.20.0", "exclude": ["meta", "docs/superpowers"], "format-exclude": ["meta"] }');
   assert.deepEqual(own, ["meta"], "format-exclude replaces exclude where it is named");
   assert.equal(formed("docs/superpowers/specs/a.md", own), true);

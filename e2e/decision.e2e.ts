@@ -110,7 +110,7 @@ describe("the decision type", { skip }, () => {
 
   test("the references pane lists a decision under its seat, its status and the value it upholds", async () => {
     const { ui } = session;
-    const underOwner = await mentionsOf(ui, "model/roles/owner.md");
+    const underOwner = await mentionsOf(ui, "model/seats/owner.md");
     assert.ok(underOwner.some((m) => m.path === ROLE && m.declared === "by"));
     const underStanding = await mentionsOf(ui, "model/decision-statuses/standing.md");
     assert.ok(underStanding.some((m) => m.path === ROLE && m.declared === "status"));

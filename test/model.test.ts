@@ -4,7 +4,7 @@ import { uuidv7 } from "companygraph-meta-model/ids";
 import { buildModel, concerns, namesByType, schemaKeyOf, schemasOf, typeOf } from "../src/model.ts";
 import { example, EXAMPLE, reference, REFERENCE, edited, whole, wholePacked, packed, PACKED, CONTEXT } from "./helpers.ts";
 
-const ROLE = "example/model/roles/backend-engineer.md";
+const SEAT = "example/model/seats/backend-engineer.md";
 
 test("the example passes and parses", () => {
   const m = buildModel(whole(example()), EXAMPLE);
@@ -35,10 +35,10 @@ test("a phase's `## If not met` row with an empty `Leads to` stops the process, 
 });
 
 test("an unresolvable reference is reported once: the checks speak, the parser's throw is dropped", () => {
-  const m = buildModel(whole(edited(example(), ROLE, (t) => t.replace("source: Local", "source: Nowhere"))), EXAMPLE);
+  const m = buildModel(whole(edited(example(), SEAT, (t) => t.replace("source: Local", "source: Nowhere"))), EXAMPLE);
   assert.equal(m.graph, null);
   assert.equal(m.failures.length, 1);
-  assert.ok(m.failures[0].startsWith(ROLE + ": "));
+  assert.ok(m.failures[0].startsWith(SEAT + ": "));
 });
 
 test("a core with a schema missing names the type as skipped", () => {
@@ -121,7 +121,7 @@ test("a question row whose type is owned and whose owner is blank fails by name"
 test("the pack's schemas are read beside core's, under a key that names the pack", () => {
   const schemas = schemasOf(packed(), PACKED);
   assert.ok(schemas.has("software/bounded-context-schema.md"));
-  assert.ok(schemas.has("role-schema.md"));
+  assert.ok(schemas.has("seat-schema.md"));
   assert.ok(![...schemas.keys()].some((k) => k.startsWith("meta/")));
 });
 
@@ -135,8 +135,17 @@ test("an instance with a bounded context passes the checks with its packs and fa
 });
 
 test("an instance that takes no pack is read as before", () => {
+  assert.deepEqual(buildModel(whole(reference()), REFERENCE).failures, []);
+  assert.deepEqual([...schemasOf(reference(), REFERENCE).keys()].filter((k) => k.includes("/")), []);
+});
+
+// Meta-model 0.86.0: the example takes the organization pack, and its groups, jobs and group
+// kinds are read against the pack's schemas beside core's.
+test("the example takes the organization pack, and its pages are read against the pack's schemas", () => {
   assert.deepEqual(buildModel(whole(example()), EXAMPLE).failures, []);
-  assert.deepEqual([...schemasOf(example(), EXAMPLE).keys()].filter((k) => k.includes("/")), []);
+  assert.deepEqual([...schemasOf(example(), EXAMPLE).keys()].filter((k) => k.includes("/")).sort(),
+    ["organization/group-kind-schema.md", "organization/group-schema.md", "organization/job-schema.md"]);
+  assert.equal(typeOf("example/model/groups/billing-run-team.md", EXAMPLE), "group");
 });
 
 test("a pack type is found by its path, and a core type still is", () => {
@@ -150,7 +159,7 @@ test("a pack type is found by its path, and a core type still is", () => {
 test("a file under a pack's folder concerns the checks, and one outside the three folders does not", () => {
   assert.ok(concerns("meta/software/aggregate-schema.md", PACKED));
   assert.ok(!concerns("meta/software/aggregate-schema.md", REFERENCE));
-  assert.ok(concerns("meta/core/role-schema.md", PACKED));
+  assert.ok(concerns("meta/core/seat-schema.md", PACKED));
   assert.ok(concerns(CONTEXT, REFERENCE));
   assert.ok(!concerns("notes/today.md", PACKED));
 });

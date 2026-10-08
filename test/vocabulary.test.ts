@@ -29,9 +29,16 @@ test("an enum field offers the values its description opens with", () => {
 });
 
 test("a list of references is a list", () => {
-  const roles = vocabulary.get("profile")!.fields.find((f) => f.name === "roles")!;
-  assert.equal(roles.list, true);
-  assert.deepEqual(roles.offer, { kind: "names", target: "role" });
+  const seats = vocabulary.get("profile")!.fields.find((f) => f.name === "seats")!;
+  assert.equal(seats.list, true);
+  assert.deepEqual(seats.offer, { kind: "names", target: "seat" });
+});
+
+// Core declares a data processor's `countries` as a bare `array`, and the checks read it as a list.
+test("a field declared a bare array is a list", () => {
+  const countries = vocabulary.get("data-processor")!.fields.find((f) => f.name === "countries")!;
+  assert.equal(countries.list, true);
+  assert.deepEqual(countries.offer, { kind: "none" });
 });
 
 test("a string field offers nothing", () => {
