@@ -40,6 +40,32 @@ describe("making an instance and moving its core", { skip }, () => {
       const workflow = ".github/workflows/companygraph.yml";
       await app.vault.adapter.write(workflow, (await app.vault.adapter.read(workflow)).replace(/instance-check\.yml@v[0-9.]+/, "instance-check.yml@v0.46.1"));
     }, [MANIFEST, OWN_SKILL]);
+    // And the model as that release left it: the localization page in the form before one language
+    // per model, and the seats where core kept them before core 0.63.0 named the type, as
+    // `model/roles/`, a profile's `roles` and an experience's `role`.
+    await ui.evaluate(async () => {
+      const adapter = app.vault.adapter;
+      const localization = "model/localization.md";
+      const page = await adapter.read(localization);
+      await adapter.write(localization, `${page.match(/^---\n[^]*?\n(?=locale:)/)![0]}---\n\n# Languages\n\n> ${page.match(/^> (.*)$/m)![1]}\n\n## Locales\n\n| Locale | Role |\n| --- | --- |\n| en-US | primary |\n`);
+      await adapter.mkdir("model/roles");
+      for (const file of (await adapter.list("model/seats")).files) {
+        const text = await adapter.read(file);
+        await adapter.write(file.replace("model/seats/", "model/roles/"), file.endsWith("README.md") ? text.replace(/^# Seats$/m, "# Roles") : text);
+        await adapter.remove(file);
+      }
+      await adapter.rmdir("model/seats", true);
+      const walk = async (folder: string): Promise<void> => {
+        const listed = await adapter.list(folder);
+        for (const file of listed.files.filter((f: string) => f.endsWith(".md"))) {
+          const text = await adapter.read(file);
+          const before = file.includes("/experiences/") ? text.replace(/^capacity:/m, "role:") : text.replace(/^seats:/m, "roles:");
+          if (before !== text) await adapter.write(file, before);
+        }
+        for (const child of listed.folders) await walk(child);
+      };
+      await walk("model/profiles");
+    });
     const own = await onDisk(ui, OWN_SKILL);
     const before = JSON.parse((await onDisk(ui, MANIFEST))!);
     await command(ui, "move-core");
@@ -51,13 +77,23 @@ describe("making an instance and moving its core", { skip }, () => {
     assert.match(shown, shownInPlan("meta/core/kpi-schema.md"));
     // The reference instance's localization page is in the form before one language per model, so
     // the move rewrites it, and the plan says so rather than that the model is not touched.
-    assert.match(shown, /model\/localization\.md is rewritten into the form core [0-9.]+ reads\./);
+    assert.match(shown, /model\/localization\.md\b.* (?:is|are) rewritten into the form core [0-9.]+ reads\./);
     assert.doesNotMatch(shown, /The model is not touched/);
+    // The seats move from the folder core kept them in, and the plan says so, and what it leaves
+    // the owner: their own files that still say roles.
+    assert.match(shown, /Moves model\/roles\/ to model\/seats\/ \(\d+\)\./);
+    assert.match(shown, /The files in model\/roles\/ move to model\/seats\/, each page keeping its id, and model\/roles\/ goes to the trash once it is empty\./);
+    assert.match(shown, /model\/seats\/README\.md has its heading, folder and schema path changed/);
+    assert.match(shown, /Files of your own that still say roles, such as README\.md, AGENTS\.md, pages in the model that link into roles\/ and an export guide's \{\{count:Roles\}\}, are yours to edit/);
     await pressButton(ui, "Move it");
     await noModal(ui);
-    await waitForNotice(ui, "^Core ");
+    await waitForNotice(ui, "^Core .*, \\d+ moved: model/roles/ to model/seats/ \\(\\d+\\)");
     const after = JSON.parse((await onDisk(ui, MANIFEST))!);
     assert.notEqual(after.tooling, before.tooling, "the manifest names this build's release");
+    assert.ok(await onDisk(ui, "model/seats/owner.md"), "the move carried the owner's seat across");
+    assert.equal(await onDisk(ui, "model/roles/owner.md"), null, "nothing is left of it in model/roles/");
+    assert.equal(await ui.evaluate(() => app.vault.adapter.exists("model/roles")), false, "the folder the move emptied is gone");
+    assert.match((await onDisk(ui, "model/profiles/robert-blust/robert-blust.md"))!, /^seats:\n {2}- Owner$/m);
     // The plan shows the kpi schema inside its folder's count; that the move wrote it is read here.
     assert.ok(await onDisk(ui, "meta/core/kpi-schema.md"), "the move wrote the kpi schema");
     assert.ok(after.files["meta/core/kpi-schema.md"], "the manifest records the kpi schema");

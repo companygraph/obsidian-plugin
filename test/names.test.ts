@@ -40,7 +40,7 @@ test("R2: a name taken by another entity of the type is refused, and the entity 
   // Renaming asks with itself excepted, so its own name is not its own collision.
   assert.equal(refusedHere(named, MODEL, "skill", java.path, "Java Programming", java.path), null);
   // A name held by another type is no collision: R2 scopes a name to its type.
-  assert.equal(refusedHere(named, MODEL, "role", at, "Java Programming"), null);
+  assert.equal(refusedHere(named, MODEL, "seat", at, "Java Programming"), null);
   assert.equal(refusedHere(named, MODEL, "skill", at, "A skill nothing is called"), null);
 });
 

@@ -40,7 +40,7 @@ test("only a vault written before the panes were remembered is repaired", () => 
 });
 
 test("the brief's open groups are read by type, and anything else in them dropped", () => {
-  assert.deepEqual(settingsOf({ briefOpen: { decision: ["## Why", 3, "page"], role: "no" } }).briefOpen, { decision: ["## Why", "page"], role: [] });
+  assert.deepEqual(settingsOf({ briefOpen: { decision: ["## Why", 3, "page"], seat: "no" } }).briefOpen, { decision: ["## Why", "page"], seat: [] });
   assert.deepEqual(settingsOf({ briefOpen: ["decision"] }).briefOpen, {});
   // Its own object: the defaults are one object, and a type's list is set into it.
   settingsOf(null).briefOpen.decision = ["page"];

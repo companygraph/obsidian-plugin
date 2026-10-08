@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { checkInstance } from "companygraph-meta-model/checks";
-import { carryOut, folderChoices, moveScope, planInstance, planMove, present } from "../src/instantiate.ts";
+import { carryOut, folderChoices, moveScope, forceHint, movedSummary, planInstance, planMove, present, readModel, stoppedSaid, doneSaid } from "../src/instantiate.ts";
 import type { Disk, Release } from "../src/instantiate.ts";
 import { sha256Hex } from "../src/sha256.ts";
 import { UUIDV7 } from "companygraph-meta-model/ids";
@@ -14,35 +14,55 @@ import { releaseFiles } from "../scripts/release.mjs";
 const release: Release = releaseFiles();
 
 // A vault held in memory, as Obsidian's adapter sees one: folders exist on their own, and a file
-// can be written only into a folder that does.
-function memoryDisk(files: Record<string, string> = {}): Disk & { files: Map<string, string>; folders: Set<string> } {
+// can be written only into a folder that does. A page is text and any other file is bytes, which
+// the adapter keeps apart as well, so `files` holds the pages and `binary` the rest.
+function memoryDisk(files: Record<string, string> = {}, bytes: Record<string, Uint8Array> = {}): Disk & { files: Map<string, string>; binary: Map<string, Uint8Array>; folders: Set<string> } {
   const store = new Map(Object.entries(files));
+  const binary = new Map(Object.entries(bytes));
   const folders = new Set<string>([""]);
-  for (const path of store.keys()) {
+  for (const path of [...store.keys(), ...binary.keys()]) {
     const parts = path.split("/").slice(0, -1);
     for (let i = 1; i <= parts.length; i++) folders.add(parts.slice(0, i).join("/"));
   }
   const parent = (path: string) => path.split("/").slice(0, -1).join("/");
+  const held = () => [...store.keys(), ...binary.keys()];
   return {
     files: store,
+    binary,
     folders,
-    async exists(path) { return store.has(path) || folders.has(path); },
+    async exists(path) { return store.has(path) || binary.has(path) || folders.has(path); },
     async read(path) {
-      if (!store.has(path)) throw new Error(`no ${path}`);
+      if (!store.has(path)) throw new Error(`no text ${path}`);
       return store.get(path)!;
+    },
+    async readBinary(path) {
+      if (!binary.has(path)) throw new Error(`no bytes ${path}`);
+      return binary.get(path)!;
     },
     async write(path, text) {
       if (!folders.has(parent(path))) throw new Error(`no folder for ${path}`);
       store.set(path, text);
     },
+    async writeBinary(path, data) {
+      if (!folders.has(parent(path))) throw new Error(`no folder for ${path}`);
+      binary.set(path, data);
+    },
     async mkdir(path) {
       if (!folders.has(parent(path))) throw new Error(`no parent for ${path}`);
       folders.add(path);
     },
-    async remove(path) { store.delete(path); },
+    async remove(path) {
+      store.delete(path);
+      binary.delete(path);
+    },
+    async rmdir(path) {
+      if (held().some((p) => p.startsWith(`${path}/`)) || [...folders].some((f) => f.startsWith(`${path}/`)))
+        throw new Error(`${path} is not empty`);
+      folders.delete(path);
+    },
     async list(path) {
       return {
-        files: [...store.keys()].filter((p) => parent(p) === path),
+        files: held().filter((p) => parent(p) === path),
         folders: [...folders].filter((f) => f !== "" && parent(f) === path),
       };
     },
@@ -82,7 +102,7 @@ test("a vault made an instance passes the checks, and holds what init writes", a
 test("the folders offered are the ones init writes when given no choice, and a choice is kept", async () => {
   const all = await planInstance(memoryDisk(), release, { name: "Acme" });
   assert.ok("writes" in all);
-  const written = (writes: Map<string, string>) =>
+  const written = (writes: Map<string, string | Uint8Array>) =>
     [...writes.keys()].filter((p) => /^model\/[^/]+\/README\.md$/.test(p)).map((p) => p.split("/")[1]).sort();
   assert.deepEqual(written(all.writes), folderChoices());
   const some = await planInstance(memoryDisk(), release, { name: "Acme", folders: ["values"] });
@@ -243,7 +263,7 @@ test("a move gives a vault from before the localization page one, once, with ide
 
   const move = await planMove(disk, release);
   assert.ok("writes" in move);
-  const page = move.writes.get("model/localization.md");
+  const page = move.writes.get("model/localization.md") as string | undefined;
   assert.ok(page, "the move gives the vault a localization page");
   assert.match(page!.split("\n")[1].slice("id: ".length), UUIDV7);
   assert.ok(page!.includes("\nsource: Google Workspace\n"));
@@ -331,7 +351,7 @@ test("moving the core of an instance that takes a pack moves the pack's files wi
   const move = await planMove(disk, release);
   assert.ok("writes" in move, "refused" in move ? move.refused : "");
   assert.equal(move.writes.get("meta/software/aggregate-schema.md"), release.packs.software["aggregate-schema.md"]);
-  assert.ok(JSON.parse(move.writes.get(".companygraph/manifest.json")!).packs.includes("software"));
+  assert.ok(JSON.parse(move.writes.get(".companygraph/manifest.json") as string).packs.includes("software"));
 });
 
 test("a pack the manifest lists that this release does not ship is refused by name", async () => {
@@ -343,4 +363,203 @@ test("a pack the manifest lists that this release does not ship is refused by na
   assert.ok("refused" in move);
   assert.match(move.refused, /finance/);
   assert.match(move.refused, /software/);
+});
+
+// meta-model v0.87.0: core's `role` became `seat`. A vault written before it holds its seats in
+// model/roles/ and names them in a profile's `roles:`; moving it to this core carries both across,
+// each page keeping its id, and the planner asks for every file of the model to do it.
+const SEAT_PAGE =
+  "---\nid: 01965a3e-1111-7000-8000-000000000001\nsource: Local\n---\n\n# Reviewer\n\n> Reads what was written.\n\n## What it takes\n\n- A change.\n\n## What it produces\n\n- A review.\n\n## What it never does\n\n- Merges.\n";
+const PROFILE_PAGE =
+  "---\nid: 01965a3e-1111-7000-8000-000000000002\nsource: Local\nnature: human\nroles:\n  - Reviewer\n---\n\n# Mira\n\n> Reviews.\n\n## Summary\n\nShe reads.\n";
+const PICTURE = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x00, 0xff, 0x10, 0x80]);
+
+// A vault on a core from before the rename: made an instance, then set back as one would be, with
+// its seats where that core kept them.
+async function vaultWithRoles(readme = true) {
+  const disk = memoryDisk();
+  const made = await planInstance(disk, release, { name: "Acme" });
+  assert.ok("writes" in made);
+  await carryOut(disk, made.writes, made.removes);
+  for (const path of [...disk.files.keys()]) if (path.startsWith("model/seats/")) disk.files.delete(path);
+  disk.folders.delete("model/seats");
+  const manifest = JSON.parse(disk.files.get(".companygraph/manifest.json")!);
+  manifest.core.version = "0.62.0";
+  manifest.tooling = "0.86.0";
+  disk.files.set(".companygraph/manifest.json", JSON.stringify(manifest));
+  disk.files.set(".github/workflows/companygraph.yml", disk.files.get(".github/workflows/companygraph.yml")!.replace(/@v[\d.]+/, "@v0.86.0"));
+  disk.folders.add("model/roles");
+  if (readme) disk.files.set("model/roles/README.md", "# Roles\n\nThe roles of Acme, in `roles/`.\n");
+  disk.files.set("model/roles/reviewer.md", SEAT_PAGE);
+  disk.binary.set("model/roles/reviewer.bin", PICTURE);
+  disk.folders.add("model/profiles/mira");
+  disk.folders.add("model/profiles/mira/experiences");
+  disk.files.set("model/profiles/mira/experiences/README.md", "# Experiences\n\nMira's experiences.\n");
+  disk.files.set("model/profiles/mira/mira.md", PROFILE_PAGE);
+  // A folder that was empty before the move, which the move has no reason to touch.
+  disk.folders.add("model/drafts");
+  return disk;
+}
+
+test("the model is read for the planner: every page as text, and the files of model/roles/ as their bytes", async () => {
+  const disk = await vaultWithRoles();
+  disk.binary.set("model/skills/diagram.png", PICTURE);
+  const model = await readModel(disk);
+  assert.equal(model.get("model/roles/reviewer.md"), SEAT_PAGE);
+  assert.equal(model.get("model/profiles/mira/mira.md"), PROFILE_PAGE);
+  assert.deepEqual(model.get("model/roles/reviewer.bin"), PICTURE);
+  assert.ok(!model.has("model/skills/diagram.png"), "a file outside model/roles/ that is no page is not read");
+  assert.ok(![...model.keys()].some((p) => !p.startsWith("model/")));
+  assert.equal((await readModel(memoryDisk())).size, 0, "a vault with no model/ has none to read");
+});
+
+test("a vault that keeps roles is moved to the seats of this core, and model/roles/ is gone", async () => {
+  const disk = await vaultWithRoles();
+  const move = await planMove(disk, release);
+  assert.ok("writes" in move, "refused" in move ? move.refused : "");
+  assert.deepEqual(move.moved, [
+    ["model/roles/README.md", "model/seats/README.md"],
+    ["model/roles/reviewer.bin", "model/seats/reviewer.bin"],
+    ["model/roles/reviewer.md", "model/seats/reviewer.md"],
+  ]);
+  await carryOut(disk, move.writes, move.removes);
+
+  assert.equal(disk.files.get("model/seats/reviewer.md"), SEAT_PAGE, "the seat page keeps its id and its text");
+  assert.equal(disk.files.get("model/seats/README.md"), "# Seats\n\nThe roles of Acme, in `seats/`.\n");
+  assert.deepEqual(disk.binary.get("model/seats/reviewer.bin"), PICTURE, "a file that is no page moves as the bytes it is");
+  const profile = disk.files.get("model/profiles/mira/mira.md")!;
+  assert.match(profile, /^seats:\n {2}- Reviewer$/m);
+  assert.doesNotMatch(profile, /^roles:/m);
+  assert.ok([...disk.files.keys(), ...disk.binary.keys()].every((p) => !p.startsWith("model/roles/")), "nothing is left in model/roles/");
+  assert.ok(!disk.folders.has("model/roles"), "the folder the move emptied is taken away");
+  assert.ok(disk.folders.has("model"), "model/ itself stays");
+  assert.ok(disk.folders.has("model/drafts"), "a folder the move did not empty stays");
+  assert.ok(disk.folders.has("model/profiles/mira"));
+
+  // The checks read the moved model against this core: nothing in it still names a role.
+  const checked = new Map([...disk.files].filter(([p]) => p.startsWith("model/") || p.startsWith("meta/core/")));
+  // Pages only: the bytes are held to equality above, and a file in the model is valid only as a
+  // profile's picture, which this one is not.
+  assert.deepEqual(checkInstance(checked, { core: "meta/core", model: "model" }).failures, []);
+
+  const again = await planMove(disk, release);
+  assert.ok("writes" in again);
+  assert.equal(again.writes.size, 0, "a second move has nothing to carry");
+  assert.deepEqual(again.moved, []);
+});
+
+test("a move that carries roles to seats says so, and what it leaves to the owner", async () => {
+  const disk = await vaultWithRoles();
+  const move = await planMove(disk, release);
+  assert.ok("writes" in move);
+  assert.equal(movedSummary(move.moved!), "model/roles/ to model/seats/ (3)");
+  const said = moveScope(move);
+  assert.match(said, /^The vendored core, the skills the tooling installed, the manifest and the workflow's tag move\./);
+  assert.match(said, /The files in model\/roles\/ move to model\/seats\/, each page keeping its id, and model\/roles\/ goes to the trash once it is empty\./);
+  assert.doesNotMatch(said, /\(3\)/, "the count is said once, by the line that names the moves");
+  assert.match(said, /model\/seats\/README\.md has its heading, folder and schema path changed to the new names; what its prose says about roles is yours to edit\./);
+  assert.match(said, /model\/profiles\/mira\/mira\.md is rewritten into the form core [0-9.]+ reads\./);
+  assert.doesNotMatch(said, /README\.md[^.]* (?:is|are) rewritten/, "the README is not said rewritten and left to the owner at once");
+  assert.match(said, /Nothing else in the model is touched\./);
+  assert.match(said, /Files of your own that still say roles, such as README\.md, AGENTS\.md, pages in the model that link into roles\/ and an export guide's \{\{count:Roles\}\}, are yours to edit; nothing here rewrites them, and the command line's upgrade lists them when it makes this move\.$/);
+  assert.doesNotMatch(said, /^Only /);
+});
+
+// The planner writes a README for the new folder only where the old one had none, and that file is
+// in none of the plan's moved, rewritten or given lists, so the scope has to name it.
+test("a move whose model/roles/ had no README names the README it writes, and does not say the rest of the model is untouched falsely", async () => {
+  const disk = await vaultWithRoles(false);
+  const move = await planMove(disk, release);
+  assert.ok("writes" in move, "refused" in move ? move.refused : "");
+  assert.ok(move.writes.has("model/seats/README.md"), "the plan writes a README for the new folder");
+  assert.ok(!move.moved!.some(([, to]) => to === "model/seats/README.md"));
+  assert.ok(!move.rewritten!.includes("model/seats/README.md") && !move.given!.includes("model/seats/README.md"));
+  const said = moveScope(move);
+  assert.match(said, /model\/seats\/README\.md is written\./);
+  assert.doesNotMatch(said, /heading, folder and schema path/, "a README that was written is not one that moved");
+  assert.match(said, /Nothing else in the model is touched\./);
+  await carryOut(disk, move.writes, move.removes);
+  assert.ok(disk.files.has("model/seats/README.md"));
+  // With a README the file is moved, and is not named as written besides.
+  const withReadme = moveScope((await planMove(await vaultWithRoles(), release)) as { given?: string[] });
+  assert.doesNotMatch(withReadme, /model\/seats\/README\.md is written/);
+});
+
+test("what a move reports counts moved files once: neither as written nor as removed", async () => {
+  const move = await planMove(await vaultWithRoles(), release);
+  assert.ok("writes" in move);
+  const moves = move.moved!.length;
+  assert.equal(moves, 3);
+  const said = doneSaid(move);
+  assert.ok(said.includes(`${move.writes.size - moves} written, ${move.removes.length - moves} removed, 3 moved: model/roles/ to model/seats/ (3)`), said);
+  assert.equal(doneSaid({ from: "0.1.0", to: "0.2.0", writes: new Map([["a", "x"]]), removes: ["b"], moved: [] }), "Core 0.1.0 → 0.2.0: 1 written, 1 removed");
+});
+
+test("a refusal is followed by the force hint only where it mentions --force", async () => {
+  assert.equal(forceHint("meta/core/CONVENTIONS.md was edited in the vault; --force takes it", "0.87.0"),
+    "From a terminal, npx github:companygraph/meta-model#v0.87.0 upgrade --force overwrites them.");
+  const both = await vaultWithRoles();
+  both.folders.add("model/seats");
+  both.files.set("model/seats/owner.md", SEAT_PAGE);
+  const refused = await planMove(both, release);
+  assert.ok("refused" in refused);
+  assert.equal(forceHint(refused.refused, "0.87.0"), null, "--force changes nothing for a seat refusal");
+  const profile = await vaultWithRoles();
+  profile.files.set("model/profiles/mira/mira.md", PROFILE_PAGE.replace("roles:", "seats:\n  - Reviewer\nroles:"));
+  const twice = await planMove(profile, release);
+  assert.ok("refused" in twice && /carries both `roles` and `seats`/.test(twice.refused));
+  assert.equal(forceHint(twice.refused, "0.87.0"), null);
+});
+
+test("a move that stops partway says what was written and what to do, by whether anything was removed", () => {
+  const moved: [string, string][] = [["model/roles/a.md", "model/seats/a.md"]];
+  const before = stoppedSaid({ written: ["model/seats/a.md"], removed: [] }, 3, moved, "disk full");
+  assert.match(before, /disk full/);
+  assert.match(before, /1 of 3 files written/);
+  assert.match(before, /Nothing was removed; the copies in model\/seats\/ can be removed to try again\./);
+  const after = stoppedSaid({ written: ["model/seats/a.md", "model/seats/b.md", "x"], removed: ["model/roles/a.md"] }, 3, moved, "locked");
+  assert.match(after, /3 of 3 files written/);
+  assert.match(after, /1 removed already; look in model\/roles\/ and model\/seats\/ before trying again\./);
+  assert.doesNotMatch(stoppedSaid({ written: [], removed: [] }, 1, [], "x"), /model\//);
+});
+
+test("pages in model/roles/ and in model/seats/ together refuse the move, and nothing is written", async () => {
+  const disk = await vaultWithRoles();
+  disk.folders.add("model/seats");
+  disk.files.set("model/seats/owner.md", SEAT_PAGE);
+  const move = await planMove(disk, release);
+  assert.ok("refused" in move);
+  assert.match(move.refused, /model\/seats\/ already exists beside model\/roles\//);
+});
+
+test("carrying out a plan writes bytes with the binary call and text with the text call, and removes only the folders a removal emptied", async () => {
+  const disk = memoryDisk({ "model/a/old.md": "old\n", "model/a/b/keep.md": "keep\n", "model/c/gone.md": "gone\n" });
+  await carryOut(disk, new Map<string, string | Uint8Array>([["model/n/new.md", "new\n"], ["model/n/pic.png", PICTURE]]), ["model/a/old.md", "model/c/gone.md"]);
+  assert.equal(disk.files.get("model/n/new.md"), "new\n");
+  assert.deepEqual(disk.binary.get("model/n/pic.png"), PICTURE);
+  assert.ok(!disk.files.has("model/n/pic.png"), "bytes are not written as text");
+  assert.ok(!disk.folders.has("model/c"), "model/c/ was emptied by the removal");
+  assert.ok(disk.folders.has("model/a"), "model/a/ still holds a folder with a file");
+  assert.ok(disk.folders.has("model"));
+});
+
+test("a move that rewrites many pages names them by folder, not one by one", () => {
+  const rewritten = ["model/profiles/a/a.md", "model/profiles/b/b.md", "model/profiles/c/c.md", "model/seats/README.md"];
+  assert.match(moveScope({ to: "0.63.0", rewritten }), /model\/profiles \(3\), model\/seats\/README\.md are rewritten into the form core 0\.63\.0 reads\./);
+});
+
+test("a carry-out that throws partway leaves a record of what it had done", async () => {
+  const disk = memoryDisk({ "model/roles/a.md": "a\n" });
+  const real = disk.write;
+  disk.write = async (path, text) => {
+    if (path === "model/seats/b.md") throw new Error("disk full");
+    return real(path, text);
+  };
+  const progress = { written: [] as string[], removed: [] as string[] };
+  await assert.rejects(
+    carryOut(disk, new Map([["model/seats/a.md", "a\n"], ["model/seats/b.md", "b\n"]]), ["model/roles/a.md"], progress),
+    /disk full/,
+  );
+  assert.deepEqual(progress, { written: ["model/seats/a.md"], removed: [] });
+  assert.ok(disk.files.has("model/roles/a.md"), "nothing is removed before every write is made");
 });

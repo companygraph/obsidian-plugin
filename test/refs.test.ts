@@ -21,10 +21,10 @@ test("what names a skill is grouped by the file it is written in, each saying wh
     "example/model/profiles/mira-halvorsen/experiences/2022-beacon-systems.md",
     "example/model/profiles/mira-halvorsen/mira-halvorsen.md",
     "example/model/profiles/tomas-reyes/tomas-reyes.md",
-    "example/model/roles/backend-engineer.md",
+    "example/model/seats/backend-engineer.md",
   ]);
-  const role = refs.in.find((g) => g.path.endsWith("backend-engineer.md"))!;
-  assert.deepEqual(role.mentions.map((m) => [m.declared, m.name]), [["requires", "Java Programming"]]);
+  const seat = refs.in.find((g) => g.path.endsWith("backend-engineer.md"))!;
+  assert.deepEqual(seat.mentions.map((m) => [m.declared, m.name]), [["requires", "Java Programming"]]);
   const profile = refs.in.find((g) => g.path.endsWith("mira-halvorsen.md"))!;
   assert.ok(profile.mentions.some((m) => m.declared === "## Skills · Skill"));
   assert.ok(profile.mentions.some((m) => m.declared === "## Evidence · Skill"));

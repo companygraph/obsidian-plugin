@@ -1,5 +1,5 @@
 // Completion inside the Properties widget. Obsidian's own suggestions there are the values the
-// vault's files hold, so a role removed from the one file that named it was gone from them, which
+// vault's files hold, so a seat removed from the one file that named it was gone from them, which
 // is what the owner met. A declared field's input now offers from the schema: the type's names
 // less the pills held, an enum's values, and the pictures beside the note for an image. The
 // selectors are written out where a page function reads them: a page function runs in the
@@ -14,7 +14,7 @@ import { PROFILE, openNote } from "./notes.ts";
 import { command, waitForChecks } from "./ui.ts";
 
 const skip = available() ? false : "Obsidian is not installed here; set OBSIDIAN_BIN to run this suite";
-const ROLES = '.metadata-property[data-property-key="roles"]';
+const SEATS = '.metadata-property[data-property-key="seats"]';
 const NATURE = '.metadata-property[data-property-key="nature"]';
 const IMAGE = '.metadata-property[data-property-key="image"]';
 const META = path.join(import.meta.dirname, "..", "test", "fixtures", "meta-model");
@@ -53,34 +53,34 @@ describe("completion in the Properties widget", { skip }, () => {
   const waitForSuggest = (ui: Session["ui"], selector: string) =>
     ui.waitFor(`the suggest to be on ${selector}`, (sel: string) => !!document.querySelector(`${sel}[data-companygraph-suggest]`), [selector]);
 
-  test("a role removed from the only file that held it is offered again, and Enter writes the pill", async () => {
+  test("a seat removed from the only file that held it is offered again, and Enter writes the pill", async () => {
     const { ui } = session;
-    // A second role first: a list whose last pill goes is redrawn by Obsidian as a text field,
+    // A second seat first: a list whose last pill goes is redrawn by Obsidian as a text field,
     // and the owner's vault registers the property's type where this fixture does not.
-    await ui.evaluate(async (note: string) => { const f = app.vault.getAbstractFileByPath(note) as never; await app.vault.modify(f, ((await app.vault.read(f)) as string).replace("roles:\n  - Owner\n", "roles:\n  - Owner\n  - Reviewer\n")); }, [PROFILE]);
+    await ui.evaluate(async (note: string) => { const f = app.vault.getAbstractFileByPath(note) as never; await app.vault.modify(f, ((await app.vault.read(f)) as string).replace("seats:\n  - Owner\n", "seats:\n  - Owner\n  - Reviewer\n")); }, [PROFILE]);
     await openNote(ui, PROFILE);
     // What is offered comes from the last rebuild that parsed; under load the first one may not
     // have run by the time the input is used, and then there is nothing to offer yet.
     await command(ui, "check-now");
-    await waitForChecks(ui, "the checks to have run over the note with two roles", "none");
-    await ui.waitFor("the roles row with two pills", () => document.querySelectorAll('.metadata-property[data-property-key="roles"] .multi-select-pill-content').length === 2);
-    await ui.click(`${ROLES} .multi-select-pill-remove-button`);
-    await ui.waitFor("the Owner pill to be gone", () => !Array.from(document.querySelectorAll('.metadata-property[data-property-key="roles"] .multi-select-pill-content')).some((p) => p.textContent === "Owner"));
-    await ui.waitFor("the note to have lost the role", async () => !/- Owner/.test((await app.vault.read(app.vault.getAbstractFileByPath("model/profiles/robert-blust/robert-blust.md") as never)) as string));
-    await waitForSuggest(ui, `${ROLES} .multi-select-input`);
-    await ui.click(`${ROLES} .multi-select-input`);
+    await waitForChecks(ui, "the checks to have run over the note with two seats", "none");
+    await ui.waitFor("the seats row with two pills", () => document.querySelectorAll('.metadata-property[data-property-key="seats"] .multi-select-pill-content').length === 2);
+    await ui.click(`${SEATS} .multi-select-pill-remove-button`);
+    await ui.waitFor("the Owner pill to be gone", () => !Array.from(document.querySelectorAll('.metadata-property[data-property-key="seats"] .multi-select-pill-content')).some((p) => p.textContent === "Owner"));
+    await ui.waitFor("the note to have lost the seat", async () => !/- Owner/.test((await app.vault.read(app.vault.getAbstractFileByPath("model/profiles/robert-blust/robert-blust.md") as never)) as string));
+    await waitForSuggest(ui, `${SEATS} .multi-select-input`);
+    await ui.click(`${SEATS} .multi-select-input`);
     // Obsidian selects the popup's first entry the moment an empty input offers everything, so
     // Enter here would write it unless this suggest deselects on an empty query, as the stock
     // widget does.
     await ui.press("Enter");
-    await ui.never("a pill from Enter on the empty roles input", () => document.querySelectorAll('.metadata-property[data-property-key="roles"] .multi-select-pill-content').length > 1, [], 500);
+    await ui.never("a pill from Enter on the empty seats input", () => document.querySelectorAll('.metadata-property[data-property-key="seats"] .multi-select-pill-content').length > 1, [], 500);
     const afterEmptyEnter = await ui.evaluate(async (note: string) => (await app.vault.read(app.vault.getAbstractFileByPath(note) as never)) as string, [PROFILE]);
     assert.ok(!/- Owner/.test(afterEmptyEnter), afterEmptyEnter);
     await ui.type("ow");
     assert.deepEqual((await offered(ui, "Owner to be offered after its removal")).items, ["Owner"]);
     await ui.press("Enter");
-    await ui.waitFor("the pill to be back", () => Array.from(document.querySelectorAll('.metadata-property[data-property-key="roles"] .multi-select-pill-content')).some((p) => p.textContent === "Owner"));
-    const text = await ui.waitFor("the note to name the role again", async () => { const t = (await app.vault.read(app.vault.getAbstractFileByPath("model/profiles/robert-blust/robert-blust.md") as never)) as string; return /^  - Owner$/m.test(t) ? t : null; });
+    await ui.waitFor("the pill to be back", () => Array.from(document.querySelectorAll('.metadata-property[data-property-key="seats"] .multi-select-pill-content')).some((p) => p.textContent === "Owner"));
+    const text = await ui.waitFor("the note to name the seat again", async () => { const t = (await app.vault.read(app.vault.getAbstractFileByPath("model/profiles/robert-blust/robert-blust.md") as never)) as string; return /^  - Owner$/m.test(t) ? t : null; });
     assert.match(text, /^  - Owner$/m);
   });
 
@@ -89,24 +89,24 @@ describe("completion in the Properties widget", { skip }, () => {
     await openNote(ui, PROFILE);
     await command(ui, "check-now");
     await waitForChecks(ui, "the checks to have run", "none");
-    await ui.waitFor("the roles row", () => !!document.querySelector('.metadata-property[data-property-key="roles"] .multi-select-input'));
-    await waitForSuggest(ui, `${ROLES} .multi-select-input`);
-    await ui.click(`${ROLES} .multi-select-input`);
+    await ui.waitFor("the seats row", () => !!document.querySelector('.metadata-property[data-property-key="seats"] .multi-select-input'));
+    await waitForSuggest(ui, `${SEATS} .multi-select-input`);
+    await ui.click(`${SEATS} .multi-select-input`);
     // Tab with the popup open commits its selected entry the way Enter does; the stock widget
     // binds Tab the same way and this suggest does too, so a half-typed name never lands. Tried
     // first, on the input's own empty entry, so nothing has to be cleared first. Planner, not
     // Reviewer: reopening a note the previous test left open does not redraw a pill the widget
-    // already drew, so a role that test may have added is not one this can rely on being absent.
+    // already drew, so a seat that test may have added is not one this can rely on being absent.
     await ui.type("plan");
     await offered(ui, "Planner to be offered while typing plan");
     await ui.press("Tab");
-    await ui.waitFor("the Planner pill after Tab", () => Array.from(document.querySelectorAll('.metadata-property[data-property-key="roles"] .multi-select-pill-content')).some((p) => p.textContent === "Planner"));
-    await waitForSuggest(ui, `${ROLES} .multi-select-input`);
-    await ui.click(`${ROLES} .multi-select-input`);
+    await ui.waitFor("the Planner pill after Tab", () => Array.from(document.querySelectorAll('.metadata-property[data-property-key="seats"] .multi-select-pill-content')).some((p) => p.textContent === "Planner"));
+    await waitForSuggest(ui, `${SEATS} .multi-select-input`);
+    await ui.click(`${SEATS} .multi-select-input`);
     await ui.type("o");
-    const { items: roles, containers: rolesContainers } = await offered(ui, "roles other than the held ones");
-    assert.ok(!roles.includes("Owner") && roles.length > 0, roles.join(", "));
-    assert.equal(rolesContainers, 1, "only this suggest's own popup, not Obsidian's own list too");
+    const { items: seats, containers: seatsContainers } = await offered(ui, "seats other than the held ones");
+    assert.ok(!seats.includes("Owner") && seats.length > 0, seats.join(", "));
+    assert.equal(seatsContainers, 1, "only this suggest's own popup, not Obsidian's own list too");
     await ui.press("Escape");
     await waitForSuggest(ui, `${NATURE} .metadata-input-longtext`);
     await ui.click(`${NATURE} .metadata-input-longtext`);

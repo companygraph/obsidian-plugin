@@ -33,7 +33,7 @@ test("in an entity the same owner owns, the owned names are that owner's too", (
 test("a type that is not owned is offered whole, wherever the file is", () => {
   const all = [...new Set(named.filter((n) => n.type === "skill").map((n) => n.name))].sort((a, b) => a.localeCompare(b));
   assert.deepEqual(namesIn(named, MIRA, M).get("skill"), all);
-  assert.deepEqual(namesIn(named, "example/model/roles/reviewer.md", M).get("skill"), all);
+  assert.deepEqual(namesIn(named, "example/model/seats/reviewer.md", M).get("skill"), all);
 });
 
 test("a phase's gate-to is offered its own process's phases, not another's", () => {

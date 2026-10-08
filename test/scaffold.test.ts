@@ -51,14 +51,14 @@ test("a singular type is offered only while its file does not exist", () => {
 });
 
 test("a new entity starts with its required fields, its H1, an empty tagline and its required sections", () => {
-  const role = vocabulary.get("role")!;
-  const { text, tagline } = scaffoldOf(role, "Critic", { source: "Local" });
+  const seat = vocabulary.get("seat")!;
+  const { text, tagline } = scaffoldOf(seat, "Critic", { source: "Local" });
   const lines = text.split("\n");
   assert.equal(lines[tagline], "> ");
   assert.ok(text.includes("source: Local\n"));
   assert.ok(text.includes("# Critic\n"));
   const headings = lines.filter((l) => l.startsWith("## "));
-  assert.deepEqual(headings, role.sections.filter((s) => s.required).map((s) => `## ${s.heading}`));
+  assert.deepEqual(headings, seat.sections.filter((s) => s.required).map((s) => `## ${s.heading}`));
   assert.ok(!text.includes("## References"));
 });
 
@@ -71,12 +71,12 @@ test("a required table section starts with its header", () => {
 });
 
 test("a scaffold written into the example passes the checks as a page", () => {
-  // A role requires three sections; its scaffold carries them, under the name R12 derives.
-  const role = vocabulary.get("role")!;
+  // A seat requires three sections; its scaffold carries them, under the name R12 derives.
+  const seat = vocabulary.get("seat")!;
   const files = example();
-  const path = byType(targetsFor(EXAMPLE.model, null, (p) => files.has(p))).get("role")!.pathFor("Critic")!;
-  assert.equal(path, "example/model/roles/critic.md");
-  files.set(path, scaffoldOf(role, "Critic", { source: "Local" }).text);
+  const path = byType(targetsFor(EXAMPLE.model, null, (p) => files.has(p))).get("seat")!.pathFor("Critic")!;
+  assert.equal(path, "example/model/seats/critic.md");
+  files.set(path, scaffoldOf(seat, "Critic", { source: "Local" }).text);
   // One thing is left to its author, as a required list field with no item yet is: a required
   // section declared `Bulleted.` carries at least one item, and what a seat refuses is nothing
   // a scaffold can write.

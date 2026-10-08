@@ -33,8 +33,8 @@ test("a reference field's value is a reference, and a string field's is not", ()
 });
 
 test("each entry of a list of references is a reference, and its key line is not", () => {
-  assert.deepEqual(at(L("roles:")), []);
-  assert.deepEqual(at(L("  - Backend Engineer")), [["Backend Engineer", "role", "Backend Engineer"]]);
+  assert.deepEqual(at(L("seats:")), []);
+  assert.deepEqual(at(L("  - Backend Engineer")), [["Backend Engineer", "seat", "Backend Engineer"]]);
 });
 
 test("a table cell is a reference by its column's declaration, a qualifier as much as a reference", () => {
@@ -50,7 +50,7 @@ test("a header row, a separator row, a prose column and a table no column of whi
 });
 
 test("quotes around a value are not part of the name, and an empty value is no reference", () => {
-  const quoted = ["---", 'source: "Local"', "roles:", "  - ", "---"];
+  const quoted = ["---", 'source: "Local"', "seats:", "  - ", "---"];
   const found = referencesIn(quoted, vocabulary.get("profile")!);
   assert.deepEqual(found.map((r) => [r.line, r.name, quoted[r.line].slice(r.from, r.to)]), [[1, "Local", "Local"]]);
 });
@@ -68,7 +68,7 @@ test("a name resolves to the file of the entity it names, within its scope", () 
   const tomas = "example/model/profiles/tomas-reyes/tomas-reyes.md";
   assert.equal(resolveIn(named, tomas, EXAMPLE.model, "experience", "Rebuilding the order pipeline"), null, "another owner's experience");
   assert.equal(resolveIn(named, MIRA, EXAMPLE.model, "skill", "Cobol"), null);
-  assert.equal(resolveIn(named, MIRA, EXAMPLE.model, "role", "Java Programming"), null, "a name under another type");
+  assert.equal(resolveIn(named, MIRA, EXAMPLE.model, "seat", "Java Programming"), null, "a name under another type");
 });
 
 // Review found these. A comment after a value is YAML's and not the name's. And a cell is split

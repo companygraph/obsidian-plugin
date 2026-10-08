@@ -4,27 +4,27 @@ import { briefOf, lineOf, partsOf, placeAt } from "../src/brief.ts";
 import { schemaKeyOf, schemasOf } from "../src/model.ts";
 import { reference, packed, PACKED } from "./helpers.ts";
 
-const role = reference().get("meta/core/role-schema.md")!;
+const seat = reference().get("meta/core/seat-schema.md")!;
 const decision = reference().get("meta/core/decision-schema.md")!;
 
 test("a section's brief is its row of the sections table, the type's purpose and its writing rules", () => {
-  const b = briefOf(role, { kind: "section", heading: "What it never does" });
+  const b = briefOf(seat, { kind: "section", heading: "What it never does" });
   assert.equal(b.label, "Section");
   assert.equal(b.name, "What it never does");
   assert.equal(b.required, true);
   assert.match(b.description!, /refuses whoever holds it/);
-  assert.match(b.purpose!.lead, /^A role is a seat/);
+  assert.match(b.purpose!.lead, /^A seat is a responsibility/);
   // The rule that names the section comes first, and every rule is there.
   assert.ok(b.rules[0].names);
   assert.match(b.rules[0].text, /## What it never does/);
   assert.equal(b.rules.filter((r) => r.names).length, 1);
-  assert.ok(b.rules.length >= 5);
+  assert.ok(b.rules.length >= 4);
   // A rule written over several lines reads as one.
-  assert.ok(b.rules.some((r) => r.text.startsWith("Person-neutral:") && r.text.includes("Who holds it is the profile's fact.")));
+  assert.ok(b.rules.some((r) => r.text.startsWith("The page is person-neutral:") && r.text.includes("Who holds it is the profile's fact.")));
 });
 
 test("a field's brief is its row of the frontmatter table, and the rules that name it first", () => {
-  const b = briefOf(role, { kind: "field", name: "requires" });
+  const b = briefOf(seat, { kind: "field", name: "requires" });
   assert.equal(b.label, "Field");
   assert.equal(b.name, "requires");
   assert.equal(b.required, false);
@@ -33,15 +33,15 @@ test("a field's brief is its row of the frontmatter table, and the rules that na
 });
 
 test("above every section, the brief is the H1's row, and on the tagline the tagline's", () => {
-  const top = briefOf(role, { kind: "top" });
+  const top = briefOf(seat, { kind: "top" });
   assert.deepEqual([top.label, top.name], ["Title", "Seat"]);
-  const tagline = briefOf(role, { kind: "tagline" });
+  const tagline = briefOf(seat, { kind: "tagline" });
   assert.deepEqual([tagline.label, tagline.name], ["Tagline", "Purpose"]);
   assert.match(tagline.description!, /what the seat is for/);
 });
 
 test("a section the schema does not declare has no row, and still the purpose and every rule", () => {
-  const b = briefOf(role, { kind: "section", heading: "Notes" });
+  const b = briefOf(seat, { kind: "section", heading: "Notes" });
   assert.equal(b.description, null);
   assert.equal(b.required, null);
   assert.ok(b.purpose && b.rules.length > 0);

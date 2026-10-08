@@ -13,7 +13,7 @@ const MIRA = "example/model/profiles/mira-halvorsen/mira-halvorsen.md";
 test("the model's edges become links between files, counted", () => {
   const links = linksOf(graph);
   assert.equal(links[MIRA]["example/model/skills/java-programming.md"], 3, "once in Skills and twice in Evidence");
-  assert.equal(links[MIRA]["example/model/roles/backend-engineer.md"], 1);
+  assert.equal(links[MIRA]["example/model/seats/backend-engineer.md"], 1);
   assert.ok(!Object.keys(links[MIRA]).some((p) => p.includes("/experiences/")), "a qualifier draws no link");
 });
 

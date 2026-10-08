@@ -2,15 +2,15 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { checkInstance } from "companygraph-meta-model/checks";
 import { buildModel, schemasOf, typesOf } from "../src/model.ts";
-import type { Files } from "../src/model.ts";
+import type { Files, Layout } from "../src/model.ts";
 import { vocabularyOf } from "../src/vocabulary.ts";
 import { namedOf } from "../src/scope.ts";
 import { deletePlan, referencesTo, renamePlan } from "../src/refactor.ts";
 import type { RenamePlan } from "../src/refactor.ts";
 import { edited, example, EXAMPLE, reference, REFERENCE, whole, wholePacked, packed, PACKED } from "./helpers.ts";
 
-const setup = (files: Map<string, string>, layout: typeof EXAMPLE | typeof PACKED) => {
-  const all = "packs" in layout ? wholePacked : whole;
+const setup = (files: Map<string, string>, layout: Layout) => {
+  const all = layout === PACKED ? wholePacked : whole;
   const named = namedOf(buildModel(all(files), layout).graph!);
   return {
     files,
@@ -18,6 +18,7 @@ const setup = (files: Map<string, string>, layout: typeof EXAMPLE | typeof PACKE
     named,
     vocabulary: vocabularyOf(schemasOf(files, layout)),
     model: layout.model,
+    types: typesOf(layout),
   };
 };
 const entity = (named: ReturnType<typeof namedOf>, type: string, name: string) => named.find((n) => n.type === type && n.name === name)!;
@@ -53,7 +54,7 @@ test("a skill's references are found in frontmatter lists and table cells, and n
     "example/model/profiles/mira-halvorsen/experiences/2022-beacon-systems.md",
     "example/model/profiles/mira-halvorsen/mira-halvorsen.md",
     "example/model/profiles/tomas-reyes/tomas-reyes.md",
-    "example/model/roles/backend-engineer.md",
+    "example/model/seats/backend-engineer.md",
   ]);
   // The skill's own H1 is its name, not a reference to it.
   assert.ok(!found.some((m) => m.path === java.path));
@@ -66,7 +67,7 @@ test("renaming a skill rewrites its H1, its file and every reference, and the ch
   assert.deepEqual(plan.moves, [{ from: "example/model/skills/java-programming.md", to: "example/model/skills/java.md" }]);
   const after = carried(whole(files), plan);
   assert.ok((after.get("example/model/skills/java.md") as string).includes("\n# Java\n"));
-  assert.ok(!(after.get("example/model/roles/backend-engineer.md") as string).includes("Java Programming"));
+  assert.ok(!(after.get("example/model/seats/backend-engineer.md") as string).includes("Java Programming"));
   assert.deepEqual(checkInstance(after, EXAMPLE).failures, []);
 });
 
@@ -95,8 +96,8 @@ test("renaming an owner moves its folder and its file, and what it owns goes wit
 test("renaming a pictured owner moves its picture with the folder, and the checks stay clean", () => {
   // The edit this wave came from: `carried` used to put a fixture's pictures back at their
   // ORIGINAL paths after a plan moved the folder, so a rename of AI Agent could never be tried.
-  const { files, paths, named, vocabulary, model } = setup(example(), EXAMPLE);
-  const plan = renamePlan(files, paths, vocabulary, named, model, entity(named, "profile", "AI Agent"), "Helper");
+  const { files, paths, named, vocabulary, model, types } = setup(example(), EXAMPLE);
+  const plan = renamePlan(files, paths, vocabulary, named, model, entity(named, "profile", "AI Agent"), "Helper", types);
   assert.ok(!("refused" in plan));
   const after = carried(whole(files), plan);
   assert.ok(after.has("example/model/profiles/helper/ai-agent.png"), [...after.keys()].join("\n"));
@@ -248,8 +249,8 @@ test("renaming an experience a question rests on rewrites the row's Entity cell,
 });
 
 test("renaming an owner rewrites every Owner cell that names it, and the rows still resolve", () => {
-  const { files, paths, named, vocabulary, model } = setup(example(), EXAMPLE);
-  const plan = renamePlan(files, paths, vocabulary, named, model, entity(named, "profile", "Mira Halvorsen"), "Mira Hale");
+  const { files, paths, named, vocabulary, model, types } = setup(example(), EXAMPLE);
+  const plan = renamePlan(files, paths, vocabulary, named, model, entity(named, "profile", "Mira Halvorsen"), "Mira Hale", types);
   assert.ok(!("refused" in plan));
   assert.match(plan.texts.get(WHO)!, /^\| experience \| Splitting the billing domain \| Mira Hale \| the period \|$/m);
   assert.deepEqual(checkInstance(carried(whole(files), plan), EXAMPLE).failures, []);
@@ -273,11 +274,11 @@ test("a row naming the same name under another owner is not the renamed entity's
 });
 
 test("renaming any entity of the example, questions among them, leaves the checks clean", () => {
-  const { files, paths, named, vocabulary, model } = setup(example(), EXAMPLE);
+  const { files, paths, named, vocabulary, model, types } = setup(example(), EXAMPLE);
   assert.ok(named.some((n) => n.type === "question"));
   const broken: string[] = [];
   for (const target of named) {
-    const plan = renamePlan(files, paths, vocabulary, named, model, target, `${target.name} X`);
+    const plan = renamePlan(files, paths, vocabulary, named, model, target, `${target.name} X`, types);
     if ("refused" in plan) {
       broken.push(`${target.type} ${target.name}: refused, ${plan.refused}`);
       continue;

@@ -4,7 +4,7 @@ import { buildModel } from "../src/model.ts";
 import { locate } from "../src/locate.ts";
 import { example, EXAMPLE, edited, whole } from "./helpers.ts";
 
-const ROLE = "example/model/roles/backend-engineer.md";
+const SEAT = "example/model/seats/backend-engineer.md";
 const lineOf = (files: Map<string, string>, file: string, text: string) =>
   files.get(file)!.split("\n").findIndex((l) => l.includes(text));
 // Where a line reads exactly this, for the cases where an earlier line has it as a prefix.
@@ -12,24 +12,24 @@ const lineIs = (files: Map<string, string>, file: string, text: string) =>
   files.get(file)!.split("\n").findIndex((l) => l === text);
 
 test("a scalar reference that does not resolve lands on its field's line", () => {
-  const files = edited(example(), ROLE, (t) => t.replace("source: Local", "source: Nowhere"));
+  const files = edited(example(), SEAT, (t) => t.replace("source: Local", "source: Nowhere"));
   const [failure] = buildModel(files, EXAMPLE).failures;
   const at = locate(failure, files);
-  assert.equal(at.path, ROLE);
-  assert.equal(at.line, lineOf(files, ROLE, "source: Nowhere"));
-  assert.ok(!at.message.startsWith(ROLE));
+  assert.equal(at.path, SEAT);
+  assert.equal(at.line, lineOf(files, SEAT, "source: Nowhere"));
+  assert.ok(!at.message.startsWith(SEAT));
 });
 
 test("an entry of a block sequence lands on the entry, not on the key above it", () => {
-  const files = edited(example(), ROLE, (t) => t.replace("  - Java Programming", "  - Java Programming\n  - Cobol"));
+  const files = edited(example(), SEAT, (t) => t.replace("  - Java Programming", "  - Java Programming\n  - Cobol"));
   const failure = buildModel(files, EXAMPLE).failures.find((f) => f.includes("Cobol"))!;
-  assert.equal(locate(failure, files).line, lineOf(files, ROLE, "- Cobol"));
+  assert.equal(locate(failure, files).line, lineOf(files, SEAT, "- Cobol"));
 });
 
 test("an undeclared field lands on the field", () => {
-  const files = edited(example(), ROLE, (t) => t.replace("source: Local", "source: Local\nbogus: 1"));
+  const files = edited(example(), SEAT, (t) => t.replace("source: Local", "source: Local\nbogus: 1"));
   const failure = buildModel(files, EXAMPLE).failures.find((f) => f.includes("bogus"))!;
-  assert.equal(locate(failure, files).line, lineOf(files, ROLE, "bogus: 1"));
+  assert.equal(locate(failure, files).line, lineOf(files, SEAT, "bogus: 1"));
 });
 
 test("a failure that names no file belongs to the instance", () => {
@@ -47,8 +47,8 @@ test("a failure about a folder belongs to the instance", () => {
 });
 
 test("a path with nothing findable in the file falls back to its first line", () => {
-  const at = locate(`${ROLE}: no H1, so nothing derives a filename (R2)`, example());
-  assert.deepEqual([at.path, at.line], [ROLE, 0]);
+  const at = locate(`${SEAT}: no H1, so nothing derives a filename (R2)`, example());
+  assert.deepEqual([at.path, at.line], [SEAT, 0]);
 });
 
 const MIRA = "example/model/profiles/mira-halvorsen/mira-halvorsen.md";
@@ -93,11 +93,11 @@ test("a grouped heading that fails lands on the heading, not on the section it g
 });
 
 test("a list entry that reads as the prefix of an earlier entry lands on itself", () => {
-  const files = edited(example(), ROLE, (t) => t.replace("  - Java Programming", "  - Java Programming\n  - Java"));
+  const files = edited(example(), SEAT, (t) => t.replace("  - Java Programming", "  - Java Programming\n  - Java"));
   const failure = buildModel(files, EXAMPLE).failures.find((f) => f.includes('"Java"'))!;
   const at = locate(failure, files);
-  assert.equal(at.path, ROLE);
-  assert.equal(at.line, lineIs(files, ROLE, "  - Java"));
+  assert.equal(at.path, SEAT);
+  assert.equal(at.line, lineIs(files, SEAT, "  - Java"));
 });
 
 test("a table cell whose text also reads inside an earlier row lands on its own row", () => {
@@ -116,7 +116,7 @@ test("a table cell whose text also reads inside an earlier row lands on its own 
 test("a one-letter entry lands on itself, not on an earlier frontmatter value holding the letter", () => {
   const files = edited(example(), MIRA, (t) => t.replace("  - Backend Engineer", "  - Backend Engineer\n  - G"));
   // Before core 0.56.0 the failure names no field, and the search has nothing to scope it; since,
-  // it names `roles`, and the letter must still be found under it, not in an earlier value.
+  // it names `seats`, and the letter must still be found under it, not in an earlier value.
   const failure = buildModel(files, EXAMPLE).failures.find((f) => /resolves to nothing|names no entity/.test(f))!;
   const at = locate(failure, files);
   assert.equal(at.path, MIRA);

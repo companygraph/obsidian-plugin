@@ -7,8 +7,8 @@ import { addableSections, headingsOf, insertionAt, placementOf, tableStart, isEn
 import { example, EXAMPLE, reference, REFERENCE } from "./helpers.ts";
 
 const vocabulary = vocabularyOf(schemasOf(example(), EXAMPLE));
-// A role declares three required sections and one optional, `## References`.
-const role = vocabulary.get("role")!;
+// A seat declares three required sections and one optional, `## References`.
+const seat = vocabulary.get("seat")!;
 const lines = (text: string) => text.split("\n");
 
 const PAGE = [
@@ -40,7 +40,7 @@ const PAGE = [
 
 test("a heading is required, optional or the page's own, as the schema declares it", () => {
   assert.deepEqual(
-    headingsOf(lines(PAGE), role).map((h) => [h.line, h.heading, h.kind]),
+    headingsOf(lines(PAGE), seat).map((h) => [h.line, h.heading, h.kind]),
     [
       [9, "What it takes", "required"],
       [13, "Notes", "own"],
@@ -51,24 +51,24 @@ test("a heading is required, optional or the page's own, as the schema declares 
 });
 
 test("a heading is declared only as written: case and trailing words make it the page's own", () => {
-  const kinds = headingsOf(lines("# R\n\n## What It Takes\n\n## What it takes, roughly\n"), role).map((h) => h.kind);
+  const kinds = headingsOf(lines("# R\n\n## What It Takes\n\n## What it takes, roughly\n"), seat).map((h) => h.kind);
   assert.deepEqual(kinds, ["own", "own"]);
 });
 
 test("a missing required section is placed after the declared section before it in the schema's order", () => {
   // The schema orders What it takes, What it produces, What it never does, References.
   // What it produces is missing: it belongs after What it takes, so before the next heading.
-  assert.deepEqual(missingOf(lines(PAGE), role), [{ heading: "What it produces", before: 13 }]);
+  assert.deepEqual(missingOf(lines(PAGE), seat), [{ heading: "What it produces", before: 13 }]);
 });
 
 test("with no declared section before it, a missing one goes before the first heading", () => {
   const text = "# Reviewer\n\n> Reads the work.\n\n## What it produces\n\nA review.\n\n## What it never does\n\n- Merges.\n";
-  assert.deepEqual(missingOf(lines(text), role), [{ heading: "What it takes", before: 4 }]);
+  assert.deepEqual(missingOf(lines(text), seat), [{ heading: "What it takes", before: 4 }]);
 });
 
 test("with no heading at all, every required section goes at the end, in the schema's order", () => {
   const text = "# Reviewer\n\n> Reads the work.\n";
-  assert.deepEqual(missingOf(lines(text), role), [
+  assert.deepEqual(missingOf(lines(text), seat), [
     { heading: "What it takes", before: 4 },
     { heading: "What it produces", before: 4 },
     { heading: "What it never does", before: 4 },
@@ -76,22 +76,22 @@ test("with no heading at all, every required section goes at the end, in the sch
 });
 
 test("an optional section is never missing", () => {
-  assert.ok(!missingOf(lines(PAGE), role).some((m) => m.heading === "References"));
+  assert.ok(!missingOf(lines(PAGE), seat).some((m) => m.heading === "References"));
 });
 
 test("a near miss names the declared heading the page does not carry", () => {
   const carried = ["What it takes", "What it never does"];
-  assert.equal(nearMissOf("Referencs", role, carried), "References");
-  assert.equal(nearMissOf("what it produces", role, carried), "What it produces");
-  assert.equal(nearMissOf("What-it-produces!", role, carried), "What it produces");
+  assert.equal(nearMissOf("Referencs", seat, carried), "References");
+  assert.equal(nearMissOf("what it produces", seat, carried), "What it produces");
+  assert.equal(nearMissOf("What-it-produces!", seat, carried), "What it produces");
   // Already carried: a second one is the page's own, not a typo of the first.
-  assert.equal(nearMissOf("What it take", role, carried), null);
-  assert.equal(nearMissOf("Notes", role, carried), null);
+  assert.equal(nearMissOf("What it take", seat, carried), null);
+  assert.equal(nearMissOf("Notes", seat, carried), null);
 });
 
 test("an own heading carries its near miss", () => {
   const text = "# R\n\n## What it takes\n\n## Referencs\n";
-  const own = headingsOf(lines(text), role).find((h) => h.kind === "own")!;
+  const own = headingsOf(lines(text), seat).find((h) => h.kind === "own")!;
   assert.equal(own.nearMiss, "References");
 });
 
@@ -128,10 +128,10 @@ test("every heading of the reference instance is declared but the Voice pages' o
 });
 
 test("Remove section removes a declared optional section whole, and refuses the rest", () => {
-  assert.deepEqual(removalAt(lines(PAGE), 19, role), { heading: "References", from: 17, to: 21 });
-  assert.deepEqual(removalAt(lines(PAGE), 11, role), { refused: "required", heading: "What it takes" });
-  assert.deepEqual(removalAt(lines(PAGE), 14, role), { refused: "own", heading: "Notes" });
-  assert.deepEqual(removalAt(lines(PAGE), 5, role), { refused: "none" });
+  assert.deepEqual(removalAt(lines(PAGE), 19, seat), { heading: "References", from: 17, to: 21 });
+  assert.deepEqual(removalAt(lines(PAGE), 11, seat), { refused: "required", heading: "What it takes" });
+  assert.deepEqual(removalAt(lines(PAGE), 14, seat), { refused: "own", heading: "Notes" });
+  assert.deepEqual(removalAt(lines(PAGE), 5, seat), { refused: "none" });
 });
 
 test("a short heading is a near miss at one edit, and only a longer one at two", () => {
@@ -142,7 +142,7 @@ test("a short heading is a near miss at one edit, and only a longer one at two",
   assert.equal(nearMissOf("Date", phase, []), "Gate");
   assert.equal(nearMissOf("Rates", phase, []), null);
   // Past six letters two edits still count.
-  assert.equal(nearMissOf("Refernces", role, []), "References");
+  assert.equal(nearMissOf("Refernces", seat, []), "References");
 });
 
 test("folding keeps letters outside ASCII", () => {
@@ -154,14 +154,14 @@ test("folding keeps letters outside ASCII", () => {
 
 test("a required section a near miss already points at is not drawn missing a second time", () => {
   const text = "# R\n\n## What it take\n\nA.\n\n## What it produces\n\n## What it never does\n";
-  assert.deepEqual(missingOf(lines(text), role), []);
-  assert.equal(headingsOf(lines(text), role)[0].nearMiss, "What it takes");
+  assert.deepEqual(missingOf(lines(text), seat), []);
+  assert.equal(headingsOf(lines(text), seat)[0].nearMiss, "What it takes");
 });
 
 test("frontmatter closes on a line that is exactly three dashes, as the parser reads it", () => {
   const text = "---\nsource: Local\n--- \n## What it takes\n---\n# R\n";
   // `--- ` with a trailing space does not close it, so the heading is still inside.
-  assert.deepEqual(headingsOf(lines(text), role), []);
+  assert.deepEqual(headingsOf(lines(text), seat), []);
 });
 
 test("an entity's text has an H1; a table cell's does not", () => {
@@ -195,7 +195,7 @@ test("a heading inserted where the line above is blank adds no second blank line
 });
 
 test("removing a middle section takes it to the next heading", () => {
-  const r = removalRange(PAGE, 19, role);
+  const r = removalRange(PAGE, 19, seat);
   assert.ok(!("refused" in r));
   const after = PAGE.slice(0, r.from) + r.insert + PAGE.slice(r.to);
   assert.ok(after.includes("Mine.\n\n## What it never does"));
@@ -204,23 +204,23 @@ test("removing a middle section takes it to the next heading", () => {
 
 test("removing the last section leaves the page ending in one newline", () => {
   const text = "# R\n\n## What it takes\n\nA.\n\n## References\n\n| What | Link |\n";
-  const r = removalRange(text, 8, role);
+  const r = removalRange(text, 8, seat);
   assert.ok(!("refused" in r));
   assert.equal(text.slice(0, r.from) + r.insert + text.slice(r.to), "# R\n\n## What it takes\n\nA.\n");
 });
 
 test("removal is refused where Remove section refuses", () => {
-  assert.deepEqual(removalRange(PAGE, 11, role), { refused: "required", heading: "What it takes" });
+  assert.deepEqual(removalRange(PAGE, 11, seat), { refused: "required", heading: "What it takes" });
 });
 
 // The lock (spec §8): the H1 and every declared heading keep their text. What is compared is the
 // locked lines before an edit and after it, so an edit anywhere else passes whatever it does.
 test("the locked lines are every declared heading, not the page's own and not the H1", () => {
-  assert.deepEqual(lockedLines(lines(PAGE), role), ["## What it takes", "## References", "## What it never does"]);
+  assert.deepEqual(lockedLines(lines(PAGE), seat), ["## What it takes", "## References", "## What it never does"]);
 });
 
 test("an edit that keeps every locked line passes, and one that loses one names it", () => {
-  const held = (text: string) => lockedLines(lines(text), role);
+  const held = (text: string) => lockedLines(lines(text), seat);
   assert.equal(lostLine(held(PAGE), held(PAGE.replace("A branch.", "A branch and a plan."))), null);
   assert.equal(lostLine(held(PAGE), held(PAGE.replace("## What it takes", "## What it is"))), "## What it takes");
   // The H1 is the entity's name, and renaming it is an edit like any other; the checks then name
@@ -229,34 +229,34 @@ test("an edit that keeps every locked line passes, and one that loses one names 
 });
 
 test("a new line before or after a heading, and a declared heading added, keep the lock", () => {
-  const before = lockedLines(lines(PAGE), role);
+  const before = lockedLines(lines(PAGE), seat);
   for (const after of [
     PAGE.replace("## What it takes", "\n## What it takes"),
     PAGE.replace("## What it takes", "## What it takes\n"),
     PAGE + "\n\n## What it produces\n",
     PAGE.replace("## Notes", "## Notes, mine"),
   ])
-    assert.equal(lostLine(before, lockedLines(lines(after), role)), null);
+    assert.equal(lostLine(before, lockedLines(lines(after), seat)), null);
 });
 
 test("a declared heading written twice is held once, so the copy can be deleted", () => {
   const twice = PAGE + "\n\n## References\n";
-  assert.equal(lostLine(lockedLines(lines(twice), role), lockedLines(lines(PAGE), role)), null);
+  assert.equal(lostLine(lockedLines(lines(twice), seat), lockedLines(lines(PAGE), seat)), null);
   // Both copies gone is the heading lost.
   const none = PAGE.replace("## References", "");
-  assert.equal(lostLine(lockedLines(lines(twice), role), lockedLines(lines(none), role)), "## References");
+  assert.equal(lostLine(lockedLines(lines(twice), seat), lockedLines(lines(none), seat)), "## References");
 });
 
 test("trailing spaces are no part of a held line, so they can be trimmed", () => {
   const spaced = PAGE.replace("## What it takes", "## What it takes  ");
-  const held = (text: string) => lockedLines(lines(text), role);
+  const held = (text: string) => lockedLines(lines(text), seat);
   assert.equal(lostLine(held(spaced), held(PAGE)), null);
 });
 
 test("a `---` typed at the top of a page is not frontmatter until it closes", () => {
   const text = "---\n# Reviewer\n\n## What it takes\n";
-  assert.deepEqual(lockedLines(lines(text), role), ["## What it takes"]);
-  assert.equal(lostLine(lockedLines(lines(text.slice(4)), role), lockedLines(lines(text), role)), null);
+  assert.deepEqual(lockedLines(lines(text), seat), ["## What it takes"]);
+  assert.equal(lostLine(lockedLines(lines(text.slice(4)), seat), lockedLines(lines(text), seat)), null);
 });
 
 test("the lock holds every edit but a reload, undo, redo, this plugin's own and a composing input method", () => {
@@ -271,10 +271,10 @@ test("the lock holds every edit but a reload, undo, redo, this plugin's own and 
 
 // Add a section (spec §8): what it offers and where it writes.
 test("Add a section offers the declared sections the page lacks, in the schema's order", () => {
-  assert.deepEqual(addableSections(lines(PAGE), role).map((s) => [s.heading, s.required]), [["What it produces", true]]);
+  assert.deepEqual(addableSections(lines(PAGE), seat).map((s) => [s.heading, s.required]), [["What it produces", true]]);
   const bare = "# Reviewer\n\n> Reads the work.\n";
   assert.deepEqual(
-    addableSections(lines(bare), role).map((s) => s.heading),
+    addableSections(lines(bare), seat).map((s) => s.heading),
     ["What it takes", "What it produces", "What it never does", "References"],
   );
 });
@@ -282,16 +282,16 @@ test("Add a section offers the declared sections the page lacks, in the schema's
 test("an optional section is placed by the schema's order as a required one is", () => {
   const text = "# R\n\n## What it takes\n\nA.\n\n## What it never does\n\n- B.\n\n## Notes\n\nMine.\n";
   // References comes last in the schema: after What it never does, so before the next heading.
-  assert.equal(placementOf(lines(text), role, "References"), 10);
-  assert.equal(placementOf(lines(text), role, "What it produces"), 6);
+  assert.equal(placementOf(lines(text), seat, "References"), 10);
+  assert.equal(placementOf(lines(text), seat, "What it produces"), 6);
 });
 
 test("a table section starts with its header and a separator of plain dashes", () => {
-  const references = role.sections.find((s) => s.heading === "References")!;
+  const references = seat.sections.find((s) => s.heading === "References")!;
   const header = tableStart(references);
   assert.equal(header.length, 2);
   assert.match(header[1], /^\| --- (\| --- )*\|$/);
-  assert.deepEqual(tableStart(role.sections.find((s) => s.heading === "What it takes")!), []);
+  assert.deepEqual(tableStart(seat.sections.find((s) => s.heading === "What it takes")!), []);
 });
 
 test("a table section written before a heading leaves the cursor on the row after the header", () => {

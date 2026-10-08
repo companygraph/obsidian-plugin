@@ -3,11 +3,13 @@
 // instance robertblust/mental-model at one commit, for an instance in the layout every real one
 // has; and companygraph/mental-model at another, for an instance that takes the software pack.
 // None is in node_modules: the package ships lib/ and bin/ only, and an instance is content, not
-// a dependency. And the three files of one release of the Terminal plugin, which
+// a dependency. The two instances are fetched at commits that hold an earlier core, and are moved
+// to the core of the release the package pins by that release's own `upgrade`, as an owner would
+// move them, so a fixture is never edited by hand and a re-pin remakes it. And the three files of one release of the Terminal plugin, which
 // only the e2e test of Open the command line puts into its vault.
 import fs from "node:fs";
 import path from "node:path";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { PLUGINS, download } from "companygraph-meta-model/obsidian";
 
@@ -24,14 +26,19 @@ const TERMINAL_RELEASE = "3.27.2";
 
 const FIXTURES = [
   { repo: metaRepo, ref: tag, url: `https://codeload.github.com/${metaRepo}/tar.gz/refs/tags/${tag}`, dir: "meta-model" },
-  { repo: "robertblust/mental-model", ref: INSTANCE_COMMIT, url: `https://codeload.github.com/robertblust/mental-model/tar.gz/${INSTANCE_COMMIT}`, dir: "mental-model" },
-  { repo: "companygraph/mental-model", ref: PACK_COMMIT, url: `https://codeload.github.com/companygraph/mental-model/tar.gz/${PACK_COMMIT}`, dir: "pack-instance" },
+  { repo: "robertblust/mental-model", ref: INSTANCE_COMMIT, url: `https://codeload.github.com/robertblust/mental-model/tar.gz/${INSTANCE_COMMIT}`, dir: "mental-model", upgrade: true },
+  { repo: "companygraph/mental-model", ref: PACK_COMMIT, url: `https://codeload.github.com/companygraph/mental-model/tar.gz/${PACK_COMMIT}`, dir: "pack-instance", upgrade: true },
 ];
+
+// The package's command line, installed beside this script's dependencies.
+const CLI = path.join(root, "node_modules", "companygraph-meta-model", "bin", "companygraph.mjs");
 
 for (const f of FIXTURES) {
   const target = path.join(root, "test", "fixtures", f.dir);
   const marker = path.join(target, ".ref");
-  if (fs.existsSync(marker) && fs.readFileSync(marker, "utf8").trim() === f.ref) {
+  // An upgraded fixture is the commit and the release that moved it, so a re-pin remakes it.
+  const held = f.upgrade ? `${f.ref} upgraded by ${tag}` : f.ref;
+  if (fs.existsSync(marker) && fs.readFileSync(marker, "utf8").trim() === held) {
     console.log(`fixtures: ${f.repo}@${f.ref.slice(0, 12)} already present`);
     continue;
   }
@@ -40,8 +47,16 @@ for (const f of FIXTURES) {
   fs.rmSync(target, { recursive: true, force: true });
   fs.mkdirSync(target, { recursive: true });
   execFileSync("tar", ["-xz", "--strip-components=1", "-C", target], { input: Buffer.from(await res.arrayBuffer()) });
-  fs.writeFileSync(marker, f.ref + "\n");
-  console.log(`fixtures: ${f.repo}@${f.ref.slice(0, 12)} fetched into test/fixtures/${f.dir}`);
+  if (f.upgrade) {
+    // The command prints what it moved; that is read only when it fails.
+    // git may not look above the fixtures for a repository, or the command would read this
+    // plugin's own git config (its hooks and gate) for a vault that is no part of it.
+    const env = { ...process.env, GIT_CEILING_DIRECTORIES: path.join(root, "test", "fixtures") };
+    const moved = spawnSync(process.execPath, [CLI, "upgrade", target], { encoding: "utf8", env });
+    if (moved.status !== 0) throw new Error(`upgrade of ${f.dir} failed (${moved.status}):\n${moved.stdout}${moved.stderr}`);
+  }
+  fs.writeFileSync(marker, held + "\n");
+  console.log(`fixtures: ${f.repo}@${f.ref.slice(0, 12)} fetched into test/fixtures/${f.dir}${f.upgrade ? `, moved to the core of ${tag}` : ""}`);
 }
 
 const terminal = path.join(root, "test", "fixtures", "terminal");

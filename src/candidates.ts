@@ -149,7 +149,7 @@ function offers(
 
 // What a field's input in the Properties widget may still take. Live Preview draws the
 // frontmatter as that widget, whose own suggestions are the values the vault's files happen to
-// hold: a role no file names any more is gone from them the moment it is removed, which is the
+// hold: a seat no file names any more is gone from them the moment it is removed, which is the
 // one moment it is wanted back. So a declared field takes its list from the schema instead: the
 // names of the declared type, less those the list already holds; an enum's values; and for an
 // image, the pictures beside the note. A plain string field declares nothing and is left to

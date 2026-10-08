@@ -3,8 +3,8 @@
 // on a press. What is written is instantiate.ts's, and through it the meta-model's own planner.
 import { Modal, Notice, Setting } from "obsidian";
 import type { App, DataAdapter } from "obsidian";
-import { carryOut, folderChoices, moveScope, planInstance, planMove } from "./instantiate.ts";
-import type { Disk, Release } from "./instantiate.ts";
+import { carryOut, doneSaid, folderChoices, forceHint, moveScope, movedSummary, planInstance, planMove, stoppedSaid, summary } from "./instantiate.ts";
+import type { Disk, Progress, Release } from "./instantiate.ts";
 
 // Obsidian's adapter as the Disk instantiate.ts takes. The adapter lists the root as "/" and
 // every other folder by its path, and may hand paths back with a leading slash from the root.
@@ -13,27 +13,24 @@ export function diskOf(adapter: DataAdapter): Disk {
   return {
     exists: (path) => adapter.exists(path),
     read: (path) => adapter.read(path),
+    async readBinary(path) { return new Uint8Array(await adapter.readBinary(path)); },
     write: (path, text) => adapter.write(path, text),
+    // The adapter takes an ArrayBuffer of exactly the file's bytes, not the buffer a view sits in.
+    writeBinary: (path, bytes) => adapter.writeBinary(path, bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer),
     mkdir: (path) => adapter.mkdir(path),
     remove: (path) => adapter.remove(path),
+    // A folder is put in the trash and not deleted. Obsidian's desktop adapter fails a
+    // non-recursive rmdir on any folder (EISDIR), and a recursive one is a permanent delete: it
+    // would take with it an entry the listing did not show or a file a sync client wrote after
+    // it. The trash keeps either, and costs the owner one empty folder to empty from it.
+    async rmdir(path) {
+      if (!(await adapter.trashSystem(path))) await adapter.trashLocal(path);
+    },
     async list(path) {
       const listed = await adapter.list(path === "" ? "/" : path);
       return { files: listed.files.map(bare), folders: listed.folders.map(bare) };
     },
   };
-}
-
-// Paths a plan writes, gathered by folder so a list of fifty files reads in a line or two:
-// `meta/core (22)`, `.claude/skills (6)`, and a file alone in its group by its whole path,
-// `.companygraph/manifest.json`, `AGENTS.md`.
-function summary(paths: string[]): string {
-  const groups = new Map<string, string[]>();
-  for (const path of paths) {
-    const parts = path.split("/");
-    const key = parts.length > 1 ? parts.slice(0, Math.min(2, parts.length - 1)).join("/") : path;
-    groups.set(key, [...(groups.get(key) ?? []), path]);
-  }
-  return [...groups].map(([key, held]) => (held.length > 1 ? `${key} (${held.length})` : held[0])).join(", ");
 }
 
 export class MakeInstance extends Modal {
@@ -121,10 +118,8 @@ export class MoveCore extends Modal {
       // The planner's words, which may end on the command line's --force; from here, the files it
       // names are put back by hand, or the command is run from a terminal.
       this.contentEl.createEl("pre", { text: plan.refused });
-      this.contentEl.createEl("p", {
-        cls: "setting-item-description",
-        text: `From a terminal, npx github:companygraph/meta-model#v${this.release.version} upgrade --force overwrites them.`,
-      });
+      const hint = forceHint(plan.refused, this.release.version);
+      if (hint) this.contentEl.createEl("p", { cls: "setting-item-description", text: hint });
       return;
     }
     if (plan.writes.size === 0 && plan.removes.length === 0) {
@@ -133,7 +128,11 @@ export class MoveCore extends Modal {
     }
     this.contentEl.createEl("p", { text: `Core ${plan.from} → ${plan.to}.` });
     this.contentEl.createEl("p", { text: `Writes ${summary([...plan.writes.keys()])}.` });
-    if (plan.removes.length) this.contentEl.createEl("p", { text: `Removes ${plan.removes.join(", ")}.` });
+    const moved = plan.moved ?? [];
+    if (moved.length) this.contentEl.createEl("p", { text: `Moves ${movedSummary(moved)}.` });
+    // A moved file is removed from where it was and written where it goes, and is named once, as a move.
+    const gone = plan.removes.filter((path) => !moved.some(([from]) => from === path));
+    if (gone.length) this.contentEl.createEl("p", { text: `Removes ${gone.join(", ")}.` });
     this.contentEl.createEl("p", {
       cls: "setting-item-description",
       text: moveScope(plan),
@@ -150,8 +149,14 @@ export class MoveCore extends Modal {
             new Notice(now.refused, 10000);
             return;
           }
-          await carryOut(disk, now.writes, now.removes);
-          new Notice(`Core ${now.from} → ${now.to}: ${now.writes.size} written, ${now.removes.length} removed`, 10000);
+          const progress: Progress = { written: [], removed: [] };
+          try {
+            await carryOut(disk, now.writes, now.removes, progress);
+          } catch (error) {
+            new Notice(stoppedSaid(progress, now.writes.size, now.moved ?? [], error instanceof Error ? error.message : String(error)), 20000);
+            return;
+          }
+          new Notice(doneSaid(now), 10000);
           this.close();
           this.done();
         } finally {
