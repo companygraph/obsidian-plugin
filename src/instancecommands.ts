@@ -3,7 +3,7 @@
 // on a press. What is written is instantiate.ts's, and through it the meta-model's own planner.
 import { Modal, Notice, Setting } from "obsidian";
 import type { App, DataAdapter } from "obsidian";
-import { carryOut, doneSaid, folderChoices, forceHint, moveScope, movedSummary, planInstance, planMove, stoppedSaid, summary } from "./instantiate.ts";
+import { carryOut, doneSaid, folderChoices, forceHint, moveScope, movedSummary, planInstance, planMove, rolesStillNamed, stoppedSaid, summary } from "./instantiate.ts";
 import type { Disk, Progress, Release } from "./instantiate.ts";
 
 // Obsidian's adapter as the Disk instantiate.ts takes. The adapter lists the root as "/" and
@@ -126,6 +126,8 @@ export class MoveCore extends Modal {
       this.contentEl.createEl("p", { text: `Already on core ${plan.to}, as this plugin's release writes it. Nothing to move.` });
       return;
     }
+    // Read before anything is drawn, so the preview appears whole and never as its first lines.
+    const named = await rolesStillNamed(disk, plan);
     this.contentEl.createEl("p", { text: `Core ${plan.from} → ${plan.to}.` });
     this.contentEl.createEl("p", { text: `Writes ${summary([...plan.writes.keys()])}.` });
     const moved = plan.moved ?? [];
@@ -135,7 +137,7 @@ export class MoveCore extends Modal {
     if (gone.length) this.contentEl.createEl("p", { text: `Removes ${gone.join(", ")}.` });
     this.contentEl.createEl("p", {
       cls: "setting-item-description",
-      text: moveScope(plan),
+      text: moveScope(plan, named),
     });
     new Setting(this.contentEl).addButton((button) =>
       button.setButtonText("Move it").setCta().onClick(async () => {
