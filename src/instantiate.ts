@@ -2,7 +2,7 @@
 // `upgrade`, called rather than rewritten. Its planner decides every file; this module reads what
 // the planner needs from the vault, hands it the release the plugin bundles, and carries out the
 // plan it returns. The disk is an interface so all of it is tested without Obsidian.
-import { initPlan, upgradePlan, SKILLS } from "companygraph-meta-model/plan";
+import { initPlan, upgradePlan, stillNamingRoles, isInstancesOwn, SKILLS } from "companygraph-meta-model/plan";
 import { TYPES } from "companygraph-meta-model/checks";
 
 // The few calls made on Obsidian's DataAdapter: paths relative to the vault, dot-folders included.
@@ -68,6 +68,46 @@ export async function readModel(disk: Disk): Promise<Map<string, string | Uint8A
   };
   await walk("model");
   return model;
+}
+
+// Every text file the vault holds as its owner's own, keyed by its path from the vault's root: what
+// the planner's `stillNamingRoles` asks for, which leaves the units folder, installed packages and a
+// build out by itself and judges the seats README only under its own key. A file is text if it holds
+// no zero byte, as the command line decides it; Obsidian's and git's own folders are not walked.
+async function readTexts(disk: Disk, units: string): Promise<Map<string, string>> {
+  const texts = new Map<string, string>();
+  const decoder = new TextDecoder();
+  const walk = async (folder: string) => {
+    const { files, folders } = await disk.list(folder);
+    for (const file of files) {
+      const bytes = await disk.readBinary(file);
+      if (!bytes.includes(0)) texts.set(file, decoder.decode(bytes));
+    }
+    for (const child of folders)
+      if (!SKIPPED.has(child.split("/").at(-1)!) && isInstancesOwn(`${child}/`, units)) await walk(child);
+  };
+  await walk("");
+  return texts;
+}
+
+// The vault's own files that still say roles once the plan is carried out, named as the command line
+// names them after its `upgrade`: the text of the vault with the plan's writes laid over it and its
+// removals taken out, so a page the move rewrites or a README it replaces is judged as it will be
+// left, and a file the move takes away is not named.
+export async function rolesStillNamed(disk: Disk, plan: { writes: Map<string, string | Uint8Array>; removes: string[] }): Promise<string[]> {
+  let units = "meta";
+  try {
+    units = JSON.parse(await disk.read(MANIFEST)).units ?? units;
+  } catch {
+    // A manifest that does not parse was refused by the plan already.
+  }
+  const texts = await readTexts(disk, units);
+  for (const path of plan.removes) texts.delete(path);
+  for (const [path, content] of plan.writes) {
+    if (typeof content === "string") texts.set(path, content);
+    else texts.delete(path);
+  }
+  return stillNamingRoles(texts, units);
 }
 
 const asMap = (record: Record<string, string>) => new Map(Object.entries(record));
@@ -179,16 +219,23 @@ const folderPairs = (moved: [string, string][]) =>
   [...new Set(moved.map(([from, to]) => `${folderOf(from)}\t${folderOf(to)}`))].map((pair) => pair.split("\t") as [string, string]);
 
 // What a move touches beyond its own files, said from the plan rather than assumed: the files it
-// moves from one folder to another, the files it writes into the model that no other list names
-// (a README for the folder the files arrive in, where the old folder had none), the files it gives
-// a vault that has none of them, the pages it rewrites into the form the new core reads, and
-// whether the model is left as it is. Where the plan does none of those, the model is not touched.
-export function moveScope(plan: { to?: string; given?: string[]; rewritten?: string[]; moved?: [string, string][]; writes?: Map<string, unknown> }): string {
+// moves from one folder to another, the files it gives a vault that has none of them (the README
+// of the folder the files arrive in, where the old folder had none, among them), the pages it
+// rewrites into the form the new core reads, and whether the model is left as it is. Where the plan
+// does none of those, the model is not touched. `named` is the vault's own files that would still
+// say roles once the move is made, from `rolesStillNamed`; where it is empty or not given, the
+// kinds of file are said instead.
+export function moveScope(
+  plan: { to?: string; given?: string[]; rewritten?: string[]; moved?: [string, string][] },
+  named: string[] = [],
+): string {
   const given = plan.given ?? [];
   const rewritten = plan.rewritten ?? [];
   const moved = plan.moved ?? [];
-  const arrivals = new Set(moved.map(([, to]) => to));
-  const fresh = [...(plan.writes?.keys() ?? [])].filter((path) => path.startsWith("model/") && !arrivals.has(path) && !given.includes(path) && !rewritten.includes(path));
+  // A README the plan writes for a model folder is one it gives, and is said as written, not as
+  // moved: where the old folder had none there is nothing to move.
+  const writtenReadmes = given.filter((path) => /^model\/[^/]+\/README\.md$/.test(path));
+  const givenElsewhere = given.filter((path) => !writtenReadmes.includes(path));
   const are = (paths: string[]) => (paths.length === 1 ? "is" : "are");
   const said = [
     moved.length
@@ -204,16 +251,19 @@ export function moveScope(plan: { to?: string; given?: string[]; rewritten?: str
   for (const readme of readmes)
     said.push(`${readme} has its heading, folder and schema path changed to the new names; what its prose says about roles is yours to edit.`);
   // A move can rewrite every page of a kind, so past three paths they are said by folder.
-  const named = (paths: string[]) => (paths.length > 3 ? summary(paths) : paths.join(", "));
-  if (fresh.length) said.push(`${named(fresh)} ${are(fresh)} written.`);
-  if (given.length) said.push(`${named(given)} ${are(given)} written, as the vault has none yet.`);
-  if (rewrittenPages.length) said.push(`${named(rewrittenPages)} ${are(rewrittenPages)} rewritten into the form core ${plan.to} reads.`);
-  const inModel = [...fresh, ...given, ...rewritten, ...moved.flat()].some((path) => path.startsWith("model/"));
+  const list = (paths: string[]) => (paths.length > 3 ? summary(paths) : paths.join(", "));
+  if (writtenReadmes.length) said.push(`${list(writtenReadmes)} ${are(writtenReadmes)} written.`);
+  if (givenElsewhere.length) said.push(`${list(givenElsewhere)} ${are(givenElsewhere)} written, as the vault has none yet.`);
+  if (rewrittenPages.length) said.push(`${list(rewrittenPages)} ${are(rewrittenPages)} rewritten into the form core ${plan.to} reads.`);
+  const inModel = [...given, ...rewritten, ...moved.flat()].some((path) => path.startsWith("model/"));
   said.push(inModel ? "Nothing else in the model is touched." : "The model is not touched.");
   if (moved.some(([, to]) => to.startsWith("model/seats/")))
     said.push(
-      "Files of your own that still say roles, such as README.md, AGENTS.md, pages in the model that link into roles/ and an export guide's {{count:Roles}}, " +
-        "are yours to edit; nothing here rewrites them, and the command line's upgrade lists them when it makes this move.",
+      named.length
+        ? `Files of your own that still say roles: ${named.length > 10 ? `${named.slice(0, 10).join(", ")} and ${named.length - 10} more` : named.join(", ")}. ` +
+            "They are yours to edit; nothing here rewrites them, and the command line's upgrade lists them when it makes this move."
+        : "Files of your own that still say roles, such as README.md, AGENTS.md, pages in the model that link into roles/ and an export guide's {{count:Roles}}, " +
+          "are yours to edit; nothing here rewrites them, and the command line's upgrade lists them when it makes this move.",
     );
   return said.join(" ");
 }

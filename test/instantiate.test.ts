@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { checkInstance } from "companygraph-meta-model/checks";
-import { carryOut, folderChoices, moveScope, forceHint, movedSummary, planInstance, planMove, present, readModel, stoppedSaid, doneSaid } from "../src/instantiate.ts";
+import { carryOut, folderChoices, moveScope, forceHint, movedSummary, rolesStillNamed, planInstance, planMove, present, readModel, stoppedSaid, doneSaid } from "../src/instantiate.ts";
 import type { Disk, Release } from "../src/instantiate.ts";
 import { sha256Hex } from "../src/sha256.ts";
 import { UUIDV7 } from "companygraph-meta-model/ids";
@@ -35,7 +35,9 @@ function memoryDisk(files: Record<string, string> = {}, bytes: Record<string, Ui
       if (!store.has(path)) throw new Error(`no text ${path}`);
       return store.get(path)!;
     },
+    // Obsidian's adapter reads any file as bytes, a page included.
     async readBinary(path) {
+      if (store.has(path)) return new TextEncoder().encode(store.get(path)!);
       if (!binary.has(path)) throw new Error(`no bytes ${path}`);
       return binary.get(path)!;
     },
@@ -465,15 +467,16 @@ test("a move that carries roles to seats says so, and what it leaves to the owne
   assert.doesNotMatch(said, /^Only /);
 });
 
-// The planner writes a README for the new folder only where the old one had none, and that file is
-// in none of the plan's moved, rewritten or given lists, so the scope has to name it.
+// The planner writes a README for the new folder only where the old one had none, and since
+// meta-model 0.88.0 lists it among the files it gives, which is where the scope reads it from.
 test("a move whose model/roles/ had no README names the README it writes, and does not say the rest of the model is untouched falsely", async () => {
   const disk = await vaultWithRoles(false);
   const move = await planMove(disk, release);
   assert.ok("writes" in move, "refused" in move ? move.refused : "");
   assert.ok(move.writes.has("model/seats/README.md"), "the plan writes a README for the new folder");
   assert.ok(!move.moved!.some(([, to]) => to === "model/seats/README.md"));
-  assert.ok(!move.rewritten!.includes("model/seats/README.md") && !move.given!.includes("model/seats/README.md"));
+  assert.ok(!move.rewritten!.includes("model/seats/README.md"), "a README the plan writes fresh is not one it rewrites");
+  assert.ok(move.given!.includes("model/seats/README.md"), "the plan lists the README it writes among the files it gives");
   const said = moveScope(move);
   assert.match(said, /model\/seats\/README\.md is written\./);
   assert.doesNotMatch(said, /heading, folder and schema path/, "a README that was written is not one that moved");
@@ -483,6 +486,49 @@ test("a move whose model/roles/ had no README names the README it writes, and do
   // With a README the file is moved, and is not named as written besides.
   const withReadme = moveScope((await planMove(await vaultWithRoles(), release)) as { given?: string[] });
   assert.doesNotMatch(withReadme, /model\/seats\/README\.md is written/);
+  // It is read from the plan's given list: a plan that lists it says it, whatever else it holds.
+  assert.match(moveScope({ to: "0.64.0", given: ["model/seats/README.md"] }), /model\/seats\/README\.md is written\./);
+});
+
+// The command line names the files that still say roles once it has moved them; the preview names
+// the same ones before, by reading the vault's text as the move would leave it.
+test("the files that still say roles are named in the preview, and only those", async () => {
+  const disk = await vaultWithRoles();
+  disk.files.set("README.md", "# Acme\n\nOur seats were roles/ once.\n");
+  disk.folders.add("docs");
+  disk.files.set("docs/export-guide.md", "# Export\n\n{{count:Roles}} people.\n");
+  disk.files.set("docs/notes.md", "# Notes\n\nNothing here.\n");
+  // A binary file is not read, whatever bytes it holds, and neither is what the vendored units hold.
+  disk.binary.set("docs/scan.pdf", new Uint8Array([0x00, ...new TextEncoder().encode("roles/")]));
+  disk.files.set("meta/core/NOTE.md", "roles/\n");
+  disk.folders.add("node_modules");
+  disk.folders.add("node_modules/x");
+  disk.files.set("node_modules/x/readme.md", "roles/\n");
+  const move = await planMove(disk, release);
+  assert.ok("writes" in move, "refused" in move ? move.refused : "");
+  const still = await rolesStillNamed(disk, move);
+  assert.deepEqual(still, ["README.md", "docs/export-guide.md"]);
+  const said = moveScope(move, still);
+  assert.match(said, /Files of your own that still say roles: README\.md, docs\/export-guide\.md\. They are yours to edit; nothing here rewrites them, and the command line's upgrade lists them when it makes this move\.$/);
+  assert.doesNotMatch(said, /such as/);
+});
+
+test("the preview keeps its examples where it finds no file that says roles", async () => {
+  const disk = await vaultWithRoles();
+  const move = await planMove(disk, release);
+  assert.ok("writes" in move);
+  const still = await rolesStillNamed(disk, move);
+  assert.deepEqual(still, [], "the moved README is rewritten by the move, so it is not one the owner edits for its path");
+  assert.match(moveScope(move, still), /Files of your own that still say roles, such as README\.md, AGENTS\.md/);
+});
+
+test("a seats README that still uses the word role is named, as the command line names it", async () => {
+  const disk = await vaultWithRoles();
+  disk.files.set("model/roles/README.md", "# Roles\n\nEach role is a seat of Acme.\n");
+  const move = await planMove(disk, release);
+  assert.ok("writes" in move);
+  assert.deepEqual(await rolesStillNamed(disk, move), ["model/seats/README.md"]);
+  assert.match(moveScope(move, ["model/seats/README.md"]), /still say roles: model\/seats\/README\.md\. They are yours to edit/);
 });
 
 test("what a move reports counts moved files once: neither as written nor as removed", async () => {
