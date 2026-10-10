@@ -45,7 +45,7 @@ describe("the references pane", { skip }, () => {
       const row = file?.querySelector<HTMLElement>("li");
       return row ? { line: row.querySelector(".companygraph-line")?.textContent, text: row.innerText } : null;
     }, [], 5000) as { line: string; text: string };
-    assert.equal(self.line, "79");
+    assert.equal(self.line, "76");
     assert.match(self.text, /Implement/);
     assert.match(self.text, /If not met · Leads to/);
     await ui.evaluate(() => {

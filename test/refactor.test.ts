@@ -81,8 +81,9 @@ test("renaming a phase rewrites its process's table and its sibling's gate-to, w
 });
 
 test("renaming an owner moves its folder and its file, and what it owns goes with it", () => {
-  const { files, paths, named, vocabulary, model } = setup(example(), EXAMPLE);
-  const plan = renamePlan(files, paths, vocabulary, named, model, entity(named, "process", "Delivery"), "Shipping");
+  const { files, paths, named, vocabulary, model, types } = setup(example(), EXAMPLE);
+  // The example's system serves "Delivery" (landscape pack), so the rename must follow it there.
+  const plan = renamePlan(files, paths, vocabulary, named, model, entity(named, "process", "Delivery"), "Shipping", types);
   assert.ok(!("refused" in plan));
   assert.deepEqual(plan.moves, [
     { from: "example/model/processes/delivery", to: "example/model/processes/shipping" },

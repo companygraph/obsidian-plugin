@@ -118,6 +118,8 @@ test("every type scaffolded into the reference instance owes only what its notic
     // Core 0.56.0: a question-kind gathers at least two questions, and a new one gathers none;
     // the questions, like the item, are the author's.
     /question pages name it in `kind`; a question-kind gathers at least 2/,
+    // Core 0.65.0: a product-kind gathers at least one product, and a new one gathers none.
+    /product pages name it in `kind`; a product-kind gathers at least 1/,
   ];
   assert.ok(files.has(`${REFERENCE.model}/identifier.md`), "the reference instance declares its ids");
   const seen = new Set<string>();

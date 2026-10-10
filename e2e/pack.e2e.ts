@@ -26,7 +26,10 @@ describe("an instance that takes the software pack", { skip }, () => {
       layout: app.plugins.plugins.companygraph.layout,
       schemas: [...app.plugins.plugins.companygraph.schemas.keys()].filter((k: string) => k.startsWith("software/")).sort(),
     }));
-    assert.deepEqual(read.layout.packs, [{ name: "software", dir: "meta/software" }]);
+    assert.deepEqual(read.layout.packs, [
+      { name: "software", dir: "meta/software" },
+      { name: "organization", dir: "meta/organization" },
+    ]);
     assert.ok(read.schemas.includes("software/bounded-context-schema.md"));
   });
 
