@@ -345,7 +345,7 @@ test("the release carries the packs it ships, each as path to text", () => {
 test("moving the core of an instance that takes a pack moves the pack's files with it, and does not refuse", async () => {
   const disk = packDisk();
   const manifest = JSON.parse(disk.files.get(".companygraph/manifest.json")!);
-  assert.deepEqual(manifest.packs, ["software"]);
+  assert.deepEqual(manifest.packs, ["software", "organization"]);
   // The release before this one left the pack's aggregate schema out.
   delete manifest.files["meta/software/aggregate-schema.md"];
   disk.files.set(".companygraph/manifest.json", JSON.stringify(manifest));
@@ -608,4 +608,20 @@ test("a carry-out that throws partway leaves a record of what it had done", asyn
   );
   assert.deepEqual(progress, { written: ["model/seats/a.md"], removed: [] });
   assert.ok(disk.files.has("model/roles/a.md"), "nothing is removed before every write is made");
+});
+
+// Meta-model 0.89.0: the landscape pack. The release carries it beside software's, and an
+// instance that lists it is moved with it, not refused as a pack the release does not ship.
+test("the release ships the landscape pack with its four schemas, and an instance that takes it is not refused", async () => {
+  assert.deepEqual(
+    Object.keys(release.packs.landscape).filter((f) => f.endsWith("-schema.md")).sort(),
+    ["data-object-schema.md", "service-schema.md", "system-kind-schema.md", "system-schema.md"],
+  );
+  const disk = packDisk();
+  const manifest = JSON.parse(disk.files.get(".companygraph/manifest.json")!);
+  manifest.packs = [...manifest.packs, "landscape"];
+  disk.files.set(".companygraph/manifest.json", JSON.stringify(manifest));
+  const move = await planMove(disk, release);
+  assert.ok("writes" in move, "refused" in move ? move.refused : "");
+  assert.equal(move.writes.get("meta/landscape/system-schema.md"), release.packs.landscape["system-schema.md"]);
 });

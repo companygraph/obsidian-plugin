@@ -37,9 +37,16 @@ export const wholePacked = (text: Map<string, string>): Files => new Map<string,
 
 // Where a fixture keeps its schemas and its container: the shape src/model.ts calls a Layout.
 // The meta-model's worked example: a valid instance, core at the repository root.
-// It takes the organization pack since meta-model v0.86.0, whose schemas sit in the repository's packs/.
-export const EXAMPLE: Layout = { core: "core", model: "example/model", packs: [{ name: "organization", dir: "packs/organization" }] };
-export const example = () => readTree(path.join(FIXTURES, "meta-model"), [EXAMPLE.model, EXAMPLE.core, "packs/organization"]);
+// It takes the organization pack since meta-model v0.86.0 and the landscape pack since v0.89.0, whose schemas sit in the repository's packs/.
+export const EXAMPLE: Layout = {
+  core: "core",
+  model: "example/model",
+  packs: [
+    { name: "organization", dir: "packs/organization" },
+    { name: "landscape", dir: "packs/landscape" },
+  ],
+};
+export const example = () => readTree(path.join(FIXTURES, "meta-model"), [EXAMPLE.model, EXAMPLE.core, "packs/organization", "packs/landscape"]);
 
 // The reference instance: the layout every real instance has.
 export const REFERENCE: Layout = { core: "meta/core", model: "model" };
@@ -61,9 +68,13 @@ export function edited(files: Map<string, string>, file: string, change: (text: 
 
 // The instance that takes the software pack, companygraph/mental-model: its pack at
 // `meta/software/` beside core, and the first bounded context under `model/`. PACKED is the layout
-// src/main.ts builds from a manifest that lists `"packs": ["software"]`.
-export const PACKED: Layout = { core: "meta/core", model: "model", packs: [{ name: "software", dir: "meta/software" }] };
-export const packed = () => readTree(path.join(FIXTURES, "pack-instance"), [PACKED.model, PACKED.core, "meta/software"], PACKED_PICTURES);
+// src/main.ts builds from a manifest that lists `"packs": ["software", "organization"]`.
+export const PACKED: Layout = { core: "meta/core", model: "model", packs: [
+    { name: "software", dir: "meta/software" },
+    { name: "organization", dir: "meta/organization" },
+  ],
+};
+export const packed = () => readTree(path.join(FIXTURES, "pack-instance"), [PACKED.model, PACKED.core, "meta/software", "meta/organization"], PACKED_PICTURES);
 export const packedManifest = () =>
   fs.readFileSync(path.join(FIXTURES, "pack-instance", ".companygraph", "manifest.json"), "utf8");
 export { CONTEXT };

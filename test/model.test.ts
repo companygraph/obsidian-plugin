@@ -141,10 +141,18 @@ test("an instance that takes no pack is read as before", () => {
 
 // Meta-model 0.86.0: the example takes the organization pack, and its groups, jobs and group
 // kinds are read against the pack's schemas beside core's.
-test("the example takes the organization pack, and its pages are read against the pack's schemas", () => {
+test("the example takes the organization and landscape packs, and its pages are read against the packs' schemas", () => {
   assert.deepEqual(buildModel(whole(example()), EXAMPLE).failures, []);
   assert.deepEqual([...schemasOf(example(), EXAMPLE).keys()].filter((k) => k.includes("/")).sort(),
-    ["organization/group-kind-schema.md", "organization/group-schema.md", "organization/job-schema.md"]);
+    [
+      "landscape/data-object-schema.md",
+      "landscape/service-schema.md",
+      "landscape/system-kind-schema.md",
+      "landscape/system-schema.md",
+      "organization/group-kind-schema.md",
+      "organization/group-schema.md",
+      "organization/job-schema.md",
+    ]);
   assert.equal(typeOf("example/model/groups/billing-run-team.md", EXAMPLE), "group");
 });
 

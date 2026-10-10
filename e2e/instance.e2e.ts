@@ -84,10 +84,8 @@ describe("making an instance and moving its core", { skip }, () => {
     assert.match(shown, /Moves model\/roles\/ to model\/seats\/ \(\d+\)\./);
     assert.match(shown, /The files in model\/roles\/ move to model\/seats\/, each page keeping its id, and model\/roles\/ goes to the trash once it is empty\./);
     assert.match(shown, /model\/seats\/README\.md has its heading, folder and schema path changed/);
-    // They are named, not exemplified: the reference instance's README, its agent file and an
-    // export guide still say roles.
-    assert.match(shown, /Files of your own that still say roles: (?:[^,.]*, )*AGENTS\.md, README\.md(?:, [^,]*)*\. They are yours to edit/);
-    assert.match(shown, /export\/gemini-notebook-AGENTS\.md/);
+    // They are named, not exemplified: the reference instance's own docs that still say roles.
+    assert.match(shown, /Files of your own that still say roles: (?:[^,.]*, )*docs\/[^,.]*\.md(?:, [^,]*)*\. They are yours to edit/);
     assert.doesNotMatch(shown, /such as README\.md/);
     await pressButton(ui, "Move it");
     await noModal(ui);

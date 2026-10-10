@@ -32,6 +32,10 @@ describe("a profile's picture is read as bytes", { skip }, () => {
       const file = app.vault.getAbstractFileByPath(note);
       const text = (await app.vault.read(file)) as string;
       if (!/^image: .+$/m.test(text)) throw new Error("the fixture's profile names no picture to replace");
+      // The picture it names now goes, or R9 reports it as one no page names.
+      const old = text.match(/^image: (.+)$/m)![1].trim();
+      const was = app.vault.getAbstractFileByPath(`${folder}/${old}`);
+      if (was) await app.vault.delete(was);
       await app.vault.modify(file, text.replace(/^image: .+$/m, "image: picture.png"));
     }, [PROFILE, FOLDER, PNG]);
     await openNote(ui, PROFILE);

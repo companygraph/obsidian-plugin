@@ -99,3 +99,11 @@ test("a pack's type is in the vocabulary beside core's, named by its type and no
   assert.ok([...vocab.keys()].every((k) => !k.includes("/")));
   assert.ok(!vocabulary.has("bounded-context"));
 });
+
+// Meta-model 0.89.0: the landscape pack's `system` is read like a core type, field by field.
+test("a system page's fields are read from the landscape pack's schema", () => {
+  const system = vocabulary.get("system")!;
+  assert.ok(system, "the landscape pack's system is in the vocabulary");
+  assert.deepEqual(system.fields.find((f) => f.name === "kind")!.offer, { kind: "names", target: "system-kind" });
+  assert.ok(system.fields.some((f) => f.name === "serves" && f.list));
+});
