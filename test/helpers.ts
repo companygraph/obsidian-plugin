@@ -69,7 +69,10 @@ export function edited(files: Map<string, string>, file: string, change: (text: 
 // The instance that takes the software pack, companygraph/mental-model: its pack at
 // `meta/software/` beside core, and the first bounded context under `model/`. PACKED is the layout
 // src/main.ts builds from a manifest that lists `"packs": ["software", "organization"]`.
-export const PACKED: Layout = { core: "meta/core", model: "model", packs: [
+export const PACKED: Layout = {
+  core: "meta/core",
+  model: "model",
+  packs: [
     { name: "software", dir: "meta/software" },
     { name: "organization", dir: "meta/organization" },
   ],

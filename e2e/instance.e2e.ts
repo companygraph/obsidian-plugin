@@ -85,8 +85,9 @@ describe("making an instance and moving its core", { skip }, () => {
     assert.match(shown, /The files in model\/roles\/ move to model\/seats\/, each page keeping its id, and model\/roles\/ goes to the trash once it is empty\./);
     assert.match(shown, /model\/seats\/README\.md has its heading, folder and schema path changed/);
     // They are named, not exemplified: the reference instance's own docs that still say roles.
-    assert.match(shown, /Files of your own that still say roles: (?:[^,.]*, )*docs\/[^,.]*\.md(?:, [^,]*)*\. They are yours to edit/);
+    assert.match(shown, /Files of your own that still say roles: (?:[^,.]*, )*docs\/specs\/2026-09-02-experience-kind\.md, docs\/superpowers\/plans\/2026-08-27-skills-curated\.md\. They are yours to edit/);
     assert.doesNotMatch(shown, /such as README\.md/);
+    assert.doesNotMatch(shown, /still say roles: (?:[^,.]*, )*(?:AGENTS|README)\.md/);
     await pressButton(ui, "Move it");
     await noModal(ui);
     await waitForNotice(ui, "^Core .*, \\d+ moved: model/roles/ to model/seats/ \\(\\d+\\)");
