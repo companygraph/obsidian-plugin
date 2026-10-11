@@ -146,6 +146,7 @@ test("the example takes the organization and landscape packs, and its pages are 
   assert.deepEqual([...schemasOf(example(), EXAMPLE).keys()].filter((k) => k.includes("/")).sort(),
     [
       "landscape/data-object-schema.md",
+      "landscape/environment-schema.md",
       "landscape/service-schema.md",
       "landscape/system-kind-schema.md",
       "landscape/system-schema.md",
