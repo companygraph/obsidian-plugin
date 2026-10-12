@@ -46,9 +46,11 @@ function offerOf(type: string | undefined, description: string | undefined, sche
 // checks say so, and nothing is offered for it.
 const rowless = (offer: Offer): Offer => (offer.kind === "by" ? { kind: "none" } : offer);
 
-// The columns a `by` column reads are declared `string`, and what they hold is read from the
-// `by` declaration: its `by` column holds a type, its `in` column the owner. A column the
-// declaration names that declares an offer of its own keeps it; the checks fail that schema.
+// The columns a `by` column reads are declared `string`, or the type column `enum` since
+// meta-model 0.94.0, and what they hold is read from the `by` declaration: its `by` column
+// holds a type, its `in` column the owner. A column the declaration names that declares an
+// offer of its own keeps it: an enum type column offers its own tokens, which are the types
+// a row may name, and that is narrower than every type.
 // `types` and `owners` are read once per vocabulary, which is once per rebuild.
 function rowRead(columns: Column[], types: string[], owners: Map<string, string>): Column[] {
   const read = new Map<string, Offer>();
