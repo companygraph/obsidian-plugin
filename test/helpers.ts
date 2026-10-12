@@ -37,16 +37,17 @@ export const wholePacked = (text: Map<string, string>): Files => new Map<string,
 
 // Where a fixture keeps its schemas and its container: the shape src/model.ts calls a Layout.
 // The meta-model's worked example: a valid instance, core at the repository root.
-// It takes the organization pack since meta-model v0.86.0 and the landscape pack since v0.89.0, whose schemas sit in the repository's packs/.
+// It takes the organization pack since meta-model v0.86.0, the landscape pack since v0.89.0 and the requirements pack since v0.94.0, whose schemas sit in the repository's packs/.
 export const EXAMPLE: Layout = {
   core: "core",
   model: "example/model",
   packs: [
     { name: "organization", dir: "packs/organization" },
     { name: "landscape", dir: "packs/landscape" },
+    { name: "requirements", dir: "packs/requirements" },
   ],
 };
-export const example = () => readTree(path.join(FIXTURES, "meta-model"), [EXAMPLE.model, EXAMPLE.core, "packs/organization", "packs/landscape"]);
+export const example = () => readTree(path.join(FIXTURES, "meta-model"), [EXAMPLE.model, EXAMPLE.core, "packs/organization", "packs/landscape", "packs/requirements"]);
 
 // The reference instance: the layout every real instance has.
 export const REFERENCE: Layout = { core: "meta/core", model: "model" };
