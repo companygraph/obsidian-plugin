@@ -44,6 +44,19 @@ test("a cell offers by the column's declaration", () => {
   assert.deepEqual(candidatesFor({ kind: "cell", section: "Skills", column: "Evidence", typed: "", start: 0 }, profile, names, []), []);
 });
 
+// Meta-model 0.95.0: a requirement and a use case name how far they are realized, each among its own type's levels,
+// and an Evidence row says whether it satisfies or verifies.
+test("a realization offers the levels of its own type, and an Evidence row's Shows what the schema permits", () => {
+  const requirement = vocabulary.get("requirement")!;
+  const useCase = vocabulary.get("use-case")!;
+  const value = { kind: "value" as const, field: "realization", typed: "", start: 13, item: false, glued: false };
+  assert.deepEqual(labels(candidatesFor(value, requirement, names, [])).sort(), ["Built", "Not started", "Verified"]);
+  assert.deepEqual(labels(candidatesFor(value, useCase, names, [])).sort(), ["Main scenario runs", "Not started", "Runs end to end"]);
+  const shows = { kind: "cell" as const, section: "Evidence", column: "Shows", typed: "", start: 0 };
+  assert.deepEqual(labels(candidatesFor(shows, requirement, names, [])), ["satisfies", "verifies"]);
+  assert.deepEqual(labels(candidatesFor(shows, useCase, names, [])), ["satisfies", "verifies"]);
+});
+
 test("a heading offers the sections the file lacks", () => {
   const c = candidatesFor({ kind: "heading", typed: "", start: 3 }, profile, names, ["## Skills", "## "]);
   assert.ok(!labels(c).some((l) => l.startsWith("Skills")));

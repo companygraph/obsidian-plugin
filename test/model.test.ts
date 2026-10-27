@@ -140,7 +140,8 @@ test("an instance that takes no pack is read as before", () => {
 });
 
 // Meta-model 0.86.0, 0.89.0 and 0.94.0: the example takes the organization, landscape and requirements packs, and its
-// groups, jobs, group kinds, systems, use cases and requirements are read against the packs' schemas beside core's.
+// groups, jobs, group kinds, systems, use cases and requirements are read against the packs' schemas beside core's;
+// since 0.95.0 its requirement and its use case each name a realization level of the pack's.
 test("the example takes the organization, landscape and requirements packs, and its pages are read against the packs' schemas", () => {
   assert.deepEqual(buildModel(whole(example()), EXAMPLE).failures, []);
   assert.deepEqual([...schemasOf(example(), EXAMPLE).keys()].filter((k) => k.includes("/")).sort(),
@@ -153,7 +154,9 @@ test("the example takes the organization, landscape and requirements packs, and 
       "organization/group-kind-schema.md",
       "organization/group-schema.md",
       "organization/job-schema.md",
+      "requirements/requirement-realization-schema.md",
       "requirements/requirement-schema.md",
+      "requirements/use-case-realization-schema.md",
       "requirements/use-case-schema.md",
     ]);
   assert.equal(typeOf("example/model/groups/billing-run-team.md", EXAMPLE), "group");
