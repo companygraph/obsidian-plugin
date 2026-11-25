@@ -2,8 +2,8 @@
 // and Rename entity ask, and they must ask the same thing: a name that Rename refuses is one New
 // entity has no business writing, and a file written with it would fail the checks the moment it
 // is saved. Pure.
-import { slug } from "companygraph-meta-model/checks";
-import type { TypeEntry } from "companygraph-meta-model/checks";
+import { slug } from "@companygraph/meta-model/checks";
+import type { TypeEntry } from "@companygraph/meta-model/checks";
 import { visibleIn } from "./scope.ts";
 import type { Named } from "./scope.ts";
 

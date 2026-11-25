@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { typeOfPath } from "companygraph-meta-model/checks";
+import { typeOfPath } from "@companygraph/meta-model/checks";
 import { schemasOf } from "../src/model.ts";
 import { vocabularyOf } from "../src/vocabulary.ts";
 import { addableSections, headingsOf, insertionAt, placementOf, tableStart, isEntityText, isHeld, lockedLines, lostLine, missingOf, nearMissOf, removalAt, removalRange, sectionAt } from "../src/headings.ts";

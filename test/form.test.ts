@@ -246,7 +246,7 @@ test("the editor writes only while it is on screen and the application is stayin
 // rule set inside its package, writing none into an instance. A vault outside the family has no
 // rule file of its own, so the plugin carries meta-model's: these two hold the copy to the file
 // the meta-model release this plugin pins ships, so a form changed there fails here first.
-const META_FORM = path.join(import.meta.dirname, "..", "node_modules", "companygraph-meta-model", "form");
+const META_FORM = path.join(import.meta.dirname, "..", "node_modules", "@companygraph/meta-model", "form");
 test("the form the plugin carries is the one its meta-model release ships", () => {
   assert.deepEqual(METAMODEL_FORM, formOf(fs.readFileSync(path.join(META_FORM, ".markdownlint-cli2.jsonc"), "utf8")));
   assert.equal(

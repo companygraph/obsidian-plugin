@@ -7,9 +7,9 @@
 // tagline and every required section in the schema's order, a table section with its header,
 // and first of all an id (R18), made by the package's own maker. Pure but for the random bytes a
 // new id takes.
-import { DATE, TYPES, slug } from "companygraph-meta-model/checks";
-import type { TypeEntry } from "companygraph-meta-model/checks";
-import { idFormatOf, uuidv7 } from "companygraph-meta-model/ids";
+import { DATE, TYPES, slug } from "@companygraph/meta-model/checks";
+import type { TypeEntry } from "@companygraph/meta-model/checks";
+import { idFormatOf, uuidv7 } from "@companygraph/meta-model/ids";
 import type { TypeVocabulary } from "./vocabulary.ts";
 import { tableStart } from "./headings.ts";
 

@@ -1,8 +1,8 @@
 // One rebuild: the checks over the whole map, then the parse. Pure.
-import { checkInstance, typeOfPath, vocabularyOf } from "companygraph-meta-model/checks";
-import { parseInstance } from "companygraph-meta-model/instance";
-import type { Graph } from "companygraph-meta-model/instance";
-import type { VocabularyEntry } from "companygraph-meta-model/checks";
+import { checkInstance, typeOfPath, vocabularyOf } from "@companygraph/meta-model/checks";
+import { parseInstance } from "@companygraph/meta-model/instance";
+import type { Graph } from "@companygraph/meta-model/instance";
+import type { VocabularyEntry } from "@companygraph/meta-model/checks";
 
 export interface Layout {
   core: string;   // where the vendored schemas sit, e.g. "meta/core"

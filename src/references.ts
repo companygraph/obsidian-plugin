@@ -3,9 +3,9 @@
 // lines and the file's type's vocabulary in, spans out; where they are on the screen is the
 // Obsidian-facing modules' business. A qualifier counts as much as a reference, since both name
 // an entity; what differs is only whether the model draws an edge, which is links.ts's concern.
-import { tableOf } from "companygraph-meta-model/checks";
-import type { TypeEntry } from "companygraph-meta-model/checks";
-import { resolveRow } from "companygraph-meta-model/instance";
+import { tableOf } from "@companygraph/meta-model/checks";
+import type { TypeEntry } from "@companygraph/meta-model/checks";
+import { resolveRow } from "@companygraph/meta-model/instance";
 import { frontmatterEnd } from "./context.ts";
 import { bare } from "./vocabulary.ts";
 import type { TypeVocabulary } from "./vocabulary.ts";

@@ -9,7 +9,7 @@
 // flattens a pasted line break; for a name, a value or a file name a line break is never wanted,
 // so nothing is lost today.
 import { AbstractInputSuggest, MarkdownView } from "obsidian";
-import { IMAGE_FILE } from "companygraph-meta-model/instance";
+import { IMAGE_FILE } from "@companygraph/meta-model/instance";
 import { typeOf, typesOf } from "./model.ts";
 import type CompanyGraphPlugin from "./main.ts";
 import { propertyCandidates } from "./candidates.ts";

@@ -1,9 +1,9 @@
 // What each type's schema declares, in the shape completion asks for. Every Type cell goes
 // through the package's one reader, declarationOf, and every enum's values through
 // enumTokensOf; this file reads tables by their column names and interprets nothing.
-import { parseSchemas, declarationOf, ownerTypesOf, typeOfAddress } from "companygraph-meta-model/instance";
-import type { Table } from "companygraph-meta-model/instance";
-import { enumTokensOf, COLUMN_CAPTION, HEADING_CAPTION } from "companygraph-meta-model/checks";
+import { parseSchemas, declarationOf, ownerTypesOf, typeOfAddress } from "@companygraph/meta-model/instance";
+import type { Table } from "@companygraph/meta-model/instance";
+import { enumTokensOf, COLUMN_CAPTION, HEADING_CAPTION } from "@companygraph/meta-model/checks";
 
 export type Offer =
   // The canonical names of one type. `optional` where the declaration is `ref?`: a value that

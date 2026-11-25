@@ -2,7 +2,7 @@
 // fixture's root. scripts/fixtures.mjs fetches them; `npm test` runs it first.
 import fs from "node:fs";
 import path from "node:path";
-import { IMAGE_FILE } from "companygraph-meta-model/instance";
+import { IMAGE_FILE } from "@companygraph/meta-model/instance";
 import type { Files, Layout } from "../src/model.ts";
 
 const FIXTURES = path.join(import.meta.dirname, "fixtures");

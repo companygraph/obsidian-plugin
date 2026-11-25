@@ -9,7 +9,7 @@ import { isHeld } from "./headings.ts";
 // The id a page carries: its value, with one pair of YAML's quotes and a trailing comment set
 // aside; "" where the line is there and blank; null where the frontmatter has no top-level `id:`
 // line, or the page no frontmatter that has closed. A line may end in a carriage return. Not the
-// package's `idOf` from companygraph-meta-model/ids: that one reads the scalar as written, and the
+// package's `idOf` from @companygraph/meta-model/ids: that one reads the scalar as written, and the
 // lock must read it as YAML and the widget do, quotes, a comment and YAML's null set aside.
 export function idOf(text: string): string | null {
   const lines = text.split(/\r?\n/);

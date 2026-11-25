@@ -3,11 +3,11 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { checkInstance } from "companygraph-meta-model/checks";
+import { checkInstance } from "@companygraph/meta-model/checks";
 import { carryOut, folderChoices, moveScope, forceHint, movedSummary, rolesStillNamed, planInstance, planMove, present, readModel, stoppedSaid, doneSaid } from "../src/instantiate.ts";
 import type { Disk, Release } from "../src/instantiate.ts";
 import { sha256Hex } from "../src/sha256.ts";
-import { UUIDV7 } from "companygraph-meta-model/ids";
+import { UUIDV7 } from "@companygraph/meta-model/ids";
 // @ts-expect-error: a build script, plain JavaScript with no types.
 import { releaseFiles } from "../scripts/release.mjs";
 

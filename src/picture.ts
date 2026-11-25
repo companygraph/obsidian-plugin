@@ -1,7 +1,7 @@
 // The picture an entity carries, as the editor draws it: which file, on which line, under what
 // name. Pure; picturemark.ts draws it. The first field the type's schema declares `image` whose
 // value names a file decides it, the file sits beside the note (R9), and the line is the H1's.
-import { IMAGE_FILE } from "companygraph-meta-model/instance";
+import { IMAGE_FILE } from "@companygraph/meta-model/instance";
 import type { TypeVocabulary } from "./vocabulary.ts";
 
 export interface Picture { file: string; line: number; name: string }

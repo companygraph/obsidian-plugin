@@ -2,7 +2,7 @@
 // Obsidian's metadata cache, note path to the paths it links to with a count; read from the
 // installed application. Pure: the map is handed in and changed in place, so that it can be
 // tested here and handed Obsidian's own in main.ts.
-import type { Graph } from "companygraph-meta-model/instance";
+import type { Graph } from "@companygraph/meta-model/instance";
 
 export type Links = Record<string, Record<string, number>>;
 

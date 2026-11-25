@@ -4,8 +4,8 @@ import { buildModel, schemasOf } from "../src/model.ts";
 import { vocabularyOf } from "../src/vocabulary.ts";
 import { candidatesFor } from "../src/candidates.ts";
 import { namedOf, namesIn } from "../src/scope.ts";
-import { resolveRow } from "companygraph-meta-model/instance";
-import { UUIDV7 } from "companygraph-meta-model/ids";
+import { resolveRow } from "@companygraph/meta-model/instance";
+import { UUIDV7 } from "@companygraph/meta-model/ids";
 import { example, EXAMPLE, edited } from "./helpers.ts";
 
 // Core 0.30.1: a name of an owned type written inside an owner is one of that owner's own. The

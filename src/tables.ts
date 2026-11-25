@@ -2,7 +2,7 @@
 // a time in a small editor of its own, whose text is the cell's alone, so there is no row of
 // pipes to count; which row and column the cell is comes from Obsidian's table object instead.
 // This module decides what those facts mean. Pure: the Obsidian-facing modules only fetch them.
-import { tableOf } from "companygraph-meta-model/checks";
+import { tableOf } from "@companygraph/meta-model/checks";
 import type { Context } from "./context.ts";
 
 // The `## ` section a line sits under, or null when none stands above it. It reads one line at

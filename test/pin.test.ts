@@ -9,17 +9,18 @@ const root = path.join(import.meta.dirname, "..");
 const read = (rel: string) => JSON.parse(fs.readFileSync(path.join(root, rel), "utf8"));
 
 test("the installed meta-model is the release package.json pins", () => {
-  const pin = read("package.json").dependencies["companygraph-meta-model"];
-  const tag = pin.match(/^github:companygraph\/meta-model#v(\d+\.\d+\.\d+)$/)?.[1];
-  assert.ok(tag, `the pin "${pin}" is not github:companygraph/meta-model#vX.Y.Z`);
-  const installed = read("node_modules/companygraph-meta-model/package.json").version;
-  assert.equal(installed, tag, "install the package by name so the lockfile moves with the pin");
+  const pin = read("package.json").dependencies["@companygraph/meta-model"];
+  const version = pin.match(/^(\d+\.\d+\.\d+)$/)?.[1];
+  assert.ok(version, `the pin "${pin}" is not an exact version X.Y.Z`);
+  const installed = read("node_modules/@companygraph/meta-model/package.json").version;
+  assert.equal(installed, version, "install the package by name so the lockfile moves with the pin");
   // The lockfile is what `npm ci` installs, in CI and in a fresh clone: a pin moved by hand
   // leaves it on the old release while the working tree's install says the new one.
-  const locked = read("package-lock.json").packages["node_modules/companygraph-meta-model"];
-  assert.equal(locked.version, tag, "package-lock.json installs another release than the pin names");
-  assert.match(locked.resolved, /^git\+ssh:\/\/git@github\.com\/companygraph\/meta-model\.git#[0-9a-f]{40}$/, "the lockfile resolves the pin to one commit");
-  assert.equal(read("package-lock.json").packages[""].dependencies["companygraph-meta-model"], pin, "the lockfile's own copy of the pin");
+  const locked = read("package-lock.json").packages["node_modules/@companygraph/meta-model"];
+  assert.equal(locked.version, version, "package-lock.json installs another release than the pin names");
+  assert.equal(locked.resolved, `https://registry.npmjs.org/@companygraph/meta-model/-/meta-model-${version}.tgz`, "the lockfile takes the pin from npm");
+  assert.match(locked.integrity, /^sha512-/, "the lockfile holds the release's integrity");
+  assert.equal(read("package-lock.json").packages[""].dependencies["@companygraph/meta-model"], pin, "the lockfile's own copy of the pin");
 });
 
 test("the plugin's manifest and package.json carry one version", () => {
@@ -48,7 +49,7 @@ test("the plugin's markdownlint is the one the conventions' CLI runs", () => {
 // the plugin did not load at all on an older iPhone. Fixed upstream in 0.32.0; held here, because
 // the next release is the one that could bring it back and a phone is where it would be found.
 test("nothing in the bundled package uses a lookbehind, which older engines cannot parse", () => {
-  const lib = path.join(root, "node_modules", "companygraph-meta-model", "lib");
+  const lib = path.join(root, "node_modules", "@companygraph/meta-model", "lib");
   const offenders: string[] = [];
   for (const file of fs.readdirSync(lib).filter((f) => f.endsWith(".mjs"))) {
     const lines = fs.readFileSync(path.join(lib, file), "utf8").split("\n");

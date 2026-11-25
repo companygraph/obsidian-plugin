@@ -7,7 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
-import { PLUGINS, place, readLocal } from "companygraph-meta-model/obsidian";
+import { PLUGINS, place, readLocal } from "@companygraph/meta-model/obsidian";
 import { connect } from "./cdp.ts";
 import type { Connection } from "./cdp.ts";
 import type { Driver } from "./driver.ts";

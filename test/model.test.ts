@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { uuidv7 } from "companygraph-meta-model/ids";
+import { uuidv7 } from "@companygraph/meta-model/ids";
 import { buildModel, concerns, namesByType, schemaKeyOf, schemasOf, typeOf } from "../src/model.ts";
 import { example, EXAMPLE, reference, REFERENCE, edited, whole, wholePacked, packed, PACKED, CONTEXT } from "./helpers.ts";
 

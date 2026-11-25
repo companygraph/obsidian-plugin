@@ -1,8 +1,8 @@
 // What is offered in one context. Schemas say what may be written, the last parsed graph says
 // which names exist, the file says what is already there. Nothing is offered that would not
 // resolve, and nothing is wrapped: a name is inserted plain (R3).
-import { sectionsOf } from "companygraph-meta-model/checks";
-import { IMAGE_FILE, rowScope } from "companygraph-meta-model/instance";
+import { sectionsOf } from "@companygraph/meta-model/checks";
+import { IMAGE_FILE, rowScope } from "@companygraph/meta-model/instance";
 import type { Context } from "./context.ts";
 import { frontmatterEnd } from "./context.ts";
 import { bare } from "./vocabulary.ts";

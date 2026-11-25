@@ -5,7 +5,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-const PACKAGE = "node_modules/companygraph-meta-model";
+const PACKAGE = "node_modules/@companygraph/meta-model";
 
 function filesUnder(root) {
   const files = {};
