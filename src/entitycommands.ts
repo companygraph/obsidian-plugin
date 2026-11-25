@@ -12,7 +12,7 @@ import { namedOf } from "./scope.ts";
 import { deletePlan, renamePlan } from "./refactor.ts";
 import type { Mention } from "./refactor.ts";
 import type { Named } from "./scope.ts";
-import { uuidv7 } from "companygraph-meta-model/ids";
+import { uuidv7 } from "@companygraph/meta-model/ids";
 import type { EditorView } from "@codemirror/view";
 import { freshIdChange, withFreshId } from "./freshid.ts";
 import { idOf } from "./idlock.ts";

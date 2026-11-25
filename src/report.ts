@@ -1,7 +1,7 @@
 // What a report of the instance's compliance with the meta-model says, once: the pane draws it
 // and Copy report writes it as text, and both read
 // it from here so that what is pasted elsewhere is what was on the screen. Pure.
-import { IMAGE_FILE } from "companygraph-meta-model/instance";
+import { IMAGE_FILE } from "@companygraph/meta-model/instance";
 import type { Located } from "./locate.ts";
 
 export interface Report {

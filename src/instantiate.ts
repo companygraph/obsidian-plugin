@@ -2,8 +2,8 @@
 // `upgrade`, called rather than rewritten. Its planner decides every file; this module reads what
 // the planner needs from the vault, hands it the release the plugin bundles, and carries out the
 // plan it returns. The disk is an interface so all of it is tested without Obsidian.
-import { initPlan, upgradePlan, stillNamingRoles, isInstancesOwn, SKILLS } from "companygraph-meta-model/plan";
-import { TYPES } from "companygraph-meta-model/checks";
+import { initPlan, upgradePlan, stillNamingRoles, isInstancesOwn, SKILLS } from "@companygraph/meta-model/plan";
+import { TYPES } from "@companygraph/meta-model/checks";
 
 // The few calls made on Obsidian's DataAdapter: paths relative to the vault, dot-folders included.
 export interface Disk {

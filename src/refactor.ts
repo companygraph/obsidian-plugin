@@ -4,8 +4,8 @@
 // it is written in, in a field, a table cell or a `###` heading of a section its schema declares
 // grouped. A name in prose is a fact and is left as written. Pure: the vault's files, the
 // vocabulary and the parsed names in, a plan out.
-import { TYPES, slug, typeOfPath } from "companygraph-meta-model/checks";
-import type { TypeEntry } from "companygraph-meta-model/checks";
+import { TYPES, slug, typeOfPath } from "@companygraph/meta-model/checks";
+import type { TypeEntry } from "@companygraph/meta-model/checks";
 import type { TypeVocabulary } from "./vocabulary.ts";
 import { referencesIn, resolveIn } from "./references.ts";
 import { refusedHere, refusedName } from "./names.ts";

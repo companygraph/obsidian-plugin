@@ -24,7 +24,7 @@ test("every bundled package is named with a licence and its own text", () => {
   for (const name of packages) assert.ok(written.includes(`${name}@`), `${name} is not in NOTICE`);
   // What the bundle carries today: markdownlint's tree, all MIT, and this family's own parser.
   assert.ok(packages.includes("markdownlint"));
-  assert.ok(packages.includes("companygraph-meta-model"));
+  assert.ok(packages.includes("@companygraph/meta-model"));
   // Nothing that only builds the bundle belongs here; it is not in what is shipped.
   for (const dev of ["esbuild", "typescript", "obsidian"]) assert.ok(!packages.includes(dev), dev);
 });

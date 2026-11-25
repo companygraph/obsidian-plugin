@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { checkInstance } from "companygraph-meta-model/checks";
-import { UUIDV7 } from "companygraph-meta-model/ids";
+import { checkInstance } from "@companygraph/meta-model/checks";
+import { UUIDV7 } from "@companygraph/meta-model/ids";
 import { schemasOf, typesOf } from "../src/model.ts";
 import { vocabularyOf } from "../src/vocabulary.ts";
 import { scaffoldOf, targetsFor } from "../src/scaffold.ts";

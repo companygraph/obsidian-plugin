@@ -19,7 +19,7 @@ const skip = available() ? false : "Obsidian is not installed here; set OBSIDIAN
 // is read from the two files rather than assumed away.
 const read = (file: string) => JSON.parse(fs.readFileSync(path.join(import.meta.dirname, "..", file), "utf8"));
 const PIN = read("test/fixtures/mental-model/.companygraph/manifest.json").tooling ===
-  read("node_modules/companygraph-meta-model/package.json").version ? "" : ", pin differs";
+  read("node_modules/@companygraph/meta-model/package.json").version ? "" : ", pin differs";
 
 describe("the compliance pane and what a failure marks", { skip }, () => {
   let session: Session;

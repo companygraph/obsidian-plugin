@@ -3,7 +3,7 @@
 // under them, since nothing held it.
 import { ItemView, Notice, setIcon } from "obsidian";
 import type { WorkspaceLeaf } from "obsidian";
-import { IMAGE_FILE } from "companygraph-meta-model/instance";
+import { IMAGE_FILE } from "@companygraph/meta-model/instance";
 import type CompanyGraphPlugin from "./main.ts";
 import { IDLE_TEXT, groupsOf, headline, noSchemaFor, reportText } from "./report.ts";
 import { openAt } from "./open.ts";

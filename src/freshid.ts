@@ -1,7 +1,7 @@
 // Give this page a fresh id (spec §8): the one way the plugin changes an id, on the author's word.
 // Where it is offered and what it writes are decided here; the command and its confirmation are
 // main.ts's and entitycommands.ts's. Pure.
-import { idFormatOf } from "companygraph-meta-model/ids";
+import { idFormatOf } from "@companygraph/meta-model/ids";
 import type { Identifier } from "./scaffold.ts";
 
 // Offered where the plugin may make an id, as the scaffold makes one: the type's schema declares

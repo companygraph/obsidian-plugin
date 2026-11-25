@@ -3,8 +3,8 @@
 // schema declares, resolved by its type and, for an owned type, within its owner. Both lists are
 // worked out here, from the vault's files and the last parse, so the pane and the section under a
 // note show one thing. Pure.
-import { typeOfPath } from "companygraph-meta-model/checks";
-import type { TypeEntry } from "companygraph-meta-model/checks";
+import { typeOfPath } from "@companygraph/meta-model/checks";
+import type { TypeEntry } from "@companygraph/meta-model/checks";
 import type { TypeVocabulary } from "./vocabulary.ts";
 import { referencesIn, resolveIn } from "./references.ts";
 import type { Named } from "./scope.ts";

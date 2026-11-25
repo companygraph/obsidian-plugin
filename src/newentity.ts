@@ -5,7 +5,7 @@
 // `model/identifier.md` as it stands when the file is written.
 import { FuzzySuggestModal, MarkdownView, Modal, Notice, Setting, TFile } from "obsidian";
 import type { App } from "obsidian";
-import type { TypeEntry } from "companygraph-meta-model/checks";
+import type { TypeEntry } from "@companygraph/meta-model/checks";
 import type { TypeVocabulary } from "./vocabulary.ts";
 import { refusedHere, refusedName } from "./names.ts";
 import type { Named } from "./scope.ts";

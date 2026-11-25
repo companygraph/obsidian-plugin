@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { schemasOf } from "../src/model.ts";
 import { vocabularyOf } from "../src/vocabulary.ts";
-import { ownerTypesOf } from "companygraph-meta-model/instance";
+import { ownerTypesOf } from "@companygraph/meta-model/instance";
 import { example, EXAMPLE, packed, PACKED } from "./helpers.ts";
 
 const vocabulary = vocabularyOf(schemasOf(example(), EXAMPLE));

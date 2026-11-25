@@ -1,6 +1,6 @@
 // The vault as the map the parser and the checks take. The only file here that reads anything.
 import type { App } from "obsidian";
-import { IMAGE_FILE } from "companygraph-meta-model/instance";
+import { IMAGE_FILE } from "@companygraph/meta-model/instance";
 import { readManifest } from "./manifest.ts";
 import type { InstanceManifest } from "./manifest.ts";
 import { concerns } from "./model.ts";

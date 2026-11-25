@@ -3,9 +3,9 @@
 // offers what the checks will accept, so there it offers that owner's names and no one else's.
 // Every other type is offered whole. What is owned by what is read from the package's own list
 // of types, never restated here. Pure.
-import { TYPES } from "companygraph-meta-model/checks";
-import type { TypeEntry } from "companygraph-meta-model/checks";
-import type { Graph } from "companygraph-meta-model/instance";
+import { TYPES } from "@companygraph/meta-model/checks";
+import type { TypeEntry } from "@companygraph/meta-model/checks";
+import type { Graph } from "@companygraph/meta-model/instance";
 
 // `id` is the parser's own id for the entity: since meta-model 0.65.0 the stable one its page
 // carries (R18), and its path where it carries none. `address` is where it sits, the path the

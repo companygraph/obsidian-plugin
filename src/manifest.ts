@@ -1,6 +1,6 @@
 // The instance's own manifest, and the two guards a checker keeps between its release and the
 // core an instance vendored. Pure: the caller reads the file and names the bundled release.
-import { isNewer } from "companygraph-meta-model/checks";
+import { isNewer } from "@companygraph/meta-model/checks";
 
 export interface InstanceManifest {
   tooling: string | null;

@@ -1,7 +1,7 @@
 // Where the cursor is, in the terms completion answers in. Pure: lines and a position in, a
 // context or null out. `start` is the column the typed text begins at, which is what a
 // candidate replaces.
-import { tableOf } from "companygraph-meta-model/checks";
+import { tableOf } from "@companygraph/meta-model/checks";
 import { rowOf, sectionAbove } from "./tables.ts";
 
 export type Context =

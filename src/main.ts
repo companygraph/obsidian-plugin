@@ -53,7 +53,7 @@ import { cliProfile } from "./cli.ts";
 import type { Profile } from "./cli.ts";
 import { MANIFEST, PIN, RULES, RULE_PATHS, changesOf, channelFor, columnAfter, formOfVault, formed, inForm } from "./form.ts";
 
-// The release of companygraph-meta-model this build bundles; esbuild.config.mjs defines it.
+// The release of @companygraph/meta-model this build bundles; esbuild.config.mjs defines it.
 declare const __CHECKER_VERSION__: string;
 // That release's core and Claude's skills, which the two instance commands write.
 declare const __RELEASE__: Release;

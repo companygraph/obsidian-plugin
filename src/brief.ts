@@ -5,7 +5,7 @@
 // sections or frontmatter table for the place, and its writing rules, those that name the place
 // first and the rest under the place each names first. Pure: a schema's text and a place in, a
 // brief out.
-import { blocksOf, sectionsOf, tableOf } from "companygraph-meta-model/checks";
+import { blocksOf, sectionsOf, tableOf } from "@companygraph/meta-model/checks";
 
 // A piece of a rule as a reader sees it: the schema writes a section as `## Why` and a field as
 // `decided`, and the pane shows each by its name, not by that syntax. A quoted example is kept

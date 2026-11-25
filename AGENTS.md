@@ -46,4 +46,4 @@ The tests run under Node's own type stripping, so a source file uses only syntax
 
 ## The pin
 
-`companygraph-meta-model` is pinned by tag in `package.json`, and the pin is editorial: it moves in a commit that says why. Move it by installing the package by name, `npm install companygraph-meta-model@github:companygraph/meta-model#<tag>`, never by editing the line, because an edited line leaves the lockfile on the old release and everything still builds. `test/pin.test.ts` fails when the two disagree. Do not install `@codemirror/state` or `@codemirror/view` by name: `obsidian` pins exact versions of both as peers.
+`@companygraph/meta-model` is pinned at an exact version from npm in `package.json`, and the pin is editorial: it moves in a commit that says why. Move it by installing the package by name, `npm install --save-exact @companygraph/meta-model@<version>`, never by editing the line, because an edited line leaves the lockfile on the old release and everything still builds. `test/pin.test.ts` fails when the two disagree. Do not install `@codemirror/state` or `@codemirror/view` by name: `obsidian` pins exact versions of both as peers.

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { checkInstance } from "companygraph-meta-model/checks";
+import { checkInstance } from "@companygraph/meta-model/checks";
 import { buildModel, schemasOf, typesOf } from "../src/model.ts";
 import type { Files, Layout } from "../src/model.ts";
 import { vocabularyOf } from "../src/vocabulary.ts";

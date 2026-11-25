@@ -11,11 +11,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { PLUGINS, download } from "companygraph-meta-model/obsidian";
+import { PLUGINS, download } from "@companygraph/meta-model/obsidian";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
-const [, metaRepo, tag] = pkg.dependencies["companygraph-meta-model"].match(/^github:([^#]+)#(.+)$/);
+// The pin is an exact npm version, and the release it names is the tag of the same version.
+const metaRepo = "companygraph/meta-model";
+const tag = `v${pkg.dependencies["@companygraph/meta-model"].match(/^\d+\.\d+\.\d+$/)[0]}`;
 
 // The instance commit is test data and lives here.
 const INSTANCE_COMMIT = "654fcb696145832bc909b802379a50c071a59811";
@@ -31,7 +33,7 @@ const FIXTURES = [
 ];
 
 // The package's command line, installed beside this script's dependencies.
-const CLI = path.join(root, "node_modules", "companygraph-meta-model", "bin", "companygraph.mjs");
+const CLI = path.join(root, "node_modules", "@companygraph/meta-model", "bin", "companygraph.mjs");
 
 for (const f of FIXTURES) {
   const target = path.join(root, "test", "fixtures", f.dir);
